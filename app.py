@@ -128,27 +128,37 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
-    # --- CSS HACK PARA ANIMAÇÃO BARRA POR BARRA (ESTILO LOVABLE) ---
+    # --- CSS HACK REFINADO (MAIS LENTO E SUAVE) ---
     st.markdown("""
         <style>
         @keyframes barraSobe {
-            from { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
-            to { opacity: 1; transform: scaleY(1); transform-origin: bottom; }
+            from { 
+                opacity: 0; 
+                transform: scaleY(0); 
+                transform-origin: bottom; 
+            }
+            to { 
+                opacity: 1; 
+                transform: scaleY(1); 
+                transform-origin: bottom; 
+            }
         }
-        /* Seleciona as barras do Plotly e aplica animação sequencial */
+        
         .js-plotly-plot .point path {
-            animation: barraSobe 0.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+            animation: barraSobe 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
             opacity: 0;
         }
-        /* Delays para as primeiras 10 barras (efeito cascata) */
-        .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.1s; }
-        .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.2s; }
-        .js-plotly-plot .point path:nth-child(3) { animation-delay: 0.3s; }
-        .js-plotly-plot .point path:nth-child(4) { animation-delay: 0.4s; }
-        .js-plotly-plot .point path:nth-child(5) { animation-delay: 0.5s; }
-        .js-plotly-plot .point path:nth-child(6) { animation-delay: 0.6s; }
-        .js-plotly-plot .point path:nth-child(7) { animation-delay: 0.7s; }
-        .js-plotly-plot .point path:nth-child(8) { animation-delay: 0.8s; }
+
+        .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.15s; }
+        .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.30s; }
+        .js-plotly-plot .point path:nth-child(3) { animation-delay: 0.45s; }
+        .js-plotly-plot .point path:nth-child(4) { animation-delay: 0.60s; }
+        .js-plotly-plot .point path:nth-child(5) { animation-delay: 0.75s; }
+        .js-plotly-plot .point path:nth-child(6) { animation-delay: 0.90s; }
+        .js-plotly-plot .point path:nth-child(7) { animation-delay: 1.05s; }
+        .js-plotly-plot .point path:nth-child(8) { animation-delay: 1.20s; }
+        .js-plotly-plot .point path:nth-child(9) { animation-delay: 1.35s; }
+        .js-plotly-plot .point path:nth-child(10) { animation-delay: 1.50s; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -173,7 +183,6 @@ if df_raw is not None:
             ele = st.session_state['elemento_ativo']
             df_detalhe = df_busca[df_busca['Elemento'] == ele].sort_values('Orçado', ascending=False)
             
-            # Título limpo
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
             fig_detalhe = px.bar(
@@ -185,12 +194,13 @@ if df_raw is not None:
                 hover_name='Elemento'
             )
 
-            # Mantendo seu design da foto
+            # --- AJUSTE PARA O VALOR NÃO BUGAR ---
             fig_detalhe.update_traces(
                 hovertemplate="<b>%{hovertext}</b><extra></extra>",
                 texttemplate='R$ %{text:,.2f}', 
                 textposition='outside',
-                cliponaxis=False,
+                textangle=-90,          # Força o texto a ficar vertical para não encavalar
+                cliponaxis=False,       # Permite que o texto "saia" da área do gráfico sem sumir
                 marker_line_width=0,
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
@@ -199,14 +209,13 @@ if df_raw is not None:
                 xaxis_type='category',
                 yaxis_title="Valor Orçado (R$)",
                 xaxis_title="Número da Ficha",
-                height=550,
-                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.25]),
-                margin=dict(t=50, b=50, l=50, r=50),
+                height=600,             # Aumentei levemente a altura para caber o texto vertical
+                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.35]), # Mais espaço no topo
+                margin=dict(t=100, b=50, l=50, r=50), # Margem superior maior para o texto vertical
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)'
             )
 
-            # Renderiza o gráfico. O CSS acima vai cuidar de animar as barras uma a uma.
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None)
             
             if st.button("⬅️ Voltar para Visão Geral"):
