@@ -128,12 +128,14 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
+    # Limpeza e filtragem
     df_busca = df_raw.copy()
     if busca:
         busca_limpa = remover_acentos(busca)
         mask = df_busca.apply(lambda row: busca_limpa in remover_acentos(row.values), axis=1)
         df_busca = df_busca[mask]
 
+    # Tratamento para evitar erro de float/str e ordenar
     elementos_disponiveis = sorted([str(x) for x in df_busca['Elemento'].dropna().unique()])
 
     if elementos_disponiveis:
@@ -147,50 +149,64 @@ if df_raw is not None:
 
         if 'elemento_ativo' in st.session_state:
             ele = st.session_state['elemento_ativo']
-            df_detalhe = df_busca[df_busca['Elemento'] == ele].sort_values('Orçado', ascending=False)
+            df_detalhe = df_busca[df_busca['Elemento'] == ele].sort_values('Orçado', ascending=False).copy()
             
-            # ALTERAÇÃO 2: Título sem os asteriscos (**)
+            # Título limpo (sem asteriscos)
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
-            # --- CRIAÇÃO DO GRÁFICO COM ANIMAÇÃO FORÇADA ---
-            # O segredo da animação no Streamlit é o barmode e o tempo de transição
+            # --- CONFIGURAÇÃO DO GRÁFICO ---
+            # O 'animation_frame' ajuda o motor do Plotly a entender que existe movimento
+            df_detalhe['Visualizar'] = "Geral" 
+
             fig_detalhe = px.bar(
                 df_detalhe,
                 x='Ficha',
                 y='Orçado',
                 text='Orçado',
                 color_discrete_sequence=["#00CC96"],
-                # ALTERAÇÃO 1: Mostrar apenas o Elemento no hover
-                hover_name='Elemento',
-                hover_data={'Ficha':False, 'Orçado':False} 
+                hover_name='Elemento', # Mostra o elemento no topo do hover
+                custom_data=['Elemento'],
+                animation_frame='Visualizar' 
             )
 
+            # Ajuste de Hover e Design (Igual à foto que você mandou)
             fig_detalhe.update_traces(
+                hovertemplate="<b>%{hovertext}</b><extra></extra>", # Mostra APENAS o elemento
                 texttemplate='R$ %{text:,.2f}', 
                 textposition='outside',
                 cliponaxis=False,
-                marker_line_width=0,
-                # Configuração da animação nas barras
-                error_y=dict(thickness=0),
-                marker=dict(opacity=0.9)
+                marker_line_width=0
             )
+
+            # Proporcionalidade baseada na quantidade de dados
+            qtd_fichas = len(df_detalhe)
+            largura_barra = 0.8 if qtd_fichas < 12 else 0.5
 
             fig_detalhe.update_layout(
                 xaxis_type='category',
                 yaxis_title="Valor Orçado (R$)",
                 xaxis_title="Número da Ficha",
                 height=550,
-                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.15]), 
-                margin=dict(t=80, b=50, l=50, r=50),
+                # Folga no topo para o valor não sumir
+                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.25]),
+                margin=dict(t=50, b=50, l=50, r=50),
+                bargap=0.2,
                 
-                # ALTERAÇÃO 3: Configuração de Animação Fluida
+                # --- MOTOR DE ANIMAÇÃO ---
                 transition={
-                    'duration': 1000,
+                    'duration': 800,
                     'easing': 'cubic-in-out'
                 }
             )
 
-            # Para a animação funcionar no carregamento, usamos o parâmetro 'theme' nulo
+            # Remove os botões de "Play" e o Slider que o animation_frame cria automaticamente
+            fig_detalhe.layout.updatemenus = []
+            fig_detalhe.layout.sliders = []
+            
+            # Força as barras a terem a largura correta
+            fig_detalhe.update_traces(width=largura_barra)
+
+            # Renderiza sem o tema do Streamlit para não bloquear a animação
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None)
             
             if st.button("⬅️ Voltar para Visão Geral"):
