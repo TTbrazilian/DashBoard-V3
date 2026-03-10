@@ -153,9 +153,16 @@ if df_raw is not None:
     """, unsafe_allow_html=True)
 
     df_busca = df_raw.copy()
+    
+    # --- LÓGICA DE PESQUISA 100% (ACENTOS, CASE E COLUNAS) ---
     if busca:
-        busca_limpa = remover_acentos(busca)
-        mask = df_busca.apply(lambda row: busca_limpa in remover_acentos(row.values), axis=1)
+        termo_busca = remover_acentos(busca.lower())
+        
+        # Filtramos apenas nas colunas que fazem sentido para a pesquisa (Elemento, Categoria, Ficha)
+        # Isso evita que 'MAC' puxe uma 'Farmácia' por causa de um texto aleatório em outra coluna
+        mask = df_busca.apply(lambda row: termo_busca in remover_acentos(str(row['Elemento']).lower()) or 
+                                         termo_busca in remover_acentos(str(row['Categoria']).lower()) or 
+                                         termo_busca in str(row['Ficha']).lower(), axis=1)
         df_busca = df_busca[mask]
 
     elementos_disponiveis = sorted([str(x) for x in df_busca['Elemento'].dropna().unique()])
@@ -175,17 +182,15 @@ if df_raw is not None:
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
-            # --- CONFIGURAÇÃO DO GRÁFICO ---
             fig_detalhe = px.bar(
                 df_detalhe,
                 x='Ficha',
                 y='Orçado',
                 text='Orçado',
                 color_discrete_sequence=["#00CC96"],
-                custom_data=['Categoria'] # Adicionando a Categoria para o hover
+                custom_data=['Categoria']
             )
 
-            # --- AJUSTE DE HOVER: CATEGORIA + VALOR ---
             fig_detalhe.update_traces(
                 hovertemplate="<b>Categoria:</b> %{customdata[0]}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
                 texttemplate='R$ %{text:,.2f}', 
@@ -214,7 +219,7 @@ if df_raw is not None:
                 del st.session_state['elemento_ativo']
                 st.rerun()
     else:
-        st.info("Nenhum elemento encontrado.")
+        st.info("Nenhum resultado encontrado para a pesquisa.")
     # --- ANÁLISE 4: TABELA DETALHADA ---
     st.subheader("📋 Detalhamento das Fichas (Estilo Relatório)")
     df_tab = df[['Categoria', 'Ficha', 'Elemento', 'Fonte', 'Orçado', 'Saldo']].copy()
