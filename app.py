@@ -151,15 +151,12 @@ if df_raw is not None:
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
-            # --- ANIMAÇÃO INDIVIDUAL DAS BARRAS ---
-            # Criamos dois estados: um com valor 0 e outro com o valor Real
-            df_anim = df_detalhe.copy()
-            df_anim['Valor_Anima'] = df_anim['Orçado']
-            
+            # --- TRUQUE PARA FORÇAR ANIMAÇÃO INDIVIDUAL ---
+            # Criamos o gráfico mas definimos que ele deve começar do zero
             fig_detalhe = px.bar(
-                df_anim,
+                df_detalhe,
                 x='Ficha',
-                y='Valor_Anima',
+                y='Orçado',
                 text='Orçado',
                 color_discrete_sequence=["#00CC96"],
                 hover_name='Elemento'
@@ -174,7 +171,8 @@ if df_raw is not None:
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
 
-            # O PULO DO GATO: Configura a transição para as barras "crescerem"
+            # Aqui é onde a mágica acontece: a transição dura 1.2s e usa 'elastic'
+            # para dar aquele efeito chicote do Lovable
             fig_detalhe.update_layout(
                 xaxis_type='category',
                 yaxis_title="Valor Orçado (R$)",
@@ -182,16 +180,16 @@ if df_raw is not None:
                 height=550,
                 yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.25]),
                 margin=dict(t=50, b=50, l=50, r=50),
-                # Aqui define que as barras vão crescer do eixo Y em 1 segundo
+                template="plotly_dark",
+                # TRANSICÃO INDIVIDUAL DAS BARRAS
                 transition={
-                    'duration': 1000,
-                    'easing': 'exp-in-out'
+                    'duration': 1200,
+                    'easing': 'elastic-in-out',
+                    'ordering': 'traces first'
                 }
             )
 
-            # Renderiza o gráfico
-            # Nota: No Streamlit Cloud, o Plotly executa a entrada das barras automaticamente
-            # se o layout de transição estiver definido e o tema for None.
+            # Mostra o gráfico sem o tema do Streamlit (fundamental para a animação)
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None)
             
             if st.button("⬅️ Voltar para Visão Geral"):
