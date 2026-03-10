@@ -128,6 +128,25 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
+    # --- APENAS A INJEÇÃO DE CSS PARA A ANIMAÇÃO ESTILO LOVABLE ---
+    st.markdown("""
+        <style>
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .stPlotlyChart {
+            animation: slideUpFade 0.8s ease-out forwards;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     df_busca = df_raw.copy()
     if busca:
         busca_limpa = remover_acentos(busca)
@@ -149,30 +168,25 @@ if df_raw is not None:
             ele = st.session_state['elemento_ativo']
             df_detalhe = df_busca[df_busca['Elemento'] == ele].sort_values('Orçado', ascending=False)
             
-            # ALTERAÇÃO 2: Título sem os asteriscos (**)
+            # Título limpo (conforme solicitado anteriormente)
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
-            # --- CRIAÇÃO DO GRÁFICO COM ANIMAÇÃO FORÇADA ---
-            # O segredo da animação no Streamlit é o barmode e o tempo de transição
             fig_detalhe = px.bar(
                 df_detalhe,
                 x='Ficha',
                 y='Orçado',
                 text='Orçado',
                 color_discrete_sequence=["#00CC96"],
-                # ALTERAÇÃO 1: Mostrar apenas o Elemento no hover
-                hover_name='Elemento',
-                hover_data={'Ficha':False, 'Orçado':False} 
+                hover_name='Elemento' # Mantendo apenas o elemento no hover
             )
 
             fig_detalhe.update_traces(
+                hovertemplate="<b>%{hovertext}</b><extra></extra>", # Hover limpo
                 texttemplate='R$ %{text:,.2f}', 
                 textposition='outside',
                 cliponaxis=False,
                 marker_line_width=0,
-                # Configuração da animação nas barras
-                error_y=dict(thickness=0),
-                marker=dict(opacity=0.9)
+                width=0.8 if len(df_detalhe) < 12 else 0.5 # Proporção mantida
             )
 
             fig_detalhe.update_layout(
@@ -180,17 +194,11 @@ if df_raw is not None:
                 yaxis_title="Valor Orçado (R$)",
                 xaxis_title="Número da Ficha",
                 height=550,
-                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.15]), 
-                margin=dict(t=80, b=50, l=50, r=50),
-                
-                # ALTERAÇÃO 3: Configuração de Animação Fluida
-                transition={
-                    'duration': 1000,
-                    'easing': 'cubic-in-out'
-                }
+                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.25]),
+                margin=dict(t=50, b=50, l=50, r=50)
             )
 
-            # Para a animação funcionar no carregamento, usamos o parâmetro 'theme' nulo
+            # Renderiza o gráfico com a animação CSS aplicada
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None)
             
             if st.button("⬅️ Voltar para Visão Geral"):
