@@ -23,7 +23,7 @@ def quebrar_texto(texto, limite=15): # Limite menor para garantir a quebra
             linhas.append(linha_atual.strip())
             linha_atual = palavra + " "
     linhas.append(linha_atual.strip())
-    # Para o GRÁFICO usamos \n, para a TABELA vamos usar uma lógica diferente
+    
     return "\n".join(linhas)
 
 # --- FUNÇÕES DE LIMPEZA E FORMATAÇÃO ---
@@ -182,13 +182,12 @@ if df_raw is not None:
                 y='Orçado',
                 text='Orçado',
                 color_discrete_sequence=["#00CC96"],
-                hover_name='Elemento'
+                custom_data=['Categoria'] # Adicionando a Categoria para o hover
             )
 
-            # --- AJUSTE DE HOVER COM PADRÃO BRASILEIRO ---
+            # --- AJUSTE DE HOVER: CATEGORIA + VALOR ---
             fig_detalhe.update_traces(
-                # customdata ajuda a passar valores formatados para o hover
-                hovertemplate="<b>%{hovertext}</b><br>Valor: R$ %{y:,.2f}<extra></extra>",
+                hovertemplate="<b>Categoria:</b> %{customdata[0]}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
                 texttemplate='R$ %{text:,.2f}', 
                 textposition='outside',
                 cliponaxis=False,
@@ -202,12 +201,10 @@ if df_raw is not None:
                 yaxis_title="Valor Orçado (R$)",
                 xaxis_title="Número da Ficha",
                 height=550,
-                # Margem e range para o valor horizontal respirar
                 yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
                 margin=dict(t=80, b=50, l=50, r=50),
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                # Garante que o separador seja PT-BR (ponto para milhar, vírgula para decimal)
                 separators=',.' 
             )
 
