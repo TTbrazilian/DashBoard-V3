@@ -128,6 +128,30 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
+    # --- CSS HACK PARA ANIMAÇÃO BARRA POR BARRA (ESTILO LOVABLE) ---
+    st.markdown("""
+        <style>
+        @keyframes barraSobe {
+            from { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
+            to { opacity: 1; transform: scaleY(1); transform-origin: bottom; }
+        }
+        /* Seleciona as barras do Plotly e aplica animação sequencial */
+        .js-plotly-plot .point path {
+            animation: barraSobe 0.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+            opacity: 0;
+        }
+        /* Delays para as primeiras 10 barras (efeito cascata) */
+        .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.1s; }
+        .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.2s; }
+        .js-plotly-plot .point path:nth-child(3) { animation-delay: 0.3s; }
+        .js-plotly-plot .point path:nth-child(4) { animation-delay: 0.4s; }
+        .js-plotly-plot .point path:nth-child(5) { animation-delay: 0.5s; }
+        .js-plotly-plot .point path:nth-child(6) { animation-delay: 0.6s; }
+        .js-plotly-plot .point path:nth-child(7) { animation-delay: 0.7s; }
+        .js-plotly-plot .point path:nth-child(8) { animation-delay: 0.8s; }
+        </style>
+    """, unsafe_allow_html=True)
+
     df_busca = df_raw.copy()
     if busca:
         busca_limpa = remover_acentos(busca)
@@ -149,10 +173,9 @@ if df_raw is not None:
             ele = st.session_state['elemento_ativo']
             df_detalhe = df_busca[df_busca['Elemento'] == ele].sort_values('Orçado', ascending=False)
             
+            # Título limpo
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
-            # --- TRUQUE PARA FORÇAR ANIMAÇÃO INDIVIDUAL ---
-            # Criamos o gráfico mas definimos que ele deve começar do zero
             fig_detalhe = px.bar(
                 df_detalhe,
                 x='Ficha',
@@ -162,6 +185,7 @@ if df_raw is not None:
                 hover_name='Elemento'
             )
 
+            # Mantendo seu design da foto
             fig_detalhe.update_traces(
                 hovertemplate="<b>%{hovertext}</b><extra></extra>",
                 texttemplate='R$ %{text:,.2f}', 
@@ -171,8 +195,6 @@ if df_raw is not None:
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
 
-            # Aqui é onde a mágica acontece: a transição dura 1.2s e usa 'elastic'
-            # para dar aquele efeito chicote do Lovable
             fig_detalhe.update_layout(
                 xaxis_type='category',
                 yaxis_title="Valor Orçado (R$)",
@@ -180,16 +202,11 @@ if df_raw is not None:
                 height=550,
                 yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.25]),
                 margin=dict(t=50, b=50, l=50, r=50),
-                template="plotly_dark",
-                # TRANSICÃO INDIVIDUAL DAS BARRAS
-                transition={
-                    'duration': 1200,
-                    'easing': 'elastic-in-out',
-                    'ordering': 'traces first'
-                }
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
             )
 
-            # Mostra o gráfico sem o tema do Streamlit (fundamental para a animação)
+            # Renderiza o gráfico. O CSS acima vai cuidar de animar as barras uma a uma.
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None)
             
             if st.button("⬅️ Voltar para Visão Geral"):
