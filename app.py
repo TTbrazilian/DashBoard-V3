@@ -128,27 +128,17 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
-    # --- CSS HACK REFINADO (MAIS LENTO E SUAVE) ---
+    # --- CSS HACK MANTIDO (ANIMAÇÃO SEQUENCIAL) ---
     st.markdown("""
         <style>
         @keyframes barraSobe {
-            from { 
-                opacity: 0; 
-                transform: scaleY(0); 
-                transform-origin: bottom; 
-            }
-            to { 
-                opacity: 1; 
-                transform: scaleY(1); 
-                transform-origin: bottom; 
-            }
+            from { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
+            to { opacity: 1; transform: scaleY(1); transform-origin: bottom; }
         }
-        
         .js-plotly-plot .point path {
             animation: barraSobe 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
             opacity: 0;
         }
-
         .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.15s; }
         .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.30s; }
         .js-plotly-plot .point path:nth-child(3) { animation-delay: 0.45s; }
@@ -194,13 +184,13 @@ if df_raw is not None:
                 hover_name='Elemento'
             )
 
-            # --- AJUSTE PARA O VALOR NÃO BUGAR ---
+            # --- AJUSTE PARA CORRIGIR O BUG SEM GIRAR O TEXTO ---
             fig_detalhe.update_traces(
                 hovertemplate="<b>%{hovertext}</b><extra></extra>",
                 texttemplate='R$ %{text:,.2f}', 
                 textposition='outside',
-                textangle=-90,          # Força o texto a ficar vertical para não encavalar
-                cliponaxis=False,       # Permite que o texto "saia" da área do gráfico sem sumir
+                cliponaxis=False,       # Fundamental: impede que o texto suma ao chegar no limite
+                textfont_size=12,       # Tamanho fixo para evitar que ele diminua sozinho
                 marker_line_width=0,
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
@@ -209,11 +199,18 @@ if df_raw is not None:
                 xaxis_type='category',
                 yaxis_title="Valor Orçado (R$)",
                 xaxis_title="Número da Ficha",
-                height=600,             # Aumentei levemente a altura para caber o texto vertical
-                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.35]), # Mais espaço no topo
-                margin=dict(t=100, b=50, l=50, r=50), # Margem superior maior para o texto vertical
+                height=550,
+                # AUMENTO DO TETO: Damos 25% de folga real no topo para o texto caber
+                yaxis=dict(
+                    range=[0, df_detalhe['Orçado'].max() * 1.25],
+                    showgrid=True,
+                    zeroline=False
+                ),
+                margin=dict(t=80, b=50, l=50, r=50), # Aumentamos o 't' (top) para o texto respirar
                 paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
+                plot_bgcolor='rgba(0,0,0,0)',
+                uniformtext_minsize=10, # Garante que o texto não fique minúsculo
+                uniformtext_mode='hide'  # Esconde apenas se realmente não couber lateralmente
             )
 
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None)
