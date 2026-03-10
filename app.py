@@ -175,6 +175,7 @@ if df_raw is not None:
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
+            # --- CONFIGURAÇÃO DO GRÁFICO ---
             fig_detalhe = px.bar(
                 df_detalhe,
                 x='Ficha',
@@ -184,13 +185,14 @@ if df_raw is not None:
                 hover_name='Elemento'
             )
 
-            # --- AJUSTE PARA CORRIGIR O BUG SEM GIRAR O TEXTO ---
+            # --- AJUSTE DE HOVER COM PADRÃO BRASILEIRO ---
             fig_detalhe.update_traces(
-                hovertemplate="<b>%{hovertext}</b><extra></extra>",
+                # customdata ajuda a passar valores formatados para o hover
+                hovertemplate="<b>%{hovertext}</b><br>Valor: R$ %{y:,.2f}<extra></extra>",
                 texttemplate='R$ %{text:,.2f}', 
                 textposition='outside',
-                cliponaxis=False,       # Fundamental: impede que o texto suma ao chegar no limite
-                textfont_size=12,       # Tamanho fixo para evitar que ele diminua sozinho
+                cliponaxis=False,
+                textfont_size=12,
                 marker_line_width=0,
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
@@ -200,17 +202,13 @@ if df_raw is not None:
                 yaxis_title="Valor Orçado (R$)",
                 xaxis_title="Número da Ficha",
                 height=550,
-                # AUMENTO DO TETO: Damos 25% de folga real no topo para o texto caber
-                yaxis=dict(
-                    range=[0, df_detalhe['Orçado'].max() * 1.25],
-                    showgrid=True,
-                    zeroline=False
-                ),
-                margin=dict(t=80, b=50, l=50, r=50), # Aumentamos o 't' (top) para o texto respirar
+                # Margem e range para o valor horizontal respirar
+                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
+                margin=dict(t=80, b=50, l=50, r=50),
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                uniformtext_minsize=10, # Garante que o texto não fique minúsculo
-                uniformtext_mode='hide'  # Esconde apenas se realmente não couber lateralmente
+                # Garante que o separador seja PT-BR (ponto para milhar, vírgula para decimal)
+                separators=',.' 
             )
 
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None)
