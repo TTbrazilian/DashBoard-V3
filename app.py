@@ -128,25 +128,6 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
-    # --- APENAS A INJEÇÃO DE CSS PARA A ANIMAÇÃO ESTILO LOVABLE ---
-    st.markdown("""
-        <style>
-        @keyframes slideUpFade {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        .stPlotlyChart {
-            animation: slideUpFade 0.8s ease-out forwards;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     df_busca = df_raw.copy()
     if busca:
         busca_limpa = remover_acentos(busca)
@@ -168,37 +149,49 @@ if df_raw is not None:
             ele = st.session_state['elemento_ativo']
             df_detalhe = df_busca[df_busca['Elemento'] == ele].sort_values('Orçado', ascending=False)
             
-            # Título limpo (conforme solicitado anteriormente)
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
+            # --- ANIMAÇÃO INDIVIDUAL DAS BARRAS ---
+            # Criamos dois estados: um com valor 0 e outro com o valor Real
+            df_anim = df_detalhe.copy()
+            df_anim['Valor_Anima'] = df_anim['Orçado']
+            
             fig_detalhe = px.bar(
-                df_detalhe,
+                df_anim,
                 x='Ficha',
-                y='Orçado',
+                y='Valor_Anima',
                 text='Orçado',
                 color_discrete_sequence=["#00CC96"],
-                hover_name='Elemento' # Mantendo apenas o elemento no hover
+                hover_name='Elemento'
             )
 
             fig_detalhe.update_traces(
-                hovertemplate="<b>%{hovertext}</b><extra></extra>", # Hover limpo
+                hovertemplate="<b>%{hovertext}</b><extra></extra>",
                 texttemplate='R$ %{text:,.2f}', 
                 textposition='outside',
                 cliponaxis=False,
                 marker_line_width=0,
-                width=0.8 if len(df_detalhe) < 12 else 0.5 # Proporção mantida
+                width=0.8 if len(df_detalhe) < 12 else 0.5
             )
 
+            # O PULO DO GATO: Configura a transição para as barras "crescerem"
             fig_detalhe.update_layout(
                 xaxis_type='category',
                 yaxis_title="Valor Orçado (R$)",
                 xaxis_title="Número da Ficha",
                 height=550,
                 yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.25]),
-                margin=dict(t=50, b=50, l=50, r=50)
+                margin=dict(t=50, b=50, l=50, r=50),
+                # Aqui define que as barras vão crescer do eixo Y em 1 segundo
+                transition={
+                    'duration': 1000,
+                    'easing': 'exp-in-out'
+                }
             )
 
-            # Renderiza o gráfico com a animação CSS aplicada
+            # Renderiza o gráfico
+            # Nota: No Streamlit Cloud, o Plotly executa a entrada das barras automaticamente
+            # se o layout de transição estiver definido e o tema for None.
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None)
             
             if st.button("⬅️ Voltar para Visão Geral"):
