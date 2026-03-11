@@ -6,6 +6,25 @@ import unicodedata
 
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
+# --- CONFIGURAÇÃO DE TRADUÇÃO DO PLOTLY ---
+CONFIG_PT = {
+    'locale': 'pt-BR',
+    'displaylogo': False,
+    'modeBarButtonsToolTipNames': {
+        'toImage': 'Baixar como PNG',
+        'zoom2d': 'Zoom',
+        'pan2d': 'Mover',
+        'select2d': 'Seleção retangular',
+        'lasso2d': 'Seleção laço',
+        'zoomIn2d': 'Aproximar',
+        'zoomOut2d': 'Afastar',
+        'autoScale2d': 'Ajuste automático',
+        'resetScale2d': 'Redefinir escala',
+        'hoverClosestCartesian': 'Mostrar mais próximo',
+        'hoverCompareCartesian': 'Comparar dados'
+    }
+}
+
 # --- FUNÇÕES UTILITÁRIAS ---
 def remover_acentos(texto):
     if not texto: return ""
@@ -32,7 +51,6 @@ def load_data():
     df = pd.read_csv(caminho, sep=None, engine='python', encoding='utf-8', header=1)
     df.columns = [str(c).strip() for c in df.columns]
     
-    # Normalização da Ficha para Texto
     if 'Ficha' in df.columns:
         df['Ficha'] = df['Ficha'].astype(str).str.replace('.0', '', regex=False).str.strip()
 
@@ -49,11 +67,9 @@ if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
     busca = st.sidebar.text_input("Filtrar Fichas/Categorias:")
 
-    # --- FILTRO MESTRE (RIGOR TOTAL) ---
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
-        # Filtra apenas se bater EXATAMENTE com Categoria ou Ficha
         mask = (
             df_filtrado_global['Categoria'].apply(remover_acentos) == termo
         ) | (
@@ -85,7 +101,7 @@ if df_raw is not None:
     df_mensal = pd.DataFrame(mensal_dados)
     fig_evolucao = px.line(df_mensal, x='Mês', y='Valor', markers=True, color_discrete_sequence=["#00CC96"])
     fig_evolucao.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f', separators=',.')
-    st.plotly_chart(fig_evolucao, use_container_width=True)
+    st.plotly_chart(fig_evolucao, use_container_width=True, config=CONFIG_PT)
 
     # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
     st.markdown("---")
@@ -126,7 +142,7 @@ if df_raw is not None:
             fig_detalhe.update_layout(xaxis_type='category', height=550, separators=',.',
                                       yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
                                       margin=dict(t=80, b=50, l=50, r=50))
-            st.plotly_chart(fig_detalhe, use_container_width=True, theme=None)
+            st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
             
             if st.button("⬅️ Voltar para Visão Geral"):
                 del st.session_state['elemento_ativo']
