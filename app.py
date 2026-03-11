@@ -50,27 +50,27 @@ def load_data():
             df[col] = df[col].apply(limpar_valor)
     return df
 
-# --- CARREGAMENTO E FILTRAGEM GLOBAL ---
+# --- CARREGAMENTO E FILTRAGEM GLOBAL (RIGOR 100%) ---
 df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
     busca = st.sidebar.text_input("Filtrar Fichas/Categorias:")
 
-    # REGRA DE OURO: RIGOR TOTAL NO FILTRO GLOBAL
+    # FILTRO MESTRE: Só olha para Elemento, Categoria e Ficha
     df_filtrado_global = df_raw.copy()
     if busca:
-        termo = remover_acentos(busca.lower())
+        termo = remover_acentos(busca)
         mask = df_filtrado_global.apply(lambda row: 
-            termo in remover_acentos(str(row['Elemento']).lower()) or 
-            termo in remover_acentos(str(row['Categoria']).lower()) or 
-            termo in str(row['Ficha']).lower(), axis=1)
+            termo in remover_acentos(str(row.get('Elemento', ''))) or 
+            termo in remover_acentos(str(row.get('Categoria', ''))) or 
+            termo in str(row.get('Ficha', '')).lower(), axis=1)
         df_filtrado_global = df_filtrado_global[mask]
 
     st.title("📊 Bom Jesus da Penha - Saúde")
     st.markdown("---")
 
-    # --- KPIs NO TOPO ---
+    # --- KPIs ---
     orcado_total = df_filtrado_global['Orçado'].sum()
     saldo_total = df_filtrado_global['Saldo'].sum()
     executado = orcado_total - saldo_total
@@ -82,36 +82,26 @@ if df_raw is not None:
     with c3: st.metric("Executado (Liquidado)", formar_real(executado))
     with c4: st.metric("% de Execução", f"{perc_exec:.2f}%".replace('.', ','))
 
-    # --- ANÁLISE 2: EVOLUÇÃO MENSAL ---
+    # --- ANÁLISE 2: EVOLUÇÃO ---
     st.subheader("📈 Evolução Mensal da Execução")
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho']
     mensal_dados = [{"Mês": m, "Valor": df_filtrado_global[m].sum()} for m in meses if m in df_filtrado_global.columns]
     df_mensal = pd.DataFrame(mensal_dados)
-    
-    fig_evolucao = px.line(df_mensal, x='Mês', y='Valor', markers=True, 
-                           line_shape="spline", color_discrete_sequence=["#00CC96"])
+    fig_evolucao = px.line(df_mensal, x='Mês', y='Valor', markers=True, color_discrete_sequence=["#00CC96"])
     fig_evolucao.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f', separators=',.')
     st.plotly_chart(fig_evolucao, use_container_width=True)
 
-    # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO (BOTÕES + ANIMAÇÃO) ---
+    # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
-    st.markdown("""
-        <style>
-        @keyframes barraSobe {
-            from { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
-            to { opacity: 1; transform: scaleY(1); transform-origin: bottom; }
-        }
+    # CSS Animação
+    st.markdown("""<style>
+        @keyframes barraSobe { from { opacity: 0; transform: scaleY(0); transform-origin: bottom; } to { opacity: 1; transform: scaleY(1); transform-origin: bottom; } }
         .js-plotly-plot .point path { animation: barraSobe 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
-        .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.15s; }
-        .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.30s; }
-        .js-plotly-plot .point path:nth-child(3) { animation-delay: 0.45s; }
-        .js-plotly-plot .point path:nth-child(4) { animation-delay: 0.60s; }
-        .js-plotly-plot .point path:nth-child(5) { animation-delay: 0.75s; }
-        .js-plotly-plot .point path:nth-child(6) { animation-delay: 0.90s; }
-        </style>
-    """, unsafe_allow_html=True)
+        .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.1s; }
+        .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.2s; }
+    </style>""", unsafe_allow_html=True)
 
     elementos_disponiveis = sorted([str(x) for x in df_filtrado_global['Elemento'].dropna().unique()])
 
@@ -128,11 +118,17 @@ if df_raw is not None:
             df_detalhe = df_filtrado_global[df_filtrado_global['Elemento'] == ele].sort_values('Orçado', ascending=False)
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
+            
+            # LÓGICA DINÂMICA DE HOVER
+            # Se houver busca, mostra Elemento. Se não, mostra Categoria.
+            label_hover = "Elemento" if busca else "Categoria"
+            
             fig_detalhe = px.bar(df_detalhe, x='Ficha', y='Orçado', text='Orçado',
-                                 color_discrete_sequence=["#00CC96"], custom_data=['Categoria'])
+                                 color_discrete_sequence=["#00CC96"], 
+                                 custom_data=[label_hover])
 
             fig_detalhe.update_traces(
-                hovertemplate="<b>Categoria:</b> %{customdata[0]}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
+                hovertemplate=f"<b>{label_hover}:</b> %{{customdata[0]}}<br><b>Valor:</b> R$ %{{y:,.2f}}<extra></extra>",
                 texttemplate='R$ %{text:,.2f}', textposition='outside', cliponaxis=False,
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
@@ -145,21 +141,19 @@ if df_raw is not None:
                 del st.session_state['elemento_ativo']
                 st.rerun()
 
-    # --- ANÁLISE 4: RELATÓRIO TÉCNICO ---
+    # --- ANÁLISE 4: RELATÓRIO TÉCNICO (100% FIEL AO FILTRO) ---
     st.markdown("---")
     st.subheader("📋 Relatório Detalhado (Estilo Relatório)")
     df_relatorio = df_filtrado_global.copy()
     
     for col_val in ['Orçado', 'Saldo']:
-        if col_val in df_relatorio.columns:
-            df_relatorio[col_val + '_Formatado'] = df_relatorio[col_val].apply(formar_real)
+        df_relatorio[col_val + '_F'] = df_relatorio[col_val].apply(formar_real)
 
     st.data_editor(
-        df_relatorio[['Categoria', 'Ficha', 'Elemento', 'Fonte', 'Orçado_Formatado', 'Saldo_Formatado']],
+        df_relatorio[['Categoria', 'Ficha', 'Elemento', 'Fonte', 'Orçado_F', 'Saldo_F']],
         use_container_width=True, hide_index=True, disabled=True,
         column_config={
-            "Orçado_Formatado": "Orçado",
-            "Saldo_Formatado": "Saldo",
+            "Orçado_F": "Orçado", "Saldo_F": "Saldo",
             "Elemento": st.column_config.TextColumn("Elemento", width="large"),
             "Ficha": st.column_config.NumberColumn("Ficha", format="%d"),
         },
@@ -170,12 +164,8 @@ if df_raw is not None:
     st.subheader("🔍 Raio-X: Maiores Investimentos")
     df_top10 = df_filtrado_global.groupby('Elemento')['Orçado'].sum().nlargest(10).reset_index()
     df_top10['Elemento_Q'] = df_top10['Elemento'].apply(lambda x: quebrar_texto(x, 15))
-    
-    fig_top = px.bar(df_top10, x='Orçado', y='Elemento_Q', orientation='h', 
-                     color_discrete_sequence=["#EF553B"], text_auto='.2s')
-    fig_top.update_layout(xaxis_tickprefix='R$ ', xaxis_tickformat=',.2f', separators=',.',
-                          yaxis={'type': 'category', 'automargin': True}, margin=dict(l=200, r=50))
-    fig_top.update_yaxes(autorange="reversed")
+    fig_top = px.bar(df_top10, x='Orçado', y='Elemento_Q', orientation='h', color_discrete_sequence=["#EF553B"], text_auto='.2s')
+    fig_top.update_layout(xaxis_tickformat=',.2f', separators=',.', yaxis={'type': 'category', 'automargin': True})
     st.plotly_chart(fig_top, use_container_width=True)
 
 else:
