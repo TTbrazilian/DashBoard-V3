@@ -8,6 +8,7 @@ st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
 # --- FUNÇÕES UTILITÁRIAS ---
 def remover_acentos(texto):
+    if not texto: return ""
     return "".join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn').lower().strip()
 
 def limpar_valor(valor):
@@ -30,36 +31,42 @@ def load_data():
     if not os.path.exists(caminho): return None
     df = pd.read_csv(caminho, sep=None, engine='python', encoding='utf-8', header=1)
     df.columns = [str(c).strip() for c in df.columns]
+    
+    # Normalização da Ficha para Texto
+    if 'Ficha' in df.columns:
+        df['Ficha'] = df['Ficha'].astype(str).str.replace('.0', '', regex=False).str.strip()
+
     cols_para_limpar = ['Orçado', 'Saldo', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho']
     for col in df.columns:
         if any(k in col for k in cols_para_limpar):
             df[col] = df[col].apply(limpar_valor)
     return df
 
-# --- CARREGAMENTO E FILTRAGEM GLOBAL (PRECISÃO TOTAL) ---
+# --- CARREGAMENTO E FILTRAGEM GLOBAL ---
 df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
     busca = st.sidebar.text_input("Filtrar Fichas/Categorias:")
 
-    # --- FILTRO MESTRE CORRIGIDO ---
+    # --- FILTRO MESTRE (RIGOR TOTAL) ---
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
-        
-        # Criamos a máscara comparando Categoria (texto) ou Ficha (número transformado em texto)
-        mask = df_filtrado_global.apply(lambda row: 
-            termo == remover_acentos(str(row.get('Categoria', ''))) or 
-            termo == remover_acentos(str(row.get('Elemento', ''))) or 
-            termo == str(row.get('Ficha', '')).strip()  # Comparação direta com o número da ficha
-        , axis=1)
+        # Filtra apenas se bater EXATAMENTE com Categoria ou Ficha
+        mask = (
+            df_filtrado_global['Categoria'].apply(remover_acentos) == termo
+        ) | (
+            df_filtrado_global['Ficha'] == busca.strip()
+        ) | (
+            df_filtrado_global['Elemento'].apply(remover_acentos) == termo
+        )
         df_filtrado_global = df_filtrado_global[mask]
 
     st.title("📊 Bom Jesus da Penha - Saúde")
     st.markdown("---")
 
-    # --- KPIs NO TOPO ---
+    # --- KPIs ---
     orcado_total = df_filtrado_global['Orçado'].sum()
     saldo_total = df_filtrado_global['Saldo'].sum()
     executado = orcado_total - saldo_total
@@ -76,7 +83,6 @@ if df_raw is not None:
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho']
     mensal_dados = [{"Mês": m, "Valor": df_filtrado_global[m].sum()} for m in meses if m in df_filtrado_global.columns]
     df_mensal = pd.DataFrame(mensal_dados)
-    
     fig_evolucao = px.line(df_mensal, x='Mês', y='Valor', markers=True, color_discrete_sequence=["#00CC96"])
     fig_evolucao.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f', separators=',.')
     st.plotly_chart(fig_evolucao, use_container_width=True)
@@ -141,7 +147,7 @@ if df_raw is not None:
             "Orçado_F": "Orçado", 
             "Saldo_F": "Saldo",
             "Elemento": st.column_config.TextColumn("Elemento", width="large"),
-            "Ficha": st.column_config.NumberColumn("Ficha", format="%d"),
+            "Ficha": st.column_config.TextColumn("Ficha"),
         },
     )
 
