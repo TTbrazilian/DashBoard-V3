@@ -6,10 +6,9 @@ import unicodedata
 
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
-# --- DICIONÁRIO DE TRADUÇÃO DEFINITIVO DOS ÍCONES ---
-# Esta configuração garante que ao passar o mouse, o texto apareça em Português
+# --- TRADUÇÃO DOS ÍCONES (MODEBAR) ---
+# Forçamos os nomes manualmente para não depender do 'locale' do sistema
 CONFIG_PT = {
-    'locale': 'pt-BR',
     'displaylogo': False,
     'modeBarButtonsToolTipNames': {
         'toImage': 'Baixar como PNG',
@@ -102,7 +101,6 @@ if df_raw is not None:
     df_mensal = pd.DataFrame(mensal_dados)
     fig_evolucao = px.line(df_mensal, x='Mês', y='Valor', markers=True, color_discrete_sequence=["#00CC96"])
     fig_evolucao.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f', separators=',.')
-    # Aplicando tradução aqui
     st.plotly_chart(fig_evolucao, use_container_width=True, config=CONFIG_PT)
 
     # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
@@ -144,7 +142,6 @@ if df_raw is not None:
             fig_detalhe.update_layout(xaxis_type='category', height=550, separators=',.',
                                       yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
                                       margin=dict(t=80, b=50, l=50, r=50))
-            # Aplicando tradução aqui também
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
             
             if st.button("⬅️ Voltar para Visão Geral"):
