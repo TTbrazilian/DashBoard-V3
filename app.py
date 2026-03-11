@@ -8,7 +8,7 @@ st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
 # --- FUNÇÕES UTILITÁRIAS ---
 def remover_acentos(texto):
-    return "".join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn').lower()
+    return "".join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn').lower().strip()
 
 def limpar_valor(valor):
     if pd.isna(valor) or str(valor).strip() in ["", "-", "R$ 0,00", "0"]: 
@@ -36,21 +36,23 @@ def load_data():
             df[col] = df[col].apply(limpar_valor)
     return df
 
-# --- CARREGAMENTO E FILTRAGEM GLOBAL (RIGOR 100%) ---
+# --- CARREGAMENTO E FILTRAGEM GLOBAL (PRECISÃO TOTAL) ---
 df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
     busca = st.sidebar.text_input("Filtrar Fichas/Categorias:")
 
-    # FILTRO MESTRE: Restrito a Elemento, Categoria e Ficha
+    # FILTRO MESTRE: Somente o que foi pesquisado (Igualdade ou Contém Exato)
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
+        # Filtro Rigoroso: O termo precisa ser IGUAL ao nome da categoria, ao número da ficha ou ao elemento
         mask = df_filtrado_global.apply(lambda row: 
-            termo in remover_acentos(str(row.get('Elemento', ''))) or 
-            termo in remover_acentos(str(row.get('Categoria', ''))) or 
-            termo in str(row.get('Ficha', '')).lower(), axis=1)
+            termo == remover_acentos(str(row.get('Categoria', ''))) or 
+            termo == remover_acentos(str(row.get('Elemento', ''))) or 
+            termo == str(row.get('Ficha', '')).strip()
+        , axis=1)
         df_filtrado_global = df_filtrado_global[mask]
 
     st.title("📊 Bom Jesus da Penha - Saúde")
@@ -87,8 +89,6 @@ if df_raw is not None:
         @keyframes barraSobe { from { opacity: 0; transform: scaleY(0); transform-origin: bottom; } to { opacity: 1; transform: scaleY(1); transform-origin: bottom; } }
         .js-plotly-plot .point path { animation: barraSobe 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
         .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.1s; }
-        .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.2s; }
-        .js-plotly-plot .point path:nth-child(3) { animation-delay: 0.3s; }
     </style>""", unsafe_allow_html=True)
 
     elementos_disponiveis = sorted([str(x) for x in df_filtrado_global['Elemento'].dropna().unique()])
@@ -106,8 +106,6 @@ if df_raw is not None:
             df_detalhe = df_filtrado_global[df_filtrado_global['Elemento'] == ele].sort_values('Orçado', ascending=False)
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
-            
-            # LÓGICA DE HOVER: Elemento (com busca) ou Categoria (sem busca)
             label_hover = "Elemento" if busca else "Categoria"
             
             fig_detalhe = px.bar(df_detalhe, x='Ficha', y='Orçado', text='Orçado',
