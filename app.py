@@ -220,7 +220,6 @@ if df_raw is not None:
                 st.rerun()
     else:
         st.info("Nenhum resultado encontrado para a pesquisa.")
-    # --- ANÁLISE 4: TABELA DETALHADA ---
     st.subheader("📋 Detalhamento das Fichas (Estilo Relatório)")
     df_tab = df[['Categoria', 'Ficha', 'Elemento', 'Fonte', 'Orçado', 'Saldo']].copy()
     df_tab['Orçado'] = df_tab['Orçado'].apply(formar_real)
