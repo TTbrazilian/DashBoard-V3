@@ -43,15 +43,16 @@ if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
     busca = st.sidebar.text_input("Filtrar Fichas/Categorias:")
 
-    # FILTRO MESTRE: Somente o que foi pesquisado (Igualdade ou Contém Exato)
+    # --- FILTRO MESTRE CORRIGIDO ---
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
-        # Filtro Rigoroso: O termo precisa ser IGUAL ao nome da categoria, ao número da ficha ou ao elemento
+        
+        # Criamos a máscara comparando Categoria (texto) ou Ficha (número transformado em texto)
         mask = df_filtrado_global.apply(lambda row: 
             termo == remover_acentos(str(row.get('Categoria', ''))) or 
             termo == remover_acentos(str(row.get('Elemento', ''))) or 
-            termo == str(row.get('Ficha', '')).strip()
+            termo == str(row.get('Ficha', '')).strip()  # Comparação direta com o número da ficha
         , axis=1)
         df_filtrado_global = df_filtrado_global[mask]
 
@@ -84,7 +85,6 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
-    # CSS Hack para Animação
     st.markdown("""<style>
         @keyframes barraSobe { from { opacity: 0; transform: scaleY(0); transform-origin: bottom; } to { opacity: 1; transform: scaleY(1); transform-origin: bottom; } }
         .js-plotly-plot .point path { animation: barraSobe 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
