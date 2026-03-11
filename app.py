@@ -6,7 +6,8 @@ import unicodedata
 
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
-# --- CONFIGURAÇÃO DE TRADUÇÃO DO PLOTLY ---
+# --- DICIONÁRIO DE TRADUÇÃO DEFINITIVO DOS ÍCONES ---
+# Esta configuração garante que ao passar o mouse, o texto apareça em Português
 CONFIG_PT = {
     'locale': 'pt-BR',
     'displaylogo': False,
@@ -14,14 +15,14 @@ CONFIG_PT = {
         'toImage': 'Baixar como PNG',
         'zoom2d': 'Zoom',
         'pan2d': 'Mover',
-        'select2d': 'Seleção retangular',
-        'lasso2d': 'Seleção laço',
+        'select2d': 'Seleção Retangular',
+        'lasso2d': 'Seleção de Laço',
         'zoomIn2d': 'Aproximar',
         'zoomOut2d': 'Afastar',
-        'autoScale2d': 'Ajuste automático',
-        'resetScale2d': 'Redefinir escala',
-        'hoverClosestCartesian': 'Mostrar mais próximo',
-        'hoverCompareCartesian': 'Comparar dados'
+        'autoScale2d': 'Ajuste Automático',
+        'resetScale2d': 'Redefinir Escala',
+        'hoverClosestCartesian': 'Mostrar Mais Próximo',
+        'hoverCompareCartesian': 'Comparar Dados'
     }
 }
 
@@ -60,7 +61,7 @@ def load_data():
             df[col] = df[col].apply(limpar_valor)
     return df
 
-# --- CARREGAMENTO E FILTRAGEM GLOBAL ---
+# --- CARREGAMENTO E FILTRAGEM ---
 df_raw = load_data()
 
 if df_raw is not None:
@@ -101,6 +102,7 @@ if df_raw is not None:
     df_mensal = pd.DataFrame(mensal_dados)
     fig_evolucao = px.line(df_mensal, x='Mês', y='Valor', markers=True, color_discrete_sequence=["#00CC96"])
     fig_evolucao.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f', separators=',.')
+    # Aplicando tradução aqui
     st.plotly_chart(fig_evolucao, use_container_width=True, config=CONFIG_PT)
 
     # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
@@ -142,6 +144,7 @@ if df_raw is not None:
             fig_detalhe.update_layout(xaxis_type='category', height=550, separators=',.',
                                       yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
                                       margin=dict(t=80, b=50, l=50, r=50))
+            # Aplicando tradução aqui também
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
             
             if st.button("⬅️ Voltar para Visão Geral"):
