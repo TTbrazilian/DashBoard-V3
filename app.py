@@ -109,7 +109,7 @@ if df_raw is not None:
     fig_evolucao.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f', separators=',.')
     st.plotly_chart(fig_evolucao, use_container_width=True, config=CONFIG_PT)
 
-    # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
+   # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
@@ -125,46 +125,50 @@ if df_raw is not None:
 
         if 'elemento_ativo' in st.session_state:
             ele = st.session_state['elemento_ativo']
-            df_detalhe = df_filtrado_global[df_filtrado_global['Elemento'] == ele].sort_values('Orçado', ascending=False)
+            df_detalhe = df_filtrado_global[df_filtrado_global['Elemento'] == ele].sort_values('Orçado', ascending=False).copy()
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
-            # Lógica de Hover (Inverte para Categoria se a busca for por Elemento)
+            # Lógica de Hover mantida (Categoria se pesquisar Elemento)
             lista_elementos = [remover_acentos(e) for e in df_raw['Elemento'].unique()]
             busca_limpa = remover_acentos(busca)
-            if busca and (busca_limpa in lista_elementos):
-                label_hover = "Categoria"
-            else:
-                label_hover = "Elemento" if busca else "Categoria"
+            label_hover = "Categoria" if busca and (busca_limpa in lista_elementos) else ("Elemento" if busca else "Categoria")
             
-            # REMOÇÃO DO PARÂMETRO 'text' do px.bar para evitar duplicidade
-            fig_detalhe = px.bar(df_detalhe, x='Ficha', y='Orçado',
-                                 color_discrete_sequence=["#00CC96"], 
-                                 custom_data=[label_hover])
+            # Criando o gráfico com animação nativa fluida
+            fig_detalhe = px.bar(
+                df_detalhe, x='Ficha', y='Orçado',
+                color_discrete_sequence=["#00CC96"], 
+                custom_data=[label_hover]
+            )
 
-            # APLICAÇÃO ÚNICA E LIMPA DO TEXTO
             fig_detalhe.update_traces(
                 hovertemplate=f"<b>{label_hover}:</b> %{{customdata[0]}}<br><b>Valor:</b> R$ %{{y:,.2f}}<extra></extra>",
                 text=df_detalhe['Orçado'].apply(formar_real), 
                 textposition='outside',
-                textfont=dict(size=12, color="white"), # Força uma fonte limpa
                 cliponaxis=False,
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
 
+            # --- CONFIGURAÇÃO DA ANIMAÇÃO AUTOMÁTICA ---
             fig_detalhe.update_layout(
-                xaxis_type='category', 
-                height=550, 
-                separators=',.',
-                yaxis=dict(
-                    range=[0, df_detalhe['Orçado'].max() * 1.30],
-                    showgrid=True,
-                    gridcolor='rgba(255,255,255,0.1)'
-                ),
+                xaxis_type='category', height=550, separators=',.',
+                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
                 margin=dict(t=80, b=50, l=50, r=50),
-                showlegend=False
+                # Animação de entrada fluida
+                transition={
+                    'duration': 800,
+                    'easing': 'cubic-in-out'
+                }
             )
-            
+
+            # Injeção de CSS para garantir que o gráfico não dê "pulo" ao carregar
+            st.markdown("""
+                <style>
+                .js-plotly-plot .main-svg { opacity: 0; animation: fadeIn 0.8s ease-in forwards; }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                </style>
+                """, unsafe_allow_html=True)
+
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
             
             if st.button("⬅️ Voltar para Visão Geral"):
