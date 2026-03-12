@@ -186,11 +186,10 @@ if df_raw is not None:
             if st.button("⬅️ Voltar para Visão Geral"):
                 del st.session_state['elemento_ativo']
                 st.rerun()
-    # --- ANÁLISE 3.1: Investimentos por Bloco; Custeio vs Capital; Eficiência de Execução---
-    
-   # --- NOVAS ANÁLISES (CORRIGIDAS E ALINHADAS) ---
-    
-    # 1. BLOCOS DE ATENÇÃO
+   
+    # NOVAS ANÁLISES 
+
+    # --- BLOCOS DE ATENÇÃO ---
     st.markdown("---")
     st.subheader("🏛️ Investimentos por Bloco de Atenção")
     
@@ -199,7 +198,11 @@ if df_raw is not None:
     fig_blocos = px.bar(df_blocos, x='Categoria', y='Orçado', text='Orçado',
                         color_discrete_sequence=["#636EFA"])
     
-    fig_blocos.update_traces(texttemplate='R$ %{text:,.2f}', textposition='outside')
+    fig_blocos.update_traces(
+        texttemplate='R$ %{text:,.2f}', 
+        textposition='outside',
+        hovertemplate="<b>Bloco:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+    )
     fig_blocos.update_layout(
         yaxis_tickprefix='R$ ', separators=',.', height=450,
         margin=dict(t=50, b=50, l=50, r=50),
@@ -207,7 +210,8 @@ if df_raw is not None:
     )
     st.plotly_chart(fig_blocos, use_container_width=True, config=CONFIG_PT)
 
-    # --- NATUREZA DA DESPESA ---
+
+    # --- NATUREZA DA DESPESA (CUSTEIO X CAPITAL) ---
     st.markdown("---")
     st.subheader("📊 Natureza: Custeio x Capital")
     
@@ -223,15 +227,22 @@ if df_raw is not None:
         margin=dict(t=50, b=50, l=20, r=20), 
         height=450, 
         showlegend=True,
+        separators=',.', 
         legend=dict(itemclick=False, itemdoubleclick=False, orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
     )
-    fig_natureza.update_traces(textinfo='percent', textposition='inside')
+    fig_natureza.update_traces(
+        textinfo='percent', 
+        textposition='inside',
+        hovertemplate="<b>Natureza:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<extra></extra>"
+    )
     
-    col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
-    with col_c2:
+    # Centralização Visual
+    _, col_central_1, _ = st.columns([1, 2, 1])
+    with col_central_1:
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
 
-   # --- TOP 5 GASTOS  ---
+
+    # --- TOP 5 MAIORES DESPESAS ---
     st.markdown("---")
     st.subheader("💰 Top 5 Maiores Despesas")
     
@@ -240,51 +251,51 @@ if df_raw is not None:
     fig_top = px.pie(df_top_elementos, values='Orçado', names='Elemento', hole=.4,
                     color_discrete_sequence=px.colors.qualitative.Pastel)
     
-    # Altura ajustada para 580 para caber na tela sem corte (View Port)
     fig_top.update_layout(
-        margin=dict(t=20, b=20, l=20, r=100), 
+        margin=dict(t=20, b=20, l=20, r=150), 
         height=580, 
         showlegend=True,
-        legend=dict(
-            orientation="v", 
-            yanchor="middle", 
-            y=0.5, 
-            xanchor="left", 
-            x=1.15, # Legenda afastada mas equilibrada
-            font=dict(size=13)
-        )
+        separators=',.', 
+        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.15, font=dict(size=13))
     )
     
-    # Texto interno com tamanho otimizado
     fig_top.update_traces(
         textinfo='percent', 
         textposition='inside', 
-        insidetextfont=dict(size=16, color="black")
+        insidetextfont=dict(size=16, color="black"),
+        hovertemplate="<b>Elemento:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<extra></extra>"
     )
     
-    # Sem colunas para garantir o uso da largura, mas respeitando a altura
     st.plotly_chart(fig_top, use_container_width=True, config=CONFIG_PT)
 
-    # 3. EFICIÊNCIA DE EXECUÇÃO
+
+    # ---  EFICIÊNCIA DE EXECUÇÃO ---
     st.markdown("---")
     st.subheader("🎯 Eficiência de Execução por Categoria")
     
-    df_exec_cat = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
-    df_exec_cat['Executado'] = df_exec_cat['Orçado'] - df_exec_cat['Saldo']
-    df_exec_cat['Perc'] = (df_exec_cat['Executado'] / df_exec_cat['Orçado'] * 100).fillna(0)
-    df_exec_cat = df_exec_cat.sort_values('Perc', ascending=True)
+    df_exec_final = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
+    df_exec_final['Executado'] = df_exec_final['Orçado'] - df_exec_final['Saldo']
+    df_exec_final['Perc'] = (df_exec_final['Executado'] / df_exec_final['Orçado'] * 100).fillna(0)
+    df_exec_final = df_exec_final.sort_values('Perc', ascending=True)
 
-    fig_exec_cat = px.bar(df_exec_cat, x='Perc', y='Categoria', orientation='h',
+    fig_exec_final = px.bar(df_exec_final, x='Perc', y='Categoria', orientation='h',
                           text='Perc', color='Perc', color_continuous_scale='Greens')
     
-    fig_exec_cat.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
-    fig_exec_cat.update_layout(
+    fig_exec_final.update_traces(
+        texttemplate='%{text:.1f}%', 
+        textposition='outside',
+        hovertemplate="<b>Categoria:</b> %{y}<br><b>Execução:</b> %{x:.2f}%<extra></extra>"
+    )
+    fig_exec_final.update_layout(
         xaxis_title="Liquidado (%)", yaxis_title="", 
         coloraxis_showscale=False, height=400,
-        margin=dict(l=200), # Espaço para os nomes das categorias não cortarem
+        separators=',.',
+        margin=dict(l=200),
         xaxis=dict(range=[0, 120])
     )
-    st.plotly_chart(fig_exec_cat, use_container_width=True, config=CONFIG_PT)
+    st.plotly_chart(fig_exec_final, use_container_width=True, config=CONFIG_PT)
+
+    # =================================================================
 
     # --- ANÁLISE 4: RELATÓRIO TÉCNICO ---
     st.markdown("---")
