@@ -207,44 +207,51 @@ if df_raw is not None:
     )
     st.plotly_chart(fig_blocos, use_container_width=True, config=CONFIG_PT)
 
-    # 2. CUSTEIO VS CAPITAL E TOP GASTOS (LADO A LADO - LEGENDA FIXA)
+    # --- NATUREZA DA DESPESA ---
     st.markdown("---")
-    c_pie1, c_pie2 = st.columns(2)
+    st.subheader("📊 Natureza: Custeio x Capital")
     
-    with c_pie1:
-        st.subheader("📊 Natureza: Custeio x Capital")
-        df_filtrado_global['Natureza'] = df_filtrado_global['Elemento'].apply(
-            lambda x: 'Capital (Invest.)' if '4.4' in str(x) else 'Custeio (Manut.)'
-        )
-        df_natureza = df_filtrado_global.groupby('Natureza')['Orçado'].sum().reset_index()
-        fig_natureza = px.pie(df_natureza, values='Orçado', names='Natureza', hole=.4,
-                             color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
-        
-        # Configurações solicitadas: Legenda do lado e NÃO clicável
-        fig_natureza.update_layout(
-            margin=dict(t=20, b=20, l=20, r=20), 
-            height=350, 
-            showlegend=True,
-            legend=dict(itemclick=False, itemdoubleclick=False) # Trava a legenda
-        )
-        fig_natureza.update_traces(textinfo='percent', textposition='inside') # Porcentagem dentro
+    df_filtrado_global['Natureza'] = df_filtrado_global['Elemento'].apply(
+        lambda x: 'Capital (Invest.)' if '4.4' in str(x) else 'Custeio (Manut.)'
+    )
+    df_natureza = df_filtrado_global.groupby('Natureza')['Orçado'].sum().reset_index()
+    
+    fig_natureza = px.pie(df_natureza, values='Orçado', names='Natureza', hole=.4,
+                         color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
+    
+    fig_natureza.update_layout(
+        margin=dict(t=50, b=50, l=20, r=20), 
+        height=450, 
+        showlegend=True,
+        legend=dict(itemclick=False, itemdoubleclick=False, orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
+    )
+    fig_natureza.update_traces(textinfo='percent', textposition='inside')
+    
+    # Centralização usando colunas do Streamlit
+    col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+    with col_c2:
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
 
-    with c_pie2:
-        st.subheader("💰 Top 5 Maiores Despesas")
-        df_top_elementos = df_filtrado_global.groupby('Elemento')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
-        
-        # Criando o gráfico com nomes na legenda (names='Elemento')
-        fig_top = px.pie(df_top_elementos, values='Orçado', names='Elemento', hole=.4,
-                        color_discrete_sequence=px.colors.qualitative.Pastel)
-        
-        fig_top.update_layout(
-            margin=dict(t=20, b=20, l=20, r=20), 
-            height=350, 
-            showlegend=True # Ativa a legenda lateral com os nomes
-        )
-        # Força apenas a porcentagem dentro da fatia
-        fig_top.update_traces(textinfo='percent', textposition='inside') 
+    # --- ANÁLISE 6: TOP 5 GASTOS (EMBAIXO) ---
+    st.markdown("---")
+    st.subheader("💰 Top 5 Maiores Despesas")
+    
+    df_top_elementos = df_filtrado_global.groupby('Elemento')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
+    
+    fig_top = px.pie(df_top_elementos, values='Orçado', names='Elemento', hole=.4,
+                    color_discrete_sequence=px.colors.qualitative.Pastel)
+    
+    fig_top.update_layout(
+        margin=dict(t=50, b=50, l=20, r=20), 
+        height=500, 
+        showlegend=True,
+        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
+    )
+    fig_top.update_traces(textinfo='percent', textposition='inside')
+    
+    # Centralização do Top 5
+    col_t1, col_t2, col_t3 = st.columns([1, 2, 1])
+    with col_t2:
         st.plotly_chart(fig_top, use_container_width=True, config=CONFIG_PT)
 
     # 3. EFICIÊNCIA DE EXECUÇÃO
