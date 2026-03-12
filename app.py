@@ -231,7 +231,7 @@ if df_raw is not None:
     with col_c2:
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
 
-    # --- ANÁLISE 6: TOP 5 GASTOS (MAIOR E DESTACADO) ---
+   # --- TOP 5 GASTOS  ---
     st.markdown("---")
     st.subheader("💰 Top 5 Maiores Despesas")
     
@@ -240,26 +240,30 @@ if df_raw is not None:
     fig_top = px.pie(df_top_elementos, values='Orçado', names='Elemento', hole=.4,
                     color_discrete_sequence=px.colors.qualitative.Pastel)
     
-    # Aumentei o height para 600 e ajustei a posição da legenda para ficar bem alinhada
+    # Altura imponente e legenda bem afastada para a direita
     fig_top.update_layout(
-        margin=dict(t=30, b=30, l=20, r=20), 
-        height=600, 
+        margin=dict(t=50, b=50, l=20, r=150), # Aumentei o respiro na direita (r=150)
+        height=750, 
         showlegend=True,
         legend=dict(
             orientation="v", 
             yanchor="middle", 
             y=0.5, 
             xanchor="left", 
-            x=1.1,
-            font=dict(size=13) # Legenda um pouco maior para facilitar a leitura
+            x=1.2, # Joguei a legenda bem pra fora do gráfico
+            font=dict(size=14)
         )
     )
-    fig_top.update_traces(textinfo='percent', textposition='inside', insidetextfont=dict(size=14))
     
-    # Layout ocupando mais espaço na tela (proporção 1:4:1)
-    col_t1, col_t2, col_t3 = st.columns([0.5, 5, 0.5])
-    with col_t2:
-        st.plotly_chart(fig_top, use_container_width=True, config=CONFIG_PT)
+    # Texto maior dentro das fatias
+    fig_top.update_traces(
+        textinfo='percent', 
+        textposition='inside', 
+        insidetextfont=dict(size=18, color="black")
+    )
+    
+    # Agora sem colunas laterais para usar 100% da largura da tela
+    st.plotly_chart(fig_top, use_container_width=True, config=CONFIG_PT)
 
     # 3. EFICIÊNCIA DE EXECUÇÃO
     st.markdown("---")
