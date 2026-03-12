@@ -240,29 +240,29 @@ if df_raw is not None:
     fig_top = px.pie(df_top_elementos, values='Orçado', names='Elemento', hole=.4,
                     color_discrete_sequence=px.colors.qualitative.Pastel)
     
-    # Altura imponente e legenda bem afastada para a direita
+    # Altura ajustada para 580 para caber na tela sem corte (View Port)
     fig_top.update_layout(
-        margin=dict(t=50, b=50, l=20, r=150), # Aumentei o respiro na direita (r=150)
-        height=750, 
+        margin=dict(t=20, b=20, l=20, r=100), 
+        height=580, 
         showlegend=True,
         legend=dict(
             orientation="v", 
             yanchor="middle", 
             y=0.5, 
             xanchor="left", 
-            x=1.2, # Joguei a legenda bem pra fora do gráfico
-            font=dict(size=14)
+            x=1.15, # Legenda afastada mas equilibrada
+            font=dict(size=13)
         )
     )
     
-    # Texto maior dentro das fatias
+    # Texto interno com tamanho otimizado
     fig_top.update_traces(
         textinfo='percent', 
         textposition='inside', 
-        insidetextfont=dict(size=18, color="black")
+        insidetextfont=dict(size=16, color="black")
     )
     
-    # Agora sem colunas laterais para usar 100% da largura da tela
+    # Sem colunas para garantir o uso da largura, mas respeitando a altura
     st.plotly_chart(fig_top, use_container_width=True, config=CONFIG_PT)
 
     # 3. EFICIÊNCIA DE EXECUÇÃO
