@@ -6,25 +6,22 @@ import unicodedata
 
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
-# --- CONFIGURAÇÃO DE TRADUÇÃO TOTAL (BRUTA) ---
-# Forçamos o dicionário dentro da função de exibição para garantir o Português
+# --- SOLUÇÃO DEFINITIVA DE TRADUÇÃO (MANUAL) ---
+# Aqui a gente mapeia o ID interno do botão para o texto em PT-BR
 CONFIG_PT = {
     'displaylogo': False,
-    'locale': 'pt-BR',
     'modeBarButtonsToolTipNames': {
         'toImage': 'Baixar como PNG',
         'zoom2d': 'Zoom',
         'pan2d': 'Mover',
-        'select2d': 'Seleção retangular',
-        'lasso2d': 'Seleção laço',
+        'select2d': 'Seleção Retangular',
+        'lasso2d': 'Seleção de Laço',
         'zoomIn2d': 'Aproximar',
         'zoomOut2d': 'Afastar',
-        'autoScale2d': 'Ajuste automático',
-        'resetScale2d': 'Redefinir escala',
-        'hoverClosestCartesian': 'Mostrar mais próximo',
-        'hoverCompareCartesian': 'Comparar dados',
-        'toggleSpikelines': 'Habilitar linhas de guia',
-        'v1hovermode': 'Alternar modo de foco'
+        'autoScale2d': 'Ajuste Automático',
+        'resetScale2d': 'Redefinir Escala',
+        'hoverClosestCartesian': 'Mostrar Mais Próximo',
+        'hoverCompareCartesian': 'Comparar Dados'
     }
 }
 
@@ -73,6 +70,7 @@ if df_raw is not None:
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
+        # Filtro de precisão para evitar linhas intrusas
         mask = (
             df_filtrado_global['Categoria'].apply(remover_acentos) == termo
         ) | (
@@ -104,8 +102,6 @@ if df_raw is not None:
     df_mensal = pd.DataFrame(mensal_dados)
     fig_evolucao = px.line(df_mensal, x='Mês', y='Valor', markers=True, color_discrete_sequence=["#00CC96"])
     fig_evolucao.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f', separators=',.')
-    
-    # Injeção manual de tradução para forçar o Português
     st.plotly_chart(fig_evolucao, use_container_width=True, config=CONFIG_PT)
 
     # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
@@ -133,7 +129,7 @@ if df_raw is not None:
             df_detalhe = df_filtrado_global[df_filtrado_global['Elemento'] == ele].sort_values('Orçado', ascending=False)
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
-            label_hover = "Elemento" if busca else "Categoria"
+            label_hover = "Elemento" if busca else "Categoria" # Hover dinâmico conforme busca
             
             fig_detalhe = px.bar(df_detalhe, x='Ficha', y='Orçado', text='Orçado',
                                  color_discrete_sequence=["#00CC96"], 
@@ -147,8 +143,6 @@ if df_raw is not None:
             fig_detalhe.update_layout(xaxis_type='category', height=550, separators=',.',
                                       yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
                                       margin=dict(t=80, b=50, l=50, r=50))
-            
-            # Injeção manual de tradução para forçar o Português
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
             
             if st.button("⬅️ Voltar para Visão Geral"):
