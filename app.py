@@ -134,7 +134,15 @@ if df_raw is not None:
             df_detalhe = df_filtrado_global[df_filtrado_global['Elemento'] == ele].sort_values('Orçado', ascending=False)
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
-            label_hover = "Elemento" if busca else "Categoria" # Hover dinâmico
+            
+            # --- LÓGICA DE HOVER AJUSTADA ---
+            lista_elementos = [remover_acentos(e) for e in df_raw['Elemento'].unique()]
+            busca_limpa = remover_acentos(busca)
+            
+            if busca and (busca_limpa in lista_elementos):
+                label_hover = "Categoria"
+            else:
+                label_hover = "Elemento" if busca else "Categoria"
             
             fig_detalhe = px.bar(df_detalhe, x='Ficha', y='Orçado', text='Orçado',
                                  color_discrete_sequence=["#00CC96"], 
