@@ -113,6 +113,12 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
+    st.markdown("""<style>
+        @keyframes barraSobe { from { opacity: 0; transform: scaleY(0); transform-origin: bottom; } to { opacity: 1; transform: scaleY(1); transform-origin: bottom; } }
+        .js-plotly-plot .point path { animation: barraSobe 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
+        .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.1s; }
+    </style>""", unsafe_allow_html=True)
+
     elementos_disponiveis = sorted([str(x) for x in df_filtrado_global['Elemento'].dropna().unique()])
 
     if elementos_disponiveis:
@@ -129,51 +135,29 @@ if df_raw is not None:
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
-            # Lógica de Hover (Categoria se pesquisar Elemento)
+            # --- LÓGICA DE HOVER AJUSTADA ---
             lista_elementos = [remover_acentos(e) for e in df_raw['Elemento'].unique()]
             busca_limpa = remover_acentos(busca)
-            label_hover = "Categoria" if busca and (busca_limpa in lista_elementos) else ("Elemento" if busca else "Categoria")
             
-            # --- ANIMAÇÃO PROFISSIONAL (VIA FRAMES) ---
-            # Criamos o gráfico começando do zero para a animação ter de onde partir
+            if busca and (busca_limpa in lista_elementos):
+                label_hover = "Categoria"
+            else:
+                label_hover = "Elemento" if busca else "Categoria"
+            
             fig_detalhe = px.bar(df_detalhe, x='Ficha', y='Orçado', text='Orçado',
                                  color_discrete_sequence=["#00CC96"], 
                                  custom_data=[label_hover])
 
-            # Configuramos a transição e a aparência
             fig_detalhe.update_traces(
                 hovertemplate=f"<b>{label_hover}:</b> %{{customdata[0]}}<br><b>Valor:</b> R$ %{{y:,.2f}}<extra></extra>",
                 texttemplate='R$ %{text:,.2f}', textposition='outside', cliponaxis=False,
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
-
-            fig_detalhe.update_layout(
-                xaxis_type='category', height=550, separators=',.',
-                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
-                margin=dict(t=80, b=50, l=50, r=50),
-                # Aqui a mágica: define a duração da animação de entrada
-                updatemenus=[{
-                    "type": "buttons",
-                    "showactive": False,
-                    "buttons": [{"label": "Play", "method": "animate", "args": [None, {"frame": {"duration": 1000, "redraw": True}, "fromcurrent": True}]}]
-                }]
-            )
-
-            # Adicionamos o frame final para o Plotly "correr" a animação
-            fig_detalhe.frames = [dict(data=[dict(y=df_detalhe['Orçado'])])]
-
-            # O config 'responsive' ajuda a não bugar a animação no redimensionamento
-            st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config={**CONFIG_PT, 'responsive': True})
+            fig_detalhe.update_layout(xaxis_type='category', height=550, separators=',.',
+                                      yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
+                                      margin=dict(t=80, b=50, l=50, r=50))
+            st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
             
-            # Autoplay da animação (Script simples para disparar o play assim que carregar)
-            st.components.v1.html(
-                """
-                <script>
-                window.parent.document.querySelectorAll(".modebar-btn")[0]?.click();
-                </script>
-                """, height=0
-            )
-
             if st.button("⬅️ Voltar para Visão Geral"):
                 del st.session_state['elemento_ativo']
                 st.rerun()
