@@ -113,6 +113,32 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
+    # CSS de Elite: Anima as barras uma por uma com atraso (Stagger effect)
+    st.markdown("""
+        <style>
+        @keyframes subirBarra {
+            from { clip-path: inset(100% 0 0 0); }
+            to { clip-path: inset(0% 0 0 0); }
+        }
+        /* Alvo: as formas das barras do Plotly */
+        .js-plotly-plot .point path {
+            animation: subirBarra 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            clip-path: inset(100% 0 0 0);
+        }
+        /* Gerando o atraso para as primeiras 50 barras (efeito cascata) */
+        .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.05s; }
+        .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.10s; }
+        .js-plotly-plot .point path:nth-child(3) { animation-delay: 0.15s; }
+        .js-plotly-plot .point path:nth-child(4) { animation-delay: 0.20s; }
+        .js-plotly-plot .point path:nth-child(5) { animation-delay: 0.25s; }
+        .js-plotly-plot .point path:nth-child(6) { animation-delay: 0.30s; }
+        .js-plotly-plot .point path:nth-child(7) { animation-delay: 0.35s; }
+        .js-plotly-plot .point path:nth-child(8) { animation-delay: 0.40s; }
+        .js-plotly-plot .point path:nth-child(9) { animation-delay: 0.45s; }
+        .js-plotly-plot .point path:nth-child(10) { animation-delay: 0.50s; }
+        </style>
+    """, unsafe_allow_html=True)
+
     elementos_disponiveis = sorted([str(x) for x in df_filtrado_global['Elemento'].dropna().unique()])
 
     if elementos_disponiveis:
@@ -129,12 +155,11 @@ if df_raw is not None:
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
-            # Lógica de Hover mantida (Categoria se pesquisar Elemento)
+            # Lógica de Hover (Inverte para Categoria se a busca for por Elemento)
             lista_elementos = [remover_acentos(e) for e in df_raw['Elemento'].unique()]
             busca_limpa = remover_acentos(busca)
             label_hover = "Categoria" if busca and (busca_limpa in lista_elementos) else ("Elemento" if busca else "Categoria")
             
-            # Criando o gráfico com animação nativa fluida
             fig_detalhe = px.bar(
                 df_detalhe, x='Ficha', y='Orçado',
                 color_discrete_sequence=["#00CC96"], 
@@ -143,31 +168,17 @@ if df_raw is not None:
 
             fig_detalhe.update_traces(
                 hovertemplate=f"<b>{label_hover}:</b> %{{customdata[0]}}<br><b>Valor:</b> R$ %{{y:,.2f}}<extra></extra>",
-                text=df_detalhe['Orçado'].apply(formar_real), 
+                text=df_detalhe['Orçado'].apply(formar_real), # Correção dos 200k
                 textposition='outside',
                 cliponaxis=False,
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
 
-            # --- CONFIGURAÇÃO DA ANIMAÇÃO AUTOMÁTICA ---
             fig_detalhe.update_layout(
                 xaxis_type='category', height=550, separators=',.',
                 yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
-                margin=dict(t=80, b=50, l=50, r=50),
-                # Animação de entrada fluida
-                transition={
-                    'duration': 800,
-                    'easing': 'cubic-in-out'
-                }
+                margin=dict(t=80, b=50, l=50, r=50)
             )
-
-            # Injeção de CSS para garantir que o gráfico não dê "pulo" ao carregar
-            st.markdown("""
-                <style>
-                .js-plotly-plot .main-svg { opacity: 0; animation: fadeIn 0.8s ease-in forwards; }
-                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                </style>
-                """, unsafe_allow_html=True)
 
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
             
