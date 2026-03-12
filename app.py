@@ -207,7 +207,7 @@ if df_raw is not None:
     )
     st.plotly_chart(fig_blocos, use_container_width=True, config=CONFIG_PT)
 
-    # 2. CUSTEIO VS CAPITAL E TOP GASTOS (LADO A LADO)
+    # 2. CUSTEIO VS CAPITAL E TOP GASTOS (LADO A LADO - LEGENDA FIXA)
     st.markdown("---")
     c_pie1, c_pie2 = st.columns(2)
     
@@ -219,16 +219,32 @@ if df_raw is not None:
         df_natureza = df_filtrado_global.groupby('Natureza')['Orçado'].sum().reset_index()
         fig_natureza = px.pie(df_natureza, values='Orçado', names='Natureza', hole=.4,
                              color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
-        fig_natureza.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=350, showlegend=True)
+        
+        # Configurações solicitadas: Legenda do lado e NÃO clicável
+        fig_natureza.update_layout(
+            margin=dict(t=20, b=20, l=20, r=20), 
+            height=350, 
+            showlegend=True,
+            legend=dict(itemclick=False, itemdoubleclick=False) # Trava a legenda
+        )
+        fig_natureza.update_traces(textinfo='percent', textposition='inside') # Porcentagem dentro
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
 
     with c_pie2:
         st.subheader("💰 Top 5 Maiores Despesas")
         df_top_elementos = df_filtrado_global.groupby('Elemento')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
+        
+        # Criando o gráfico com nomes na legenda (names='Elemento')
         fig_top = px.pie(df_top_elementos, values='Orçado', names='Elemento', hole=.4,
                         color_discrete_sequence=px.colors.qualitative.Pastel)
-        fig_top.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=350, showlegend=False)
-        fig_top.update_traces(textinfo='percent+label', textposition='inside')
+        
+        fig_top.update_layout(
+            margin=dict(t=20, b=20, l=20, r=20), 
+            height=350, 
+            showlegend=True # Ativa a legenda lateral com os nomes
+        )
+        # Força apenas a porcentagem dentro da fatia
+        fig_top.update_traces(textinfo='percent', textposition='inside') 
         st.plotly_chart(fig_top, use_container_width=True, config=CONFIG_PT)
 
     # 3. EFICIÊNCIA DE EXECUÇÃO
@@ -251,7 +267,7 @@ if df_raw is not None:
         xaxis=dict(range=[0, 120])
     )
     st.plotly_chart(fig_exec_cat, use_container_width=True, config=CONFIG_PT)
-    
+
     # --- ANÁLISE 4: RELATÓRIO TÉCNICO ---
     st.markdown("---")
     st.subheader("📋 Relatório Detalhado (Estilo Relatório)")
