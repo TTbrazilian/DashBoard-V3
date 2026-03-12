@@ -188,10 +188,11 @@ if df_raw is not None:
                 st.rerun()
     # --- ANÁLISE 3.1: Investimentos por Bloco; Custeio vs Capital; Eficiência de Execução---
     
-    # 1. BLOCOS DE ATENÇÃO (Distribuição por Categoria)
+   # --- NOVAS ANÁLISES (CORRIGIDAS E ALINHADAS) ---
+    
+    # 1. BLOCOS DE ATENÇÃO
     st.markdown("---")
     st.subheader("🏛️ Investimentos por Bloco de Atenção")
-    st.info("Esta análise agrupa as despesas pelas áreas da saúde (Atenção Primária, Vigilância, etc.)")
     
     df_blocos = df_filtrado_global.groupby('Categoria')['Orçado'].sum().reset_index().sort_values('Orçado', ascending=False)
     
@@ -200,61 +201,57 @@ if df_raw is not None:
     
     fig_blocos.update_traces(texttemplate='R$ %{text:,.2f}', textposition='outside')
     fig_blocos.update_layout(
-        yaxis_tickprefix='R$ ', 
-        separators=',.', 
-        height=500,
-        yaxis=dict(range=[0, df_blocos['Orçado'].max() * 1.30]) # Margem para o texto não sumir
+        yaxis_tickprefix='R$ ', separators=',.', height=450,
+        margin=dict(t=50, b=50, l=50, r=50),
+        yaxis=dict(range=[0, df_blocos['Orçado'].max() * 1.35])
     )
     st.plotly_chart(fig_blocos, use_container_width=True, config=CONFIG_PT)
 
-    # 2. CUSTEIO VS CAPITAL E TOP GASTOS
+    # 2. CUSTEIO VS CAPITAL E TOP GASTOS (LADO A LADO)
     st.markdown("---")
-    col_inf1, col_inf2 = st.columns(2)
+    c_pie1, c_pie2 = st.columns(2)
     
-    with col_inf1:
-        st.subheader("📊 Custeio vs. Capital")
-        # Lógica contábil: Elementos que iniciam com '4.4' são investimentos (Capital)
+    with c_pie1:
+        st.subheader("📊 Natureza: Custeio x Capital")
         df_filtrado_global['Natureza'] = df_filtrado_global['Elemento'].apply(
-            lambda x: 'Capital (Investimento)' if '4.4' in str(x) else 'Custeio (Manutenção)'
+            lambda x: 'Capital (Invest.)' if '4.4' in str(x) else 'Custeio (Manut.)'
         )
         df_natureza = df_filtrado_global.groupby('Natureza')['Orçado'].sum().reset_index()
         fig_natureza = px.pie(df_natureza, values='Orçado', names='Natureza', hole=.4,
-                             color_discrete_map={'Custeio (Manutenção)':'#00CC96', 'Capital (Investimento)':'#EF553B'})
-        fig_natureza.update_traces(textinfo='percent+label')
+                             color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
+        fig_natureza.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=350, showlegend=True)
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
 
-    with col_inf2:
+    with c_pie2:
         st.subheader("💰 Top 5 Maiores Despesas")
         df_top_elementos = df_filtrado_global.groupby('Elemento')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
         fig_top = px.pie(df_top_elementos, values='Orçado', names='Elemento', hole=.4,
-                        color_discrete_sequence=px.colors.qualitative.Safe)
-        fig_top.update_traces(textinfo='percent+label')
+                        color_discrete_sequence=px.colors.qualitative.Pastel)
+        fig_top.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=350, showlegend=False)
+        fig_top.update_traces(textinfo='percent+label', textposition='inside')
         st.plotly_chart(fig_top, use_container_width=True, config=CONFIG_PT)
 
-    # 3. PERCENTUAL DE EXECUÇÃO POR ÁREA
+    # 3. EFICIÊNCIA DE EXECUÇÃO
     st.markdown("---")
     st.subheader("🎯 Eficiência de Execução por Categoria")
     
-    df_exec_cat = df_filtrado_global.groupby('Categoria').agg({
-        'Orçado': 'sum',
-        'Saldo': 'sum'
-    }).reset_index()
-    
+    df_exec_cat = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
     df_exec_cat['Executado'] = df_exec_cat['Orçado'] - df_exec_cat['Saldo']
     df_exec_cat['Perc'] = (df_exec_cat['Executado'] / df_exec_cat['Orçado'] * 100).fillna(0)
-    df_exec_cat = df_exec_cat.sort_values('Perc', ascending=True) # Ascending True para o gráfico horizontal ficar bonito
+    df_exec_cat = df_exec_cat.sort_values('Perc', ascending=True)
 
     fig_exec_cat = px.bar(df_exec_cat, x='Perc', y='Categoria', orientation='h',
                           text='Perc', color='Perc', color_continuous_scale='Greens')
     
-    fig_exec_cat.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+    fig_exec_cat.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
     fig_exec_cat.update_layout(
-        xaxis_title="Percentual Liquidado (%)", 
-        yaxis_title="", 
-        coloraxis_showscale=False,
-        xaxis=dict(range=[0, 115]) # Espaço para o texto da porcentagem
+        xaxis_title="Liquidado (%)", yaxis_title="", 
+        coloraxis_showscale=False, height=400,
+        margin=dict(l=200), # Espaço para os nomes das categorias não cortarem
+        xaxis=dict(range=[0, 120])
     )
     st.plotly_chart(fig_exec_cat, use_container_width=True, config=CONFIG_PT)
+    
     # --- ANÁLISE 4: RELATÓRIO TÉCNICO ---
     st.markdown("---")
     st.subheader("📋 Relatório Detalhado (Estilo Relatório)")
