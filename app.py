@@ -137,15 +137,17 @@ if df_raw is not None:
             else:
                 label_hover = "Elemento" if busca else "Categoria"
             
-            # Gráfico sem animação forçada e com correção de valores sobrepostos
+            # REMOÇÃO DO PARÂMETRO 'text' do px.bar para evitar duplicidade
             fig_detalhe = px.bar(df_detalhe, x='Ficha', y='Orçado',
                                  color_discrete_sequence=["#00CC96"], 
                                  custom_data=[label_hover])
 
+            # APLICAÇÃO ÚNICA E LIMPA DO TEXTO
             fig_detalhe.update_traces(
                 hovertemplate=f"<b>{label_hover}:</b> %{{customdata[0]}}<br><b>Valor:</b> R$ %{{y:,.2f}}<extra></extra>",
-                text=df_detalhe['Orçado'].apply(formar_real), # Correção: força o valor real correto na barra
-                textposition='outside', 
+                text=df_detalhe['Orçado'].apply(formar_real), 
+                textposition='outside',
+                textfont=dict(size=12, color="white"), # Força uma fonte limpa
                 cliponaxis=False,
                 width=0.8 if len(df_detalhe) < 12 else 0.5
             )
@@ -154,8 +156,13 @@ if df_raw is not None:
                 xaxis_type='category', 
                 height=550, 
                 separators=',.',
-                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.25]), # Espaço para o texto não sobrepor
-                margin=dict(t=80, b=50, l=50, r=50)
+                yaxis=dict(
+                    range=[0, df_detalhe['Orçado'].max() * 1.30],
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.1)'
+                ),
+                margin=dict(t=80, b=50, l=50, r=50),
+                showlegend=False
             )
             
             st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
