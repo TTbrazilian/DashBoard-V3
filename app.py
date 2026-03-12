@@ -1,15 +1,20 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio  # Importação necessária para forçar a tradução
 import os
 import unicodedata
 
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
-# --- SOLUÇÃO DEFINITIVA DE TRADUÇÃO (MANUAL) ---
-# Aqui a gente mapeia o ID interno do botão para o texto em PT-BR
+# --- TRADUÇÃO GLOBAL DO PLOTLY ---
+# Isso configura o motor do Plotly para falar Português antes de gerar os gráficos
+pio.templates.default = "plotly_white"
+
+# Configuração manual dos botões para garantir 100%
 CONFIG_PT = {
     'displaylogo': False,
+    'locale': 'pt-BR',
     'modeBarButtonsToolTipNames': {
         'toImage': 'Baixar como PNG',
         'zoom2d': 'Zoom',
@@ -70,7 +75,7 @@ if df_raw is not None:
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
-        # Filtro de precisão para evitar linhas intrusas
+        # Filtro preciso para categorias e fichas
         mask = (
             df_filtrado_global['Categoria'].apply(remover_acentos) == termo
         ) | (
@@ -129,7 +134,7 @@ if df_raw is not None:
             df_detalhe = df_filtrado_global[df_filtrado_global['Elemento'] == ele].sort_values('Orçado', ascending=False)
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
-            label_hover = "Elemento" if busca else "Categoria" # Hover dinâmico conforme busca
+            label_hover = "Elemento" if busca else "Categoria" # Hover dinâmico
             
             fig_detalhe = px.bar(df_detalhe, x='Ficha', y='Orçado', text='Orçado',
                                  color_discrete_sequence=["#00CC96"], 
