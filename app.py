@@ -252,7 +252,7 @@ if df_raw is not None:
 
     # ---  EFICIÊNCIA DE EXECUÇÃO ---
     st.markdown("---")
-    st.subheader("🎯 Eficiência de Execução por Categoria")
+    st.subheader("🎯 '%' de Execução por Categoria")
     
     df_exec_final = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
     df_exec_final['Executado'] = df_exec_final['Orçado'] - df_exec_final['Saldo']
