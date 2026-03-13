@@ -11,31 +11,21 @@ st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 # --- TRADUÇÃO GLOBAL DO PLOTLY ---
 pio.templates.default = "plotly_white"
 
-# --- registrar o idioma no motor gráfico ---
-import plotly.io as pio
-pio.templates.default = "plotly_white"
-# Força o registro interno para PT-BR
-import plotly.offline as pyo
-pyo.init_notebook_mode(connected=True)
-
-# CONFIG_PT mais completo
 CONFIG_PT = {
     'displaylogo': False,
     'locale': 'pt-BR',
     'modeBarButtonsToolTipNames': {
         'toImage': 'Baixar como PNG',
-        'zoom2d': 'Aproximar (Zoom)',
+        'zoom2d': 'Zoom',
         'pan2d': 'Mover',
         'select2d': 'Seleção Retangular',
         'lasso2d': 'Seleção de Laço',
-        'zoomIn2d': 'Aumentar Zoom',
-        'zoomOut2d': 'Diminuir Zoom',
+        'zoomIn2d': 'Aproximar',
+        'zoomOut2d': 'Afastar',
         'autoScale2d': 'Ajuste Automático',
         'resetScale2d': 'Redefinir Escala',
         'hoverClosestCartesian': 'Mostrar Mais Próximo',
-        'hoverCompareCartesian': 'Comparar Dados',
-        'toggleSpikelines': 'Alternar Linhas de Guia',
-        'toggleHover': 'Alternar Informações de Hover'
+        'hoverCompareCartesian': 'Comparar Dados'
     }
 }
 
