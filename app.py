@@ -58,6 +58,10 @@ def load_data():
     if 'Ficha' in df.columns:
         df['Ficha'] = df['Ficha'].astype(str).str.replace('.0', '', regex=False).str.strip()
 
+    # Tratamento da coluna Fonte para garantir que seja string sem .0
+    if 'Fonte' in df.columns:
+        df['Fonte'] = df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+
     cols_para_limpar = ['Orçado', 'Saldo', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho']
     for col in df.columns:
         if any(k in col for k in cols_para_limpar):
@@ -69,17 +73,20 @@ df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
-    busca = st.sidebar.text_input("Filtrar Fichas/Categorias:")
+    busca = st.sidebar.text_input("Filtrar Ficha, Categoria ou Código da Fonte:")
 
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
+        # Filtro corrigido: trata Fonte como string para busca parcial ou exata
         mask = (
-            df_filtrado_global['Categoria'].apply(remover_acentos) == termo
+            df_filtrado_global['Categoria'].apply(remover_acentos).str.contains(termo, na=False)
         ) | (
             df_filtrado_global['Ficha'] == busca.strip()
         ) | (
-            df_filtrado_global['Elemento'].apply(remover_acentos) == termo
+            df_filtrado_global['Elemento'].apply(remover_acentos).str.contains(termo, na=False)
+        ) | (
+            df_filtrado_global['Fonte'].str.contains(busca.strip(), na=False)
         )
         df_filtrado_global = df_filtrado_global[mask]
 
@@ -121,16 +128,6 @@ if df_raw is not None:
             animation: subirBarra 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
             clip-path: inset(100% 0 0 0);
         }
-        .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.05s; }
-        .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.10s; }
-        .js-plotly-plot .point path:nth-child(3) { animation-delay: 0.15s; }
-        .js-plotly-plot .point path:nth-child(4) { animation-delay: 0.20s; }
-        .js-plotly-plot .point path:nth-child(5) { animation-delay: 0.25s; }
-        .js-plotly-plot .point path:nth-child(6) { animation-delay: 0.30s; }
-        .js-plotly-plot .point path:nth-child(7) { animation-delay: 0.35s; }
-        .js-plotly-plot .point path:nth-child(8) { animation-delay: 0.40s; }
-        .js-plotly-plot .point path:nth-child(9) { animation-delay: 0.45s; }
-        .js-plotly-plot .point path:nth-child(10) { animation-delay: 0.50s; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -180,30 +177,6 @@ if df_raw is not None:
                 del st.session_state['elemento_ativo']
                 st.rerun()
    
-    # NOVAS ANÁLISES 
-
-    # --- BLOCOS DE ATENÇÃO ---
-    st.markdown("---")
-    st.subheader("🏛️ Investimentos por Bloco de Atenção")
-    
-    df_blocos = df_filtrado_global.groupby('Categoria')['Orçado'].sum().reset_index().sort_values('Orçado', ascending=False)
-    
-    fig_blocos = px.bar(df_blocos, x='Categoria', y='Orçado', text='Orçado',
-                        color_discrete_sequence=["#636EFA"])
-    
-    fig_blocos.update_traces(
-        texttemplate='R$ %{text:,.2f}', 
-        textposition='outside',
-        hovertemplate="<b>Bloco:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-    )
-    fig_blocos.update_layout(
-        yaxis_tickprefix='R$ ', separators=',.', height=450,
-        margin=dict(t=50, b=50, l=50, r=50),
-        yaxis=dict(range=[0, df_blocos['Orçado'].max() * 1.35])
-    )
-    st.plotly_chart(fig_blocos, use_container_width=True, config=CONFIG_PT)
-
-
     # --- NATUREZA DA DESPESA (CUSTEIO X CAPITAL) ---
     st.markdown("---")
     st.subheader("📊 Natureza: Custeio x Capital")
@@ -212,7 +185,6 @@ if df_raw is not None:
         lambda x: 'Capital (Invest.)' if '4.4' in str(x) else 'Custeio (Manut.)'
     )
     
-    # Agrupamento e lógica para garantir que Capital apareça na legenda
     df_natureza = df_filtrado_global.groupby('Natureza')['Orçado'].sum().reset_index()
     if 'Capital (Invest.)' not in df_natureza['Natureza'].values:
         nova_linha = pd.DataFrame({'Natureza': ['Capital (Invest.)'], 'Orçado': [0.0]})
@@ -228,14 +200,14 @@ if df_raw is not None:
         showlegend=True,
         separators=',.', 
         legend=dict(
-            itemclick="toggle",          # Torna clicável novamente
+            itemclick="toggle",
             itemdoubleclick="toggleothers",
             orientation="v", 
             yanchor="middle", 
             y=0.5, 
             xanchor="left", 
             x=1.05,
-            font=dict(size=16)           # Fonte da legenda aumentada para 16
+            font=dict(size=16)
         )
     )
     fig_natureza.update_traces(
@@ -244,15 +216,13 @@ if df_raw is not None:
         hovertemplate="<b>Natureza:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<extra></extra>"
     )
     
-    # Centralização Visual
     _, col_central_1, _ = st.columns([1, 2, 1])
     with col_central_1:
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
 
-
-    # ---  EFICIÊNCIA DE EXECUÇÃO ---
+    # --- EFICIÊNCIA DE EXECUÇÃO ---
     st.markdown("---")
-    st.subheader("🎯 % de Execução por Categoria")
+    st.subheader("🎯 Eficiência de Execução por Categoria")
     
     df_exec_final = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
     df_exec_final['Executado'] = df_exec_final['Orçado'] - df_exec_final['Saldo']
@@ -276,8 +246,6 @@ if df_raw is not None:
     )
     st.plotly_chart(fig_exec_final, use_container_width=True, config=CONFIG_PT)
 
-    # =================================================================
-
     # --- ANÁLISE 4: RELATÓRIO TÉCNICO ---
     st.markdown("---")
     st.subheader("📋 Relatório Detalhado")
@@ -294,6 +262,7 @@ if df_raw is not None:
             "Saldo_F": "Saldo",
             "Elemento": st.column_config.TextColumn("Elemento", width="large"),
             "Ficha": st.column_config.TextColumn("Ficha"),
+            "Fonte": st.column_config.TextColumn("Fonte"),
         },
     )
 
