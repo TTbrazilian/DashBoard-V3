@@ -6,30 +6,14 @@ import os
 import unicodedata
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
-
 # --- TRADUÇÃO GLOBAL DO PLOTLY ---
 pio.templates.default = "plotly_white"
 
-# CONFIG_PT com inclusão de scripts de tradução externos para garantir o funcionamento
+# CONFIG_PT atualizado para remover tooltips da barra de ferramentas
 CONFIG_PT = {
     'displaylogo': False,
-    'locale': 'pt-BR',
-    'modeBarButtonsToolTipNames': {
-        'toImage': 'Baixar como PNG',
-        'zoom2d': 'Zoom',
-        'pan2d': 'Mover',
-        'select2d': 'Seleção Retangular',
-        'lasso2d': 'Seleção de Laço',
-        'zoomIn2d': 'Aproximar',
-        'zoomOut2d': 'Afastar',
-        'autoScale2d': 'Ajuste Automático',
-        'resetScale2d': 'Redefinir Escala',
-        'hoverClosestCartesian': 'Mostrar Mais Próximo',
-        'hoverCompareCartesian': 'Comparar Dados',
-        'toggleSpikelines': 'Alternar Linhas de Guia',
-        'toggleHover': 'Alternar Informações de Hover'
-    }
+    'showTips': False,
+    'modeBarButtonsToolTipNames': {}
 }
 
 # --- FUNÇÕES UTILITÁRIAS ---
@@ -53,7 +37,8 @@ def formar_real(valor):
 @st.cache_data
 def load_data():
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    caminho = os.path.join(diretorio_atual, 'fichas.csv')
+    # Ajuste para buscar o arquivo na raiz (um nível acima da pasta pages)
+    caminho = os.path.join(diretorio_atual, '..', 'fichas.csv')
     if not os.path.exists(caminho): return None
     df = pd.read_csv(caminho, sep=None, engine='python', encoding='utf-8', header=1)
     df.columns = [str(c).strip() for c in df.columns]
