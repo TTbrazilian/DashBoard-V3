@@ -13,7 +13,7 @@ def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-# --- 2. CSS PARA DESIGN E INTERAÇÃO ---
+# --- 2. CSS PARA DESIGN REFINADO E TRAVA DE ESCRITA ---
 st.markdown("""
     <style>
     /* Limpeza de interface */
@@ -22,10 +22,7 @@ st.markdown("""
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
 
-    /* Cursor de botão no Selectbox e trava de escrita */
-    div[data-baseweb="select"] {
-        cursor: pointer !important;
-    }
+    /* Trava de escrita no Selectbox (Apenas clique permitido) */
     div[data-baseweb="select"] input {
         caret-color: transparent !important;
         cursor: pointer !important;
@@ -51,7 +48,7 @@ st.markdown("""
         margin-top: 5px;
     }
 
-    /* Centralização do Bloco Central */
+    /* Centralização Absoluta do Bloco Central */
     .main-content {
         display: flex;
         flex-direction: column;
@@ -77,19 +74,25 @@ st.markdown("""
         color: #90CAF9;
         margin: 0;
         font-size: 14px;
-        font-weight: 500;
     }
 
-    /* Estilo dos Botões */
+    /* Estilo dos Botões e Alinhamento */
+    [data-testid="stVerticalBlock"] > div {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+
     div.stButton > button {
         background-color: #3d3f4b !important;
         color: white !important;
         border: none !important;
         padding: 14px 20px !important;
         font-size: 16px !important;
-        width: 100% !important;
+        width: 100% !important; /* Mantém largura total dentro do container central */
         border-radius: 8px !important;
         margin-bottom: 10px !important;
+        transition: background 0.2s;
     }
     div.stButton > button:hover {
         background-color: #4e515f !important;
@@ -97,7 +100,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. RENDERIZAÇÃO DO LOGO (MODO ESCURO) ---
+# --- 3. LOGOTIPO (BRANCO PARA MODO ESCURO) ---
+# Referência ao arquivo solicitado para contraste no tema escuro
 logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png" 
 
 if os.path.exists(logo_path):
@@ -113,25 +117,27 @@ if os.path.exists(logo_path):
     )
 
 # --- 4. CONTEÚDO CENTRALIZADO ---
+# Usamos o container para garantir que tudo fique alinhado no meio
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
+# Seleção do Setor (index=None obriga o usuário a clicar para escolher)
 setor = st.selectbox(
     "Selecione o Setor",
     ["Saúde", "Educação"],
     index=None,
     placeholder="Clique para escolher...",
+    label_visibility="visible"
 )
 
 if setor:
-    # Definição dinâmica do texto conforme a seleção
-    texto_caixa = f"{setor}: Selecione o municipio abaixo"
-    
+    # Caixa azul logo acima dos botões
     st.markdown(f"""
         <div class="info-banner">
-            <p class="info-text">{texto_caixa}</p>
+            <p class="info-text">Indicadores de {setor}: Selecione um município abaixo.</p>
         </div>
     """, unsafe_allow_html=True)
 
+    # Exibição condicional centralizada
     if setor == "Saúde":
         if st.button("🏙️ Bom Jesus da Penha"):
             st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
