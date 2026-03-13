@@ -11,6 +11,7 @@ st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 # --- TRADUÇÃO GLOBAL DO PLOTLY ---
 pio.templates.default = "plotly_white"
 
+# CONFIG_PT Atualizado com todos os nomes dos ícones da ModeBar em português
 CONFIG_PT = {
     'displaylogo': False,
     'locale': 'pt-BR',
@@ -25,7 +26,9 @@ CONFIG_PT = {
         'autoScale2d': 'Ajuste Automático',
         'resetScale2d': 'Redefinir Escala',
         'hoverClosestCartesian': 'Mostrar Mais Próximo',
-        'hoverCompareCartesian': 'Comparar Dados'
+        'hoverCompareCartesian': 'Comparar Dados',
+        'toggleSpikelines': 'Alternar Linhas de Guia',
+        'toggleHover': 'Alternar Informações de Hover'
     }
 }
 
@@ -62,7 +65,7 @@ def load_data():
     if 'Fonte' in df.columns:
         df['Fonte'] = df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
 
-    cols_para_limpar = ['Orçado', 'Saldo', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho']
+    cols_para_limpar = ['Orçado', 'Saldo', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     for col in df.columns:
         if any(k in col for k in cols_para_limpar):
             df[col] = df[col].apply(limpar_valor)
@@ -78,7 +81,7 @@ if df_raw is not None:
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
-        # Filtro corrigido: trata Fonte como string para busca parcial ou exata
+        # Filtro: trata Fonte como string para busca parcial ou exata
         mask = (
             df_filtrado_global['Categoria'].apply(remover_acentos).str.contains(termo, na=False)
         ) | (
@@ -151,10 +154,11 @@ if df_raw is not None:
             busca_limpa = remover_acentos(busca)
             label_hover = "Categoria" if busca and (busca_limpa in lista_elementos) else ("Elemento" if busca else "Categoria")
             
+            # Gráfico com custom_data incluindo a Fonte para o Hover
             fig_detalhe = px.bar(
                 df_detalhe, x='Ficha', y='Orçado',
                 color_discrete_sequence=["#00CC96"], 
-                custom_data=[label_hover, 'Fonte'] # Adicionado 'Fonte' aqui
+                custom_data=[label_hover, 'Fonte'] 
             )
 
             fig_detalhe.update_traces(
