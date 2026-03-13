@@ -60,7 +60,7 @@ st.markdown("""
         font-size: 14px;
     }
 
-    /* 4. Centralização do Menu de Botões com ajuste para baixo */
+    /* 4. Centralização do Menu de Botões (Ajustado para baixo) */
     .stApp {
         display: flex;
         flex-direction: column;
@@ -71,7 +71,7 @@ st.markdown("""
     [data-testid="stVerticalBlock"] {
         align-items: center !important;
         justify-content: center !important;
-        padding-top: 50px !important; /* Move o painel central um pouco para baixo */
+        padding-top: 80px !important; /* Move o painel central um pouco mais para baixo */
     }
 
     .menu-container {
@@ -98,12 +98,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. RENDERIZAÇÃO DA IDENTIDADE COM AS IMAGENS CORRETAS ---
-# Referenciando os nomes de arquivos exatos solicitados
-logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.png" 
-
-if not os.path.exists(logo_path):
-    logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png"
+# --- 3. RENDERIZAÇÃO DA IDENTIDADE COM LOGO BRANCO PARA MODO ESCURO ---
+# Atualizado para utilizar a versão BRANCO conforme solicitado para o tema escuro
+logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png" 
 
 if os.path.exists(logo_path):
     img_base64 = get_image_base64(logo_path)
