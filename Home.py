@@ -1,58 +1,56 @@
 import streamlit as st
 import os
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="IG2P - Portal de Gestão", layout="wide", initial_sidebar_state="expanded")
 
-# --- CSS PARA LIMPEZA E ESTILO ---
+# --- 2. CSS PARA CORRIGIR A VISIBILIDADE DA SIDEBAR ---
 st.markdown("""
     <style>
-    /* Esconde elementos padrão do Streamlit */
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
+    /* Esconde elementos padrão do cabeçalho */
+    [data-testid="stHeader"] {visibility: hidden;}
     .stDeployButton {display:none;}
     
-    /* Esconde a navegação automática de arquivos que o Streamlit cria no topo da sidebar */
-    div[data-testid="stSidebarNav"] {display: none;}
-
-    /* Tira o espaço branco do topo */
-    .main .block-container {
-        padding-top: 2rem !important;
+    /* ESCONDE APENAS A LISTA AUTOMÁTICA DE LINKS (O que causou o sumiço) */
+    [data-testid="stSidebarNav"] {
+        display: none !important;
     }
 
-    /* Estilização da Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #111;
+    /* GARANTE QUE A SIDEBAR APAREÇA E TENHA COR */
+    [data-testid="stSidebar"] {
+        visibility: visible !important;
+        background-color: #111111 !important;
+    }
+
+    /* Ajuste de respiro para os botões não colarem no topo */
+    .st-emotion-cache-16idsys {
+        padding-top: 3rem !important;
     }
     
-    /* Ajuste para o expander de municípios não ficar colado no topo */
-    .sidebar-content {
-        padding-top: 20px;
+    /* Centralização do conteúdo principal */
+    .main .block-container {
+        padding-top: 3rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- MENU LATERAL (SIDEBAR) ---
+# --- 3. CONTEÚDO DA SIDEBAR ---
+# Note que agora o conteúdo está fora de qualquer condicional para forçar a renderização
 with st.sidebar:
-    st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
-    
-    # Botão Home isolado no topo
-    if st.button("🏠 Home", use_container_width=True):
+    # Botão Home
+    if st.button("🏠 Home", use_container_width=True, key="home_btn"):
         st.rerun()
     
     st.markdown("---")
     
-    # Seção única de Municípios
+    # Seção de Municípios
     with st.expander("📍 Municípios", expanded=True):
-        if st.button("🏙️ Bom Jesus da Penha", use_container_width=True):
+        if st.button("🏙️ Bom Jesus da Penha", use_container_width=True, key="bj_btn"):
             st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
         
-        st.button("🏢 Município X", disabled=True, use_container_width=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.button("🏢 Município X", disabled=True, use_container_width=True, key="x_btn")
 
-# --- CONTEÚDO CENTRAL DA HOME ---
+# --- 4. CONTEÚDO CENTRAL DA HOME ---
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
@@ -68,4 +66,4 @@ with col2:
     st.markdown("<p style='text-align: center; color: #888;'>IG2P - Inteligência em Gestão Pública</p>", unsafe_allow_html=True)
     
     st.divider()
-    st.info("Utilize o menu lateral para selecionar o município e visualizar os dados.")
+    st.info("Utilize o menu lateral à esquerda para navegar entre os municípios.")
