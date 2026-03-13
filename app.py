@@ -11,11 +11,25 @@ st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 # --- TRADUÇÃO GLOBAL DO PLOTLY ---
 pio.templates.default = "plotly_white"
 
-# CONFIG_PT alterado para manter a barra mas remover as tooltips (textos de hover)
+# CONFIG_PT com inclusão de scripts de tradução externos para garantir o funcionamento
 CONFIG_PT = {
     'displaylogo': False,
-    'showTips': False,  # Esta linha desativa os balões de texto dos ícones
-    'modeBarButtonsToolTipNames': {} 
+    'locale': 'pt-BR',
+    'modeBarButtonsToolTipNames': {
+        'toImage': 'Baixar como PNG',
+        'zoom2d': 'Zoom',
+        'pan2d': 'Mover',
+        'select2d': 'Seleção Retangular',
+        'lasso2d': 'Seleção de Laço',
+        'zoomIn2d': 'Aproximar',
+        'zoomOut2d': 'Afastar',
+        'autoScale2d': 'Ajuste Automático',
+        'resetScale2d': 'Redefinir Escala',
+        'hoverClosestCartesian': 'Mostrar Mais Próximo',
+        'hoverCompareCartesian': 'Comparar Dados',
+        'toggleSpikelines': 'Alternar Linhas de Guia',
+        'toggleHover': 'Alternar Informações de Hover'
+    }
 }
 
 # --- FUNÇÕES UTILITÁRIAS ---
