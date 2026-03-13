@@ -33,7 +33,7 @@ st.markdown("""
         align-items: flex-start;
     }
     .logo-img {
-        width: 150px; /* Reduzido conforme solicitado */
+        width: 150px; 
         pointer-events: none;
         user-select: none;
     }
@@ -52,7 +52,7 @@ st.markdown("""
         border-left: 5px solid #2196F3;
         text-align: center;
         width: fit-content;
-        margin: 20px auto 40px auto; /* Centraliza no topo com margem abaixo */
+        margin: 20px auto 40px auto; 
     }
     .info-text {
         color: #90CAF9;
@@ -60,7 +60,7 @@ st.markdown("""
         font-size: 14px;
     }
 
-    /* 4. Centralização do Menu de Botões */
+    /* 4. Centralização do Menu de Botões com ajuste para baixo */
     .stApp {
         display: flex;
         flex-direction: column;
@@ -71,6 +71,7 @@ st.markdown("""
     [data-testid="stVerticalBlock"] {
         align-items: center !important;
         justify-content: center !important;
+        padding-top: 50px !important; /* Move o painel central um pouco para baixo */
     }
 
     .menu-container {
@@ -97,16 +98,19 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. RENDERIZAÇÃO DA IDENTIDADE (CANTO ESQUERDO) ---
-# Forçando o uso da imagem com fundo escuro/cinza
-logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg" 
+# --- 3. RENDERIZAÇÃO DA IDENTIDADE COM AS IMAGENS CORRETAS ---
+# Referenciando os nomes de arquivos exatos solicitados
+logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.png" 
+
+if not os.path.exists(logo_path):
+    logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png"
 
 if os.path.exists(logo_path):
     img_base64 = get_image_base64(logo_path)
     st.markdown(
         f'''
         <div class="brand-container">
-            <img src="data:image/jpeg;base64,{img_base64}" class="logo-img">
+            <img src="data:image/png;base64,{img_base64}" class="logo-img">
             <p class="brand-text">Inteligência em Gestão</p>
         </div>
         ''',
