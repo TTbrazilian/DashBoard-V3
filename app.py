@@ -176,7 +176,7 @@ if df_raw is not None:
                 st.rerun()
    
     st.markdown("---")
-    st.subheader("📊 Natureza: Custeio x Capital")
+    st.subheader("📊 Custeio x Capital")
     
     df_filtrado_global['Natureza'] = df_filtrado_global['Elemento'].apply(
         lambda x: 'Capital (Invest.)' if '4.4' in str(x) else 'Custeio (Manut.)'
@@ -218,7 +218,7 @@ if df_raw is not None:
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
-    st.subheader("🎯 Eficiência de Execução por Categoria")
+    st.subheader("🎯 % de Execução por Categoria")
     
     df_exec_final = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
     df_exec_final['Executado'] = df_exec_final['Orçado'] - df_exec_final['Saldo']
