@@ -71,15 +71,24 @@ if df_raw is not None:
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
-        mask = (
-            df_filtrado_global['Categoria'].apply(remover_acentos).str.contains(termo, na=False)
-        ) | (
-            df_filtrado_global['Ficha'] == busca.strip()
-        ) | (
-            df_filtrado_global['Elemento'].apply(remover_acentos).str.contains(termo, na=False)
-        ) | (
-            df_filtrado_global['Fonte'].str.contains(busca.strip(), na=False)
-        )
+        
+        # Mapeamento para verificar se a busca é exatamente uma Categoria
+        categorias_existentes = {remover_acentos(cat): cat for cat in df_raw['Categoria'].unique()}
+        
+        if termo in categorias_existentes:
+            # Filtro restrito: Se digitar "MAC", traz apenas a categoria MAC
+            mask = df_filtrado_global['Categoria'].apply(remover_acentos) == termo
+        else:
+            # Busca ampla caso não seja uma categoria exata
+            mask = (
+                df_filtrado_global['Categoria'].apply(remover_acentos).str.contains(termo, na=False)
+            ) | (
+                df_filtrado_global['Ficha'] == busca.strip()
+            ) | (
+                df_filtrado_global['Elemento'].apply(remover_acentos).str.contains(termo, na=False)
+            ) | (
+                df_filtrado_global['Fonte'].str.contains(busca.strip(), na=False)
+            )
         df_filtrado_global = df_filtrado_global[mask]
 
     st.title("📊 Bom Jesus da Penha - Saúde")
@@ -96,7 +105,7 @@ if df_raw is not None:
     with c3: st.metric("Executado (Liquidado)", formar_real(executado))
     with c4: st.metric("% de Execução", f"{perc_exec:.2f}%".replace('.', ','))
 
-    # --- GRÁFICO DE EVOLUÇÃO MENSAL (RESTAURADO) ---
+    # --- GRÁFICO DE EVOLUÇÃO MENSAL ---
     st.subheader("📈 Evolução Mensal da Execução")
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     mensal_dados = [{"Mês": m, "Valor": df_filtrado_global[m].sum()} for m in meses if m in df_filtrado_global.columns]
@@ -238,14 +247,13 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("💰 Valor Orçado Total por Categoria")
     
-    # Agrupando a soma do orçado por categoria
     df_soma_categoria = df_filtrado_global.groupby('Categoria')['Orçado'].sum().reset_index().sort_values('Orçado', ascending=False)
     
     fig_soma_cat = px.bar(
         df_soma_categoria, 
         x='Categoria', 
         y='Orçado',
-        color_discrete_sequence=["#2196F3"], # Azul para diferenciar da execução
+        color_discrete_sequence=["#2196F3"],
         text='Orçado'
     )
     
