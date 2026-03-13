@@ -9,21 +9,21 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS PARA DESIGN IDÊNTICO E REMOÇÃO TOTAL DE INTERAÇÃO ---
+# --- 2. CSS DEFINITIVO: DESIGN IDÊNTICO + REMOÇÃO TOTAL DE OVERLAYS ---
 st.markdown("""
     <style>
-    /* Remove elementos nativos */
+    /* 1. Limpeza de interface nativa */
     header[data-testid="stHeader"] { background-color: transparent !important; }
     [data-testid="stSidebarNav"] { display: none !important; }
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
 
-    /* FUNDO DA SIDEBAR DARK */
+    /* 2. Sidebar Dark (Idêntica ao Dashboard de Bom Jesus) */
     [data-testid="stSidebar"] {
         background-color: #1a1c24 !important;
     }
 
-    /* ESTILO DOS BOTÕES EM CÁPSULA */
+    /* 3. Estilo dos botões da Sidebar */
     div.stButton > button {
         background-color: transparent !important;
         color: #9ea0a5 !important;
@@ -36,7 +36,7 @@ st.markdown("""
         transition: all 0.3s ease !important;
     }
 
-    /* BOTÃO ATIVO (HOME) */
+    /* Botão Home Ativo */
     div.stButton > button[key="nav_home"] {
         background-color: #3d3f4b !important;
         color: white !important;
@@ -44,37 +44,30 @@ st.markdown("""
         font-weight: 500 !important;
     }
 
-    /* EFEITO HOVER SIDEBAR */
     div.stButton > button:hover {
         background-color: rgba(255, 255, 255, 0.05) !important;
         color: white !important;
     }
 
-    /* REMOVE A "BOLINHA" E QUALQUER INTERAÇÃO NA IMAGEM */
-    /* Isso desativa o container de botões de zoom/fullscreen e a própria interação do mouse */
+    /* 4. REMOÇÃO TOTAL DO ÍCONE DE TELA CHEIA (BOLINHA) */
+    /* Bloqueia qualquer botão ou overlay que o Streamlit tente criar sobre a imagem */
+    [data-testid="stImage"] button, 
     [data-testid="stImage"] [data-testid="StyledFullScreenButton"],
-    [data-testid="stImage"] button,
-    .st-emotion-cache-6aw8o6, 
-    .st-emotion-cache-15zrgzn,
-    .st-emotion-cache-0 {
+    [data-testid="stImage"] .st-emotion-cache-15zrgzn,
+    [data-testid="stImage"] .st-emotion-cache-6aw8o6,
+    [data-testid="stImage"] div[class*="st-emotion-cache"] button {
         display: none !important;
         visibility: hidden !important;
-        opacity: 0 !important;
-    }
-    
-    [data-testid="stImage"] img {
-        pointer-events: none !important;
-        user-select: none !important;
     }
 
-    /* CENTRALIZAÇÃO E POSIÇÃO DO LOGO */
+    /* Desativa a detecção de mouse na imagem (evita que o ícone sinta o hover) */
     [data-testid="stImage"] {
+        pointer-events: none !important;
         display: flex !important;
         justify-content: center !important;
-        margin-top: -50px !important;
-        pointer-events: none !important; /* Trava interações em todo o bloco */
+        margin-top: -50px !important; /* Mantém a posição de cabeçalho ajustada */
     }
-    
+
     .st-emotion-cache-16idsys { padding-top: 2rem !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -99,6 +92,7 @@ with st.sidebar:
 col_l, col_c, col_r = st.columns([1, 1.2, 1])
 
 with col_c:
+    # Busca o logo conforme a sua estrutura de pastas
     logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
     if not os.path.exists(logo_path):
         logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
