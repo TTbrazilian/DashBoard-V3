@@ -50,10 +50,13 @@ st.markdown("""
         color: white !important;
     }
 
-    /* REMOVE BOTÃO DE TELA CHEIA (FULLSCREEN) */
-    button[title="View fullscreen"] {
-        display: none !important;
+    /* REMOVE ÍCONE DE TELA CHEIA E INTERAÇÃO COM A IMAGEM */
+    button[title="View fullscreen"], 
+    [data-testid="StyledFullScreenButton"],
+    .st-emotion-cache-15zrgzn { 
+        display: none !important; 
     }
+    
     [data-testid="stImage"] img {
         pointer-events: none !important;
     }
@@ -62,7 +65,7 @@ st.markdown("""
     [data-testid="stImage"] {
         display: flex !important;
         justify-content: center !important;
-        margin-top: -50px !important; /* Sobe o logo para posição de cabeçalho */
+        margin-top: -50px !important;
     }
     
     .st-emotion-cache-16idsys { padding-top: 2rem !important; }
@@ -86,18 +89,16 @@ with st.sidebar:
     st.markdown("<hr style='border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
 # --- 4. CONTEÚDO CENTRAL ---
-# Ocupando o topo com o logo e o texto corrigido
 col_l, col_c, col_r = st.columns([1, 1.2, 1])
 
 with col_c:
-    # Verificação de arquivos conforme sua estrutura de pastas
     logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
     if not os.path.exists(logo_path):
         logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
 
     if os.path.exists(logo_path):
         img = Image.open(logo_path)
-        st.image(img, width=380) # Tamanho de cabeçalho ajustado
+        st.image(img, width=380)
     
     st.markdown("""
         <div style='text-align: center;'>
