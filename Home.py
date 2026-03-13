@@ -22,7 +22,7 @@ st.markdown("""
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
 
-    /* 2. Bloco de Identidade no Canto Superior Esquerdo */
+    /* 2. Bloco de Identidade (Canto Superior Esquerdo) */
     .brand-container {
         position: fixed;
         top: 30px;
@@ -33,22 +33,37 @@ st.markdown("""
         align-items: flex-start;
     }
     .logo-img {
-        width: 160px; /* Proporção ajustada */
+        width: 150px; /* Reduzido conforme solicitado */
         pointer-events: none;
         user-select: none;
-        margin-bottom: 5px;
     }
     .brand-text {
         color: white;
-        font-size: 18px; /* Fonte ajustada conforme solicitado */
+        font-size: 16px;
         font-weight: 400;
-        margin: 0;
-        letter-spacing: 0.5px;
+        margin-top: 5px;
     }
 
-    /* 3. Centralização Absoluta do Menu de Botões */
+    /* 3. Banner Informativo Azul (Topo Centralizado) */
+    .info-banner {
+        background-color: #16263a;
+        padding: 15px 30px;
+        border-radius: 8px;
+        border-left: 5px solid #2196F3;
+        text-align: center;
+        width: fit-content;
+        margin: 20px auto 40px auto; /* Centraliza no topo com margem abaixo */
+    }
+    .info-text {
+        color: #90CAF9;
+        margin: 0;
+        font-size: 14px;
+    }
+
+    /* 4. Centralização do Menu de Botões */
     .stApp {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
     }
@@ -56,17 +71,15 @@ st.markdown("""
     [data-testid="stVerticalBlock"] {
         align-items: center !important;
         justify-content: center !important;
-        width: 100% !important;
     }
 
     .menu-container {
         width: 100%;
-        max-width: 420px;
+        max-width: 400px;
         margin: 0 auto;
-        text-align: center;
     }
 
-    /* Botões centralizados e estilizados */
+    /* Estilo dos Botões */
     div.stButton > button {
         background-color: #3d3f4b !important;
         color: white !important;
@@ -76,17 +89,16 @@ st.markdown("""
         width: 100% !important;
         border-radius: 8px !important;
         margin-bottom: 12px !important;
-        transition: all 0.3s ease !important;
+        transition: all 0.2s ease !important;
     }
     div.stButton > button:hover {
         background-color: #4e515f !important;
-        transform: translateY(-2px);
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. RENDERIZAÇÃO DA IDENTIDADE (LOGO ESCURO + TEXTO) ---
-# Forçando a imagem escura conforme solicitado
+# --- 3. RENDERIZAÇÃO DA IDENTIDADE (CANTO ESQUERDO) ---
+# Forçando o uso da imagem com fundo escuro/cinza
 logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg" 
 
 if os.path.exists(logo_path):
@@ -101,14 +113,18 @@ if os.path.exists(logo_path):
         unsafe_allow_html=True
     )
 
-# --- 4. CONTEÚDO DO MENU CENTRALIZADO ---
-col_l, col_c, col_r = st.columns([1, 2, 1])
+# --- 4. BANNER AZUL NO TOPO CENTRALIZADO ---
+st.markdown("""
+    <div class="info-banner">
+        <p class="info-text">Utilize os botões abaixo para acessar os indicadores.</p>
+    </div>
+""", unsafe_allow_html=True)
+
+# --- 5. MENU DE BOTÕES CENTRALIZADO ---
+col_l, col_c, col_r = st.columns([1, 1.5, 1])
 
 with col_c:
     st.markdown("<div class='menu-container'>", unsafe_allow_html=True)
-    
-    # Subtítulo do portal
-    st.markdown("<p style='color: #9ea0a5; font-size: 14px; margin-bottom: 30px;'>Portal de Seleção de Municípios</p>", unsafe_allow_html=True)
     
     # Botões de navegação
     if st.button("🏙️ Bom Jesus da Penha"):
@@ -120,13 +136,4 @@ with col_c:
     if st.button("🏢 Município 3"):
         pass
         
-    st.markdown("<hr style='border-top: 1px solid #333; margin: 30px 0;'>", unsafe_allow_html=True)
-    
-    # Bloco informativo centralizado
-    st.markdown("""
-        <div style='background-color: #16263a; padding: 18px; border-radius: 8px; border-left: 5px solid #2196F3;'>
-            <p style='color: #90CAF9; margin: 0; font-size: 14px;'>Utilize os botões acima para acessar os indicadores.</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
     st.markdown("</div>", unsafe_allow_html=True)
