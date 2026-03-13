@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from PIL import Image
+import base64
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -9,7 +9,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS DEFINITIVO: DESIGN IDÊNTICO + REMOÇÃO TOTAL DE OVERLAYS ---
+# Função para converter imagem para base64 (necessário para o HTML)
+def get_image_base64(path):
+    with open(path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+# --- 2. CSS DEFINITIVO: DESIGN IDÊNTICO + REMOÇÃO TOTAL DE INTERAÇÃO ---
 st.markdown("""
     <style>
     /* 1. Limpeza de interface nativa */
@@ -49,35 +54,19 @@ st.markdown("""
         color: white !important;
     }
 
-    /* 4. BLOQUEIO TOTAL DO ÍCONE DE TELA CHEIA (BOLINHA) */
-    /* Remove qualquer botão ou elemento de overlay dentro do container de imagem */
-    [data-testid="stImage"] button, 
-    [data-testid="stImage"] [data-testid="StyledFullScreenButton"],
-    [data-testid="stImage"] .st-emotion-cache-15zrgzn,
-    [data-testid="stImage"] .st-emotion-cache-6aw8o6,
-    [data-testid="stImage"] div[class*="st-emotion-cache"] button,
-    [data-testid="stImage"] div[data-testid="stExpander"] {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
-
-    /* Desativa o hover e qualquer interação de mouse no bloco da imagem */
-    [data-testid="stImage"] {
-        pointer-events: none !important;
-        user-select: none !important;
-        display: flex !important;
-        justify-content: center !important;
-        margin-top: -50px !important; /* Mantém a posição de cabeçalho */
-    }
-    
-    /* Garante que o container pai não dispare eventos de mouse */
-    [data-testid="stImage"] > div {
-        pointer-events: none !important;
-    }
-
+    /* Ajuste de espaçamento da sidebar */
     .st-emotion-cache-16idsys { padding-top: 2rem !important; }
+
+    /* Estilo do Logo em HTML para evitar botões de tela cheia */
+    .logo-container {
+        display: flex;
+        justify-content: center;
+        margin-top: -50px; /* Posição de cabeçalho */
+    }
+    .logo-img {
+        width: 380px;
+        pointer-events: none; /* Impede qualquer interação ou "bolinha" */
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -89,7 +78,6 @@ with st.sidebar:
     if st.button("Bom Jesus da Penha", key="nav_bj"):
         st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
     
-    # Placeholders para os demais municípios conforme solicitado
     if st.button("Município 2", key="nav_m2"):
         pass
         
@@ -102,18 +90,22 @@ with st.sidebar:
 col_l, col_c, col_r = st.columns([1, 1.2, 1])
 
 with col_c:
-    # Verificação de arquivos
+    # Lógica de busca do logo
     logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
     if not os.path.exists(logo_path):
         logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
 
     if os.path.exists(logo_path):
-        img = Image.open(logo_path)
-        st.image(img, width=380)
+        # Renderização via HTML puro para não criar o botão de fullscreen
+        img_base64 = get_image_base64(logo_path)
+        st.markdown(
+            f'<div class="logo-container"><img src="data:image/jpeg;base64,{img_base64}" class="logo-img"></div>',
+            unsafe_allow_html=True
+        )
     
     st.markdown("""
         <div style='text-align: center;'>
-            <h1 style='font-weight: 400; color: white; font-size: 28px; margin-top: -10px;'>Inteligência em Gestão</h1>
+            <h1 style='font-weight: 400; color: white; font-size: 28px; margin-top: 0px;'>Inteligência em Gestão</h1>
             <hr style='border-top: 1px solid #333; width: 100%; margin: 20px 0;'>
             <div style='background-color: #16263a; padding: 20px; border-radius: 8px; border-left: 5px solid #2196F3;'>
                 <p style='color: #90CAF9; margin: 0; font-size: 16px;'>Utilize o menu lateral para selecionar o município.</p>
