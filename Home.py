@@ -4,58 +4,65 @@ from PIL import Image
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="IG2P - Portal de Gestão", 
+    page_title="IG2P - Inteligência em Gestão", 
     layout="wide", 
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS PARA DESIGN FIEL À IMAGEM ---
+# --- 2. CSS PARA DESIGN IDÊNTICO AO DASHBOARD ---
 st.markdown("""
     <style>
-    /* Remove elementos nativos desnecessários */
+    /* Remove elementos nativos e cabeçalho fixo */
     header[data-testid="stHeader"] { background-color: transparent !important; }
     [data-testid="stSidebarNav"] { display: none !important; }
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
 
-    /* SIDEBAR ESCURA (DESIGN DARK) */
+    /* FUNDO DA SIDEBAR DARK */
     [data-testid="stSidebar"] {
         background-color: #1a1c24 !important;
     }
 
-    /* BOTÕES EM ESTILO CÁPSULA (IGUAL À FOTO) */
+    /* ESTILO DOS BOTÕES EM CÁPSULA (PADRÃO BOM JESUS) */
     div.stButton > button {
         background-color: transparent !important;
         color: #9ea0a5 !important;
         border: none !important;
         text-align: left !important;
-        padding: 10px 20px !important;
-        font-size: 16px !important;
+        padding: 10px 18px !important;
+        font-size: 15px !important;
         width: 100% !important;
         display: block !important;
-        transition: all 0.3s ease !important;
+        transition: all 0.3s ease !important; /* Suaviza a transição do hover */
     }
 
-    /* DESTAQUE PARA O BOTÃO HOME (ATIVO) */
+    /* BOTÃO ATIVO (ONDE O USUÁRIO ESTÁ) */
     div.stButton > button[key="nav_home"] {
-        background-color: #3d3f4b !important;
+        background-color: #3d3f4b !important; /* Cinza cápsula do dashboard */
         color: white !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
+        border-radius: 8px !important;
+        font-weight: 500 !important;
     }
 
-    /* EFEITO HOVER (ESCURECE AO PASSAR O MOUSE) */
+    /* EFEITO HOVER - LEVE ESCURECIDA IGUAL À IMAGEM SOLICITADA */
     div.stButton > button:hover {
         background-color: rgba(255, 255, 255, 0.05) !important;
         color: white !important;
     }
     
+    /* Escurecimento específico para o botão que já está preenchido */
     div.stButton > button[key="nav_home"]:hover {
-        background-color: #2e303a !important;
+        background-color: #2e303a !important; 
     }
 
-    /* AJUSTE DE ESPAÇAMENTO SUPERIOR */
-    .st-emotion-cache-16idsys { padding-top: 3rem !important; }
+    /* Ajuste de respiro no topo da sidebar */
+    .st-emotion-cache-16idsys { padding-top: 2rem !important; }
+
+    /* Ajuste da imagem centralizada para não esticar */
+    [data-testid="stImage"] {
+        display: flex;
+        justify-content: center;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -63,35 +70,39 @@ st.markdown("""
 with st.sidebar:
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Navegação manual conforme design solicitado
+    # Botão Home (Marcado como Ativo)
     if st.button("Home", key="nav_home"):
         st.rerun()
     
+    # Botão de Navegação para a página de dados
     if st.button("Bom Jesus da Penha", key="nav_bj"):
         st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
     
-    st.markdown("---")
+    st.markdown("<hr style='border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
-# --- 4. CONTEÚDO CENTRAL COM LOGOTIPO DINÂMICO ---
-col_1, col_2, col_3 = st.columns([1, 2, 1])
+# --- 4. CONTEÚDO CENTRAL (LOGOTIPO E TÍTULO) ---
+col1, col2, col3 = st.columns([1, 2, 1])
 
-with col_2:
+with col2:
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    # Definição dos caminhos dos logos
-    logo_branco = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
-    logo_oficial = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
+    # Carregamento do Logo (Prioriza a versão clara para fundo escuro)
+    logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
+    if not os.path.exists(logo_path):
+        logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
+
+    if os.path.exists(logo_path):
+        img = Image.open(logo_path)
+        # Exibe o logo com largura controlada para ficar identico à imagem
+        st.image(img, width=450)
     
-    # Lógica simples para escolher o logo (Prioriza branco no design dark)
-    # Tenta detectar o modo do sistema ou usa o branco como padrão para o fundo escuro
-    logo_para_exibir = logo_branco if os.path.exists(logo_branco) else logo_oficial
-
-    if os.path.exists(logo_para_exibir):
-        img = Image.open(logo_para_exibir)
-        st.image(img, use_container_width=True)
-    else:
-        st.error("Logotipo não encontrado na pasta Logos.")
-
-    st.markdown("<h3 style='text-align: center; color: #888; font-weight: 400; margin-top: 10px;'>Portal de Gestão de Recursos</h3>", unsafe_allow_html=True)
-    st.divider()
-    st.info("Utilize o menu lateral para selecionar o município.")
+    # Título e Instrução exatamente como na imagem de referência
+    st.markdown("""
+        <div style='text-align: center; margin-top: 20px;'>
+            <h2 style='font-weight: 400; color: #E0E0E0;'>Portal de Gestão de Recursos</h2>
+            <hr style='border-top: 1px solid #333; width: 80%; margin: 20px auto;'>
+            <div style='background-color: #16263a; padding: 15px; border-radius: 5px; border-left: 5px solid #2196F3;'>
+                <p style='color: #90CAF9; margin: 0;'>Utilize o menu lateral para selecionar o município.</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
