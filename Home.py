@@ -13,14 +13,14 @@ def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-# --- 2. CSS PARA CENTRALIZAÇÃO ABSOLUTA ---
+# --- 2. CSS PARA CENTRALIZAÇÃO ABSOLUTA (SEM ERROS) ---
 st.markdown("""
     <style>
-    /* Limpeza de interface */
+    /* Limpeza total de interface */
     header[data-testid="stHeader"] { display: none !important; }
     [data-testid="stSidebar"] { display: none !important; }
-    .stDeployButton {display:none;}
-    footer {visibility: hidden;}
+    .stDeployButton { display:none; }
+    footer { visibility: hidden; }
 
     /* Cursor de botão no Selectbox e trava de escrita */
     div[data-baseweb="select"] { cursor: pointer !important; }
@@ -39,31 +39,27 @@ st.markdown("""
     .logo-img { width: 150px; pointer-events: none; }
     .brand-text { color: white; font-size: 16px; margin-top: 5px; }
 
-    /* Forçar centralização de todos os blocos do Streamlit */
-    [data-testid="stVerticalBlock"] {
+    /* CENTRALIZAÇÃO FORÇADA DE TODOS OS ELEMENTOS */
+    .stApp {
         align-items: center !important;
-        gap: 0rem !important;
     }
-
-    /* Container principal centralizado */
-    .main-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-        max-width: 550px; /* Largura ideal para os elementos */
-        margin: 0 auto;
-        padding-top: 80px;
-    }
-
-    /* Estilização do Selectbox centralizado */
-    div[data-testid="stSelectbox"] {
+    
+    [data-testid="stVerticalBlock"] {
         width: 100% !important;
-        max-width: 450px !important;
-        margin-bottom: 25px !important;
+        max-width: 500px !important; /* Define a largura da "coluna" central */
+        margin: 0 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
-    /* Caixa azul informativa centralizada */
+    /* Ajuste do Selectbox para ocupar 100% da largura do bloco central */
+    div[data-testid="stSelectbox"], div[data-testid="stSelectbox"] > div {
+        width: 100% !important;
+    }
+
+    /* Caixa azul informativa */
     .info-banner {
         background-color: #16263a;
         padding: 12px 20px;
@@ -71,16 +67,13 @@ st.markdown("""
         border-left: 5px solid #2196F3;
         text-align: center;
         width: 100%;
-        max-width: 550px;
-        margin-bottom: 20px;
+        margin: 20px 0;
     }
     .info-text { color: #90CAF9; margin: 0; font-size: 14px; font-weight: 500; }
 
-    /* Estilo e centralização dos Botões */
+    /* Estilo dos Botões - Sempre centralizados e do mesmo tamanho */
     div.stButton {
-        width: 100%;
-        display: flex;
-        justify-content: center;
+        width: 100% !important;
     }
     div.stButton > button {
         background-color: #3d3f4b !important;
@@ -89,7 +82,6 @@ st.markdown("""
         padding: 14px 20px !important;
         font-size: 16px !important;
         width: 100% !important; 
-        max-width: 450px; /* Mesma largura do selectbox para simetria */
         border-radius: 8px !important;
         margin-bottom: 10px !important;
     }
@@ -97,7 +89,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. LOGOTIPO ---
+# --- 3. LOGOTIPO (MODO ESCURO - BRANCO) ---
 logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png" 
 
 if os.path.exists(logo_path):
@@ -113,9 +105,10 @@ if os.path.exists(logo_path):
     )
 
 # --- 4. CONTEÚDO CENTRALIZADO ---
-# Criamos uma div única para envolver todo o conteúdo e garantir o centro
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
+# Espaçador para descer o conteúdo
+st.write("<br><br><br>", unsafe_allow_html=True)
 
+# O Streamlit agora centraliza automaticamente tudo o que for colocado aqui
 setor = st.selectbox(
     "Selecione o Setor",
     ["Saúde", "Educação"],
@@ -145,5 +138,3 @@ if setor:
             pass
         if st.button("🏢 Município Educação B"):
             pass
-
-st.markdown('</div>', unsafe_allow_html=True)
