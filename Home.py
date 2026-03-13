@@ -13,16 +13,16 @@ def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-# --- 2. CSS PARA DESIGN REFINADO ---
+# --- 2. CSS PARA DESIGN E POSICIONAMENTO ---
 st.markdown("""
     <style>
-    /* 1. Limpeza de interface */
+    /* Limpeza de interface */
     header[data-testid="stHeader"] { display: none !important; }
     [data-testid="stSidebar"] { display: none !important; }
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
 
-    /* 2. Bloco de Identidade (Canto Superior Esquerdo) */
+    /* Identidade Canto Superior Esquerdo */
     .brand-container {
         position: fixed;
         top: 30px;
@@ -35,24 +35,35 @@ st.markdown("""
     .logo-img {
         width: 150px; 
         pointer-events: none;
-        user-select: none;
     }
     .brand-text {
         color: white;
         font-size: 16px;
-        font-weight: 400;
         margin-top: 5px;
     }
 
-    /* 3. Banner Informativo Azul (Topo Centralizado) */
+    /* Centralização do conteúdo */
+    .stApp {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Estilização do seletor de setor no topo central */
+    .stSelectbox {
+        max-width: 300px;
+        margin: 0 auto 20px auto;
+    }
+
+    /* Caixa azul informativa colada aos botões */
     .info-banner {
         background-color: #16263a;
-        padding: 15px 30px;
+        padding: 12px 20px;
         border-radius: 8px;
         border-left: 5px solid #2196F3;
         text-align: center;
-        width: fit-content;
-        margin: 20px auto 40px auto; 
+        width: 100%;
+        margin-bottom: 15px;
     }
     .info-text {
         color: #90CAF9;
@@ -60,27 +71,7 @@ st.markdown("""
         font-size: 14px;
     }
 
-    /* 4. Centralização do Menu de Botões (Ajustado para baixo) */
-    .stApp {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
-
-    [data-testid="stVerticalBlock"] {
-        align-items: center !important;
-        justify-content: center !important;
-        padding-top: 80px !important; /* Move o painel central um pouco mais para baixo */
-    }
-
-    .menu-container {
-        width: 100%;
-        max-width: 400px;
-        margin: 0 auto;
-    }
-
-    /* Estilo dos Botões */
+    /* Botões dos municípios */
     div.stButton > button {
         background-color: #3d3f4b !important;
         color: white !important;
@@ -89,17 +80,13 @@ st.markdown("""
         font-size: 16px !important;
         width: 100% !important;
         border-radius: 8px !important;
-        margin-bottom: 12px !important;
-        transition: all 0.2s ease !important;
-    }
-    div.stButton > button:hover {
-        background-color: #4e515f !important;
+        margin-bottom: 10px !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. RENDERIZAÇÃO DA IDENTIDADE COM LOGO BRANCO PARA MODO ESCURO ---
-# Atualizado para utilizar a versão BRANCO conforme solicitado para o tema escuro
+# --- 3. LOGOTIPO NO CANTO (MODO ESCURO) ---
+# Usando a versão branca conforme solicitado para contraste
 logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png" 
 
 if os.path.exists(logo_path):
@@ -114,27 +101,47 @@ if os.path.exists(logo_path):
         unsafe_allow_html=True
     )
 
-# --- 4. BANNER AZUL NO TOPO CENTRALIZADO ---
-st.markdown("""
-    <div class="info-banner">
-        <p class="info-text">Utilize os botões abaixo para acessar os indicadores.</p>
-    </div>
-""", unsafe_allow_html=True)
-
-# --- 5. MENU DE BOTÕES CENTRALIZADO ---
+# --- 4. FLUXO DE NAVEGAÇÃO CENTRALIZADO ---
 col_l, col_c, col_r = st.columns([1, 1.5, 1])
 
 with col_c:
-    st.markdown("<div class='menu-container'>", unsafe_allow_html=True)
+    st.write("<br><br>", unsafe_allow_html=True) # Ajuste fino de altura
     
-    # Botões de navegação
-    if st.button("🏙️ Bom Jesus da Penha"):
-        st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
-    
-    if st.button("🏢 Município 2"):
-        pass
-        
-    if st.button("🏢 Município 3"):
-        pass
-        
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 1º Passo: Seleção do Setor (Funciona como o botão solicitado)
+    setor = st.selectbox(
+        "Selecione o Setor",
+        ["-", "Saúde", "Educação"],
+        index=0,
+        help="Escolha uma área para visualizar os municípios disponíveis."
+    )
+
+    # 2º Passo: Exibição condicional baseada na escolha
+    if setor != "-":
+        # Caixa azul logo acima dos botões
+        st.markdown(f"""
+            <div class="info-banner">
+                <p class="info-text">Indicadores de {setor}: Selecione um município abaixo.</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        if setor == "Saúde":
+            # Botão Bom Jesus aparece apenas em Saúde
+            if st.button("🏙️ Bom Jesus da Penha"):
+                st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
+            
+            if st.button("🏢 Município Saúde 2"):
+                pass
+
+        elif setor == "Educação":
+            # Lista específica para Educação
+            if st.button("🏢 Município Educação A"):
+                pass
+            if st.button("🏢 Município Educação B"):
+                pass
+    else:
+        # Mensagem neutra antes da seleção
+        st.markdown("""
+            <div style='text-align: center; color: #9ea0a5; margin-top: 20px;'>
+                Aguardando seleção de setor...
+            </div>
+        """, unsafe_allow_html=True)
