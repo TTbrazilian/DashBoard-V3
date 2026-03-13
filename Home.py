@@ -8,63 +8,63 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS PARA LIMPAR A SIDEBAR E MANTER O CONTROLE ---
+# --- 2. CSS PARA REPLICAR A IMAGEM ---
 st.markdown("""
     <style>
-    /* Esconde o cabeçalho nativo mas mantém o botão de fechar/abrir a sidebar */
+    /* Remove o cabeçalho branco e lixo visual */
     header[data-testid="stHeader"] {
         background-color: transparent !important;
     }
+    .stDeployButton {display:none;}
+    footer {visibility: hidden;}
     
-    /* ESCONDE A LISTA AUTOMÁTICA DE ARQUIVOS (Links que o Streamlit gera) */
+    /* REMOVE A LISTA AUTOMÁTICA E O TÍTULO "NAVEGAÇÃO" */
     [data-testid="stSidebarNav"] {
         display: none !important;
     }
 
-    /* Estilo da Sidebar (Fundo escuro conforme as fotos) */
+    /* ESTILO DO BOTÃO HOME (IGUAL À FOTO) */
+    div.stButton > button[key="btn_home_custom"] {
+        background-color: #262730 !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 10px !important;
+        border-radius: 8px !important;
+    }
+
+    /* ESTILO DA SIDEBAR ESCURA */
     [data-testid="stSidebar"] {
         background-color: #111111 !important;
     }
 
-    /* Remove o botão de Deploy e lixos visuais */
-    .stDeployButton {display:none;}
-    footer {visibility: hidden;}
-
-    /* Espaçamento para o conteúdo não colar no topo */
-    .main .block-container {
+    /* Remove o espaçamento excessivo no topo da sidebar */
+    .st-emotion-cache-16idsys {
         padding-top: 2rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. MENU LATERAL (SIDEBAR) CUSTOMIZADO ---
+# --- 3. CONTEÚDO DA SIDEBAR (CONFORME A FOTO) ---
 with st.sidebar:
-    # Espaçador inicial
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Botão Home Isolado
+    st.button("🏠 Home", use_container_width=True, key="btn_home_custom")
     
-    # Botão Home (Sempre no topo, conforme pedido)
-    if st.button("🏠 Home", use_container_width=True, key="nav_home"):
-        st.rerun()
+    st.markdown("---") # Linha divisória fina conforme a foto
     
-    st.markdown("---")
-    
-    # Seção escalável de Municípios
-    # Usar o expander permite adicionar dezenas de nomes sem poluir o visual
+    # Lista de Municípios (Direto, sem título extra)
+    # Usamos o expander para manter a organização escalável
     with st.expander("📍 Municípios", expanded=True):
-        if st.button("🏙️ Bom Jesus da Penha", use_container_width=True, key="nav_bj"):
+        if st.button("🏙️ Bom Jesus da Penha", use_container_width=True, key="btn_bj"):
             st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
         
-        # Futuros municípios entram aqui seguindo o mesmo padrão:
-        # if st.button("🏙️ Nome do Municipio", use_container_width=True):
-        #     st.switch_page("pages/2_Nome_Do_Arquivo.py")
-        
-        st.button("🏢 Município X (Em breve)", disabled=True, use_container_width=True)
+        # Aqui você adiciona os próximos municípios facilmente
+        st.button("🏢 Município X", disabled=True, use_container_width=True, key="btn_x")
 
-# --- 4. CONTEÚDO CENTRAL DA HOME ---
+# --- 4. CONTEÚDO CENTRAL ---
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    # Lógica do Logotipo (Branco ou Original)
+    # Logotipo
     logo_path = "LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
     if not os.path.exists(logo_path):
         logo_path = "LOGOTIPO IG2P - OFICIAL.jpg"
@@ -76,4 +76,4 @@ with col2:
     st.markdown("<p style='text-align: center; color: #888;'>IG2P - Inteligência em Gestão Pública</p>", unsafe_allow_html=True)
     
     st.divider()
-    st.info("Utilize o menu lateral para selecionar o município e visualizar os dados.")
+    st.info("Utilize o menu lateral para selecionar o município.")
