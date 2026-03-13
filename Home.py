@@ -4,7 +4,7 @@ import os
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="IG2P - Portal de Gestão", layout="wide")
 
-# --- CSS PARA DESIGN SUPERIOR E REMOÇÃO DE SIDEBAR NA HOME ---
+# --- CSS PARA COPIAR O LAYOUT DA SEGUNDA IMAGEM (TOP NAVBAR REAL) ---
 st.markdown("""
     <style>
     /* Esconde elementos padrão do Streamlit */
@@ -13,92 +13,104 @@ st.markdown("""
     footer {visibility: hidden;}
     .stDeployButton {display:none;}
     
-    /* REMOVE A SIDEBAR APENAS NA HOME */
-    [data-testid="stSidebar"] {
-        display: none;
-    }
-    [data-testid="stSidebarNav"] {
-        display: none;
-    }
+    /* REMOVE A SIDEBAR E O ESPAÇAMENTO LATERAL NA HOME */
+    [data-testid="stSidebar"] {display: none;}
+    [data-testid="stSidebarNav"] {display: none;}
+    section[data-testid="stSidebar"] {width: 0px;}
 
-    /* BARRA DE NAVEGAÇÃO SUPERIOR REAL */
-    .nav-bar {
+    /* BARRA DE NAVEGAÇÃO SUPERIOR (ESTILO E-COMMERCE PROFISSIONAL) */
+    .top-nav-container {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
-        background-color: #1a1a1a;
-        padding: 10px 50px;
+        background-color: #252525; /* Cinza escuro da imagem */
+        padding: 0px 40px;
         display: flex;
         align-items: center;
         z-index: 999999;
-        border-bottom: 2px solid #333;
+        height: 60px;
+        border-bottom: 1px solid #333;
     }
 
-    /* ESTILIZAÇÃO DOS BOTÕES PARA PARECEREM MENU DE CATEGORIAS */
+    /* ESTILIZAÇÃO DOS BOTÕES DENTRO DA NAVBAR */
     div.stButton > button {
-        background-color: #262626 !important;
-        color: #ffffff !important;
-        border: 1px solid #404040 !important;
-        border-radius: 4px !important;
-        padding: 8px 20px !important;
+        background-color: transparent !important;
+        color: #e0e0e0 !important;
+        border: none !important;
+        padding: 0px 20px !important;
+        height: 60px !important;
         font-size: 14px !important;
-        transition: all 0.3s ease !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        font-weight: 500 !important;
+        border-radius: 0px !important;
+        transition: all 0.2s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
+    /* EFEITO DE HOVER IGUAL AO EXEMPLO */
     div.stButton > button:hover {
-        border-color: #00CC96 !important;
-        color: #00CC96 !important;
         background-color: #333333 !important;
-        transform: translateY(-2px);
+        color: #00CC96 !important; /* Verde IG2P */
     }
 
-    /* AJUSTE DO CONTEÚDO PARA NÃO FICAR SOB A NAVBAR */
-    .main-content {
-        margin-top: 80px;
+    /* CONTEÚDO PRINCIPAL CENTRALIZADO */
+    .main-body {
+        margin-top: 100px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- ESTRUTURA DO MENU SUPERIOR ---
-# Usamos colunas dentro de um container para simular a navbar da imagem
-st.markdown('<div class="nav-bar">', unsafe_allow_html=True)
-col_nav1, col_nav2, col_nav3, col_nav4, col_spacer = st.columns([1, 1.5, 1, 1, 4])
-
-with col_nav1:
-    if st.button("🏠 HOME", use_container_width=True):
-        st.rerun()
-
-with col_nav2:
-    if st.button("📍 BOM JESUS DA PENHA", use_container_width=True):
-        st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
-
-with col_nav3:
-    st.button("🏢 CIDADE X", disabled=True, use_container_width=True)
-
-with col_nav4:
-    st.button("📊 GERAL", disabled=True, use_container_width=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- CONTEÚDO CENTRALIZADO ---
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
-
-c1, c2, c3 = st.columns([1, 1.2, 1])
-
-with c2:
-    # Tenta carregar o logotipo branco para combinar com o fundo dark
-    if os.path.exists("LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"):
-        st.image("LOGOTIPO IG2P - OFICIAL - BRANCO.jpg", use_container_width=True)
-    elif os.path.exists("LOGOTIPO IG2P - OFICIAL.jpg"):
-        st.image("LOGOTIPO IG2P - OFICIAL.jpg", use_container_width=True)
+# --- NAVBAR SUPERIOR (CONTAINER DE BOTÕES) ---
+# Usamos colunas com espaçamento zero para os botões encostarem um no outro
+with st.container():
+    # Simulando a div da navbar via markdown para o estilo fixed
+    st.markdown('<div class="top-nav-container">', unsafe_allow_html=True)
     
-    st.markdown("<h1 style='text-align: center; color: white; margin-top: 20px;'>Portal de Gestão de Recursos</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #888;'>IG2P - Inteligência em Gestão Pública</p>", unsafe_allow_html=True)
+    # Criamos colunas para os botões (ajuste o número de colunas conforme necessário)
+    c1, c2, c3, c4, c5, c_spacer = st.columns([1, 1.5, 1, 1, 1, 4])
+    
+    with c1:
+        if st.button("🏠 Home", key="btn_home"):
+            st.rerun()
+    with c2:
+        if st.button("📍 Bom Jesus da Penha", key="btn_bj"):
+            st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
+    with c3:
+        st.button("🏢 Município X", disabled=True)
+    with c4:
+        st.button("📊 Geral", disabled=True)
+    with c5:
+        # Botão especial simulando o "Categorias" do exemplo
+        st.button("☰ Cidades", key="btn_cat")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- CONTEÚDO CENTRAL DA PÁGINA ---
+st.markdown('<div class="main-body">', unsafe_allow_html=True)
+
+col_logo, col_text = st.columns([1, 1])
+
+with st.container():
+    st.write("") # Espaçador
+    st.write("")
+    
+    # Exibição do Logotipo Branco (melhor para o tema dark)
+    if os.path.exists("LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"):
+        st.image("LOGOTIPO IG2P - OFICIAL - BRANCO.jpg", width=400)
+    else:
+        st.image("LOGOTIPO IG2P - OFICIAL.jpg", width=400)
+
+    st.markdown("<h1 style='text-align: center; margin-top: 30px;'>Portal de Gestão de Recursos</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #666;'>Selecione uma unidade federativa no menu superior para começar.</p>", unsafe_allow_html=True)
     
     st.divider()
     
-    st.info("💡 Bem-vindo! Utilize o menu superior para acessar os dashboards dos municípios.")
+    # Box de aviso estilizado
+    st.info("💡 Dica: O sistema é atualizado automaticamente com base nos dados do SIGP.")
 
 st.markdown('</div>', unsafe_allow_html=True)
