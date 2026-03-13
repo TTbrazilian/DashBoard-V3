@@ -13,29 +13,40 @@ def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-# --- 2. CSS PARA CENTRALIZAÇÃO TOTAL E LOGO FIXO ---
+# --- 2. CSS PARA DESIGN REFINADO ---
 st.markdown("""
     <style>
-    /* 1. Limpeza de interface e remoção da sidebar */
+    /* 1. Limpeza de interface */
     header[data-testid="stHeader"] { display: none !important; }
     [data-testid="stSidebar"] { display: none !important; }
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
 
-    /* 2. Logo fixo no canto superior esquerdo */
-    .logo-header {
+    /* 2. Bloco de Identidade no Canto Superior Esquerdo */
+    .brand-container {
         position: fixed;
-        top: 20px;
-        left: 20px;
+        top: 30px;
+        left: 30px;
         z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
     }
     .logo-img {
-        width: 180px; /* Tamanho reduzido conforme solicitado */
+        width: 160px; /* Proporção ajustada */
         pointer-events: none;
         user-select: none;
+        margin-bottom: 5px;
+    }
+    .brand-text {
+        color: white;
+        font-size: 18px; /* Fonte ajustada conforme solicitado */
+        font-weight: 400;
+        margin: 0;
+        letter-spacing: 0.5px;
     }
 
-    /* 3. Centralização Absoluta do Menu */
+    /* 3. Centralização Absoluta do Menu de Botões */
     .stApp {
         display: flex;
         align-items: center;
@@ -45,22 +56,22 @@ st.markdown("""
     [data-testid="stVerticalBlock"] {
         align-items: center !important;
         justify-content: center !important;
-        text-align: center !important;
         width: 100% !important;
     }
 
     .menu-container {
         width: 100%;
-        max-width: 450px;
+        max-width: 420px;
         margin: 0 auto;
+        text-align: center;
     }
 
-    /* Estilo dos botões centralizados */
+    /* Botões centralizados e estilizados */
     div.stButton > button {
         background-color: #3d3f4b !important;
         color: white !important;
         border: none !important;
-        padding: 15px 20px !important;
+        padding: 14px 20px !important;
         font-size: 16px !important;
         width: 100% !important;
         border-radius: 8px !important;
@@ -74,32 +85,30 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. LÓGICA DE IMAGEM POR MODO (ESCURO/CLARO) ---
-# O Streamlit não tem um gatilho nativo simples para trocar variáveis Python por tema, 
-# então usamos a lógica de arquivos baseada na preferência padrão do sistema.
-logo_escuro = "Logos/LOGOTIPO IG2P - OFICIAL.jpg" # Versão preta para modo escuro
-logo_claro = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg" # Versão branca para modo claro
+# --- 3. RENDERIZAÇÃO DA IDENTIDADE (LOGO ESCURO + TEXTO) ---
+# Forçando a imagem escura conforme solicitado
+logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg" 
 
-# Verifica qual arquivo carregar (Prioriza a versão preta conforme solicitado)
-path_to_use = logo_escuro if os.path.exists(logo_escuro) else logo_claro
-
-if os.path.exists(path_to_use):
-    img_base64 = get_image_base64(path_to_use)
+if os.path.exists(logo_path):
+    img_base64 = get_image_base64(logo_path)
     st.markdown(
-        f'<div class="logo-header"><img src="data:image/jpeg;base64,{img_base64}" class="logo-img"></div>',
+        f'''
+        <div class="brand-container">
+            <img src="data:image/jpeg;base64,{img_base64}" class="logo-img">
+            <p class="brand-text">Inteligência em Gestão</p>
+        </div>
+        ''',
         unsafe_allow_html=True
     )
 
-# --- 4. CONTEÚDO COMPLETAMENTE CENTRALIZADO ---
-# Usamos colunas apenas para criar um container centralizado e responsivo
+# --- 4. CONTEÚDO DO MENU CENTRALIZADO ---
 col_l, col_c, col_r = st.columns([1, 2, 1])
 
 with col_c:
     st.markdown("<div class='menu-container'>", unsafe_allow_html=True)
     
-    # Título centralizado
-    st.markdown("<h1 style='color: white; font-weight: 400; font-size: 32px; margin-bottom: 10px;'>Inteligência em Gestão</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #9ea0a5; margin-bottom: 40px;'>Portal de Seleção de Municípios</p>", unsafe_allow_html=True)
+    # Subtítulo do portal
+    st.markdown("<p style='color: #9ea0a5; font-size: 14px; margin-bottom: 30px;'>Portal de Seleção de Municípios</p>", unsafe_allow_html=True)
     
     # Botões de navegação
     if st.button("🏙️ Bom Jesus da Penha"):
@@ -113,10 +122,10 @@ with col_c:
         
     st.markdown("<hr style='border-top: 1px solid #333; margin: 30px 0;'>", unsafe_allow_html=True)
     
-    # Bloco informativo azul centralizado
+    # Bloco informativo centralizado
     st.markdown("""
-        <div style='background-color: #16263a; padding: 18px; border-radius: 8px; border-left: 5px solid #2196F3; text-align: center;'>
-            <p style='color: #90CAF9; margin: 0; font-size: 14px;'>Utilize os botões acima para selecionar o painel desejado.</p>
+        <div style='background-color: #16263a; padding: 18px; border-radius: 8px; border-left: 5px solid #2196F3;'>
+            <p style='color: #90CAF9; margin: 0; font-size: 14px;'>Utilize os botões acima para acessar os indicadores.</p>
         </div>
     """, unsafe_allow_html=True)
     
