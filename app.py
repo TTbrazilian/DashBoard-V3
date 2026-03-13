@@ -154,11 +154,11 @@ if df_raw is not None:
             fig_detalhe = px.bar(
                 df_detalhe, x='Ficha', y='Orçado',
                 color_discrete_sequence=["#00CC96"], 
-                custom_data=[label_hover]
+                custom_data=[label_hover, 'Fonte'] # Adicionado 'Fonte' aqui
             )
 
             fig_detalhe.update_traces(
-                hovertemplate=f"<b>{label_hover}:</b> %{{customdata[0]}}<br><b>Valor:</b> R$ %{{y:,.2f}}<extra></extra>",
+                hovertemplate=f"<b>{label_hover}:</b> %{{customdata[0]}}<br><b>Fonte:</b> %{{customdata[1]}}<br><b>Valor:</b> R$ %{{y:,.2f}}<extra></extra>",
                 text=df_detalhe['Orçado'].apply(formar_real),
                 textposition='outside',
                 cliponaxis=False,
@@ -213,7 +213,7 @@ if df_raw is not None:
     fig_natureza.update_traces(
         textinfo='percent', 
         textposition='inside',
-        hovertemplate="<b>Natureza:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<extra></extra>"
+        hovertemplate="<b>Natureza:</b> %{label}<br><b>Valor Total:</b> R$ %{value:,.2f}<extra></extra>"
     )
     
     _, col_central_1, _ = st.columns([1, 2, 1])
