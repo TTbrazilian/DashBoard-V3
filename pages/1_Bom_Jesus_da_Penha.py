@@ -6,38 +6,16 @@ import os
 import unicodedata
 import plotly.graph_objects as go
 
-# --- CONFIGURAÇÃO DE DESIGN: MENU SUPERIOR E OCULTAR NAVEGAÇÃO PADRÃO ---
-st.markdown("""
-    <style>
-    /* Oculta o menu de páginas padrão do Streamlit na lateral */
-    [data-testid="stSidebarNav"] {display: none;}
-    
-    /* Ajusta o espaçamento superior para o menu customizado */
-    .block-container {padding-top: 1rem;}
-    </style>
-""", unsafe_allow_html=True)
-
-# Menu Superior
-col_menu, _ = st.columns([1, 3])
-with col_menu:
-    escolha = st.selectbox(
-        "📍 Municípios",
-        ["Bom Jesus da Penha", "Home"],
-        index=0,
-        key="menu_superior"
-    )
-
-if escolha == "Home":
-    st.switch_page("Home.py")
+st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
 # --- TRADUÇÃO GLOBAL DO PLOTLY ---
 pio.templates.default = "plotly_white"
 
-# CONFIG_PT atualizado para remover tooltips da barra de ferramentas
+# CONFIG_PT alterado para manter a barra mas remover as tooltips (textos de hover)
 CONFIG_PT = {
     'displaylogo': False,
-    'showTips': False,
-    'modeBarButtonsToolTipNames': {}
+    'showTips': False,  # Esta linha desativa os balões de texto dos ícones
+    'modeBarButtonsToolTipNames': {} 
 }
 
 # --- FUNÇÕES UTILITÁRIAS ---
@@ -61,8 +39,7 @@ def formar_real(valor):
 @st.cache_data
 def load_data():
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    # Ajuste para buscar o arquivo na raiz (um nível acima da pasta pages)
-    caminho = os.path.join(diretorio_atual, '..', 'fichas.csv')
+    caminho = os.path.join(diretorio_atual, 'fichas.csv')
     if not os.path.exists(caminho): return None
     df = pd.read_csv(caminho, sep=None, engine='python', encoding='utf-8', header=1)
     df.columns = [str(c).strip() for c in df.columns]
@@ -114,7 +91,6 @@ if df_raw is not None:
     with c3: st.metric("Executado (Liquidado)", formar_real(executado))
     with c4: st.metric("% de Execução", f"{perc_exec:.2f}%".replace('.', ','))
 
-    # --- GRÁFICO DE EVOLUÇÃO MENSAL RESTAURADO ---
     st.subheader("📈 Evolução Mensal da Execução")
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     mensal_dados = [{"Mês": m, "Valor": df_filtrado_global[m].sum()} for m in meses if m in df_filtrado_global.columns]
@@ -186,7 +162,7 @@ if df_raw is not None:
                 st.rerun()
    
     st.markdown("---")
-    st.subheader("📊 Custeio x Capital")
+    st.subheader("📊 Natureza: Custeio x Capital")
     
     df_filtrado_global['Natureza'] = df_filtrado_global['Elemento'].apply(
         lambda x: 'Capital (Invest.)' if '4.4' in str(x) else 'Custeio (Manut.)'
@@ -228,7 +204,7 @@ if df_raw is not None:
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
-    st.subheader("🎯 % de Execução por Categoria")
+    st.subheader("🎯 Eficiência de Execução por Categoria")
     
     df_exec_final = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
     df_exec_final['Executado'] = df_exec_final['Orçado'] - df_exec_final['Saldo']
