@@ -8,72 +8,69 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS PARA REPLICAR A IMAGEM ---
+# --- 2. CSS PARA REPLICAR FIELMENTE A FOTO ---
 st.markdown("""
     <style>
-    /* Remove o cabeçalho branco e lixo visual */
-    header[data-testid="stHeader"] {
-        background-color: transparent !important;
-    }
+    /* Remove o cabeçalho e lixo visual */
+    header[data-testid="stHeader"] { background-color: transparent !important; }
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
     
-    /* REMOVE A LISTA AUTOMÁTICA E O TÍTULO "NAVEGAÇÃO" */
-    [data-testid="stSidebarNav"] {
-        display: none !important;
-    }
-
-    /* ESTILO DO BOTÃO HOME (IGUAL À FOTO) */
-    div.stButton > button[key="btn_home_custom"] {
-        background-color: #262730 !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 10px !important;
-        border-radius: 8px !important;
-    }
+    /* ESCONDE A NAVEGAÇÃO AUTOMÁTICA E O TÍTULO "NAVEGAÇÃO" */
+    [data-testid="stSidebarNav"] { display: none !important; }
 
     /* ESTILO DA SIDEBAR ESCURA */
     [data-testid="stSidebar"] {
-        background-color: #111111 !important;
+        background-color: #1a1c24 !important; /* Tom exato da foto */
     }
 
-    /* Remove o espaçamento excessivo no topo da sidebar */
-    .st-emotion-cache-16idsys {
-        padding-top: 2rem !important;
+    /* ESTILO DOS BOTÕES (ESTILO CÁPSULA DA FOTO) */
+    div.stButton > button {
+        background-color: transparent !important;
+        color: #9ea0a5 !important; /* Cor do texto não selecionado */
+        border: none !important;
+        text-align: left !important;
+        padding: 10px 20px !important;
+        font-size: 16px !important;
+        width: 100% !important;
+        display: block !important;
     }
+
+    /* BOTÃO SELECIONADO / ATIVO (IGUAL AO "BOM JESUS" NA FOTO) */
+    div.stButton > button[key="btn_bj"] {
+        background-color: #3d3f4b !important; /* Fundo cinza da cápsula */
+        color: white !important; /* Texto branco em destaque */
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+    }
+
+    /* Ajuste de espaçamento no topo da sidebar */
+    .st-emotion-cache-16idsys { padding-top: 3rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. CONTEÚDO DA SIDEBAR (CONFORME A FOTO) ---
+# --- 3. MENU LATERAL (SIDEBAR) EXATAMENTE COMO A FOTO ---
 with st.sidebar:
-    # Botão Home Isolado
-    st.button("🏠 Home", use_container_width=True, key="btn_home_custom")
+    # Item "Home" (Texto simples, conforme a foto)
+    if st.button("Home", key="btn_home_text"):
+        st.rerun()
     
-    st.markdown("---") # Linha divisória fina conforme a foto
+    # Item "Bom Jesus da Penha" (Estilo Cápsula Selecionada)
+    if st.button("Bom Jesus da Penha", key="btn_bj"):
+        st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
     
-    # Lista de Municípios (Direto, sem título extra)
-    # Usamos o expander para manter a organização escalável
-    with st.expander("📍 Municípios", expanded=True):
-        if st.button("🏙️ Bom Jesus da Penha", use_container_width=True, key="btn_bj"):
-            st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
-        
-        # Aqui você adiciona os próximos municípios facilmente
-        st.button("🏢 Município X", disabled=True, use_container_width=True, key="btn_x")
+    # Espaçador para futuros municípios (Escalabilidade)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-# --- 4. CONTEÚDO CENTRAL ---
+# --- 4. CONTEÚDO CENTRAL DA HOME ---
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    # Logotipo
-    logo_path = "LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
-    if not os.path.exists(logo_path):
-        logo_path = "LOGOTIPO IG2P - OFICIAL.jpg"
-    
-    if os.path.exists(logo_path):
-        st.image(logo_path, use_container_width=True)
-    
-    st.markdown("<h1 style='text-align: center; margin-top: 20px;'>Portal de Gestão de Recursos</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #888;'>IG2P - Inteligência em Gestão Pública</p>", unsafe_allow_html=True)
+    # Exibe IG2P centralizado
+    st.markdown("<h1 style='text-align: center; font-size: 50px;'>IG2P</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>Portal de Gestão de Recursos</h2>", unsafe_allow_html=True)
     
     st.divider()
-    st.info("Utilize o menu lateral para selecionar o município.")
+    
+    # Caixa de aviso azulada conforme o layout anterior
+    st.info("Utilize o menu lateral para escolher o município e visualizar os dados.")
