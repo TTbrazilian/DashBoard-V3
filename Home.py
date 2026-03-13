@@ -13,7 +13,7 @@ def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-# --- 2. CSS PARA DESIGN E INTERAÇÃO ---
+# --- 2. CSS PARA DESIGN CENTRALIZADO ---
 st.markdown("""
     <style>
     /* Limpeza de interface */
@@ -23,13 +23,8 @@ st.markdown("""
     footer {visibility: hidden;}
 
     /* Cursor de botão no Selectbox e trava de escrita */
-    div[data-baseweb="select"] {
-        cursor: pointer !important;
-    }
-    div[data-baseweb="select"] input {
-        caret-color: transparent !important;
-        cursor: pointer !important;
-    }
+    div[data-baseweb="select"] { cursor: pointer !important; }
+    div[data-baseweb="select"] input { caret-color: transparent !important; cursor: pointer !important; }
 
     /* Identidade Canto Superior Esquerdo */
     .brand-container {
@@ -41,29 +36,21 @@ st.markdown("""
         flex-direction: column;
         align-items: flex-start;
     }
-    .logo-img {
-        width: 150px; 
-        pointer-events: none;
-    }
-    .brand-text {
-        color: white;
-        font-size: 16px;
-        margin-top: 5px;
-    }
+    .logo-img { width: 150px; pointer-events: none; }
+    .brand-text { color: white; font-size: 16px; margin-top: 5px; }
 
-    /* Centralização do Bloco Central */
+    /* Centralização Absoluta do Bloco Central */
     .main-content {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
         width: 100%;
-        max-width: 450px;
+        max-width: 600px; /* Largura levemente maior para os botões respirarem */
         margin: 0 auto;
         padding-top: 100px;
     }
 
-    /* Caixa azul informativa conforme novo design */
+    /* Caixa azul informativa */
     .info-banner {
         background-color: #16263a;
         padding: 12px 20px;
@@ -73,31 +60,38 @@ st.markdown("""
         width: 100%;
         margin-bottom: 20px;
     }
-    .info-text {
-        color: #90CAF9;
-        margin: 0;
-        font-size: 14px;
-        font-weight: 500;
-    }
+    .info-text { color: #90CAF9; margin: 0; font-size: 14px; font-weight: 500; }
 
-    /* Estilo dos Botões */
+    /* Estilo dos Botões e Alinhamento Central */
+    div.stButton {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
     div.stButton > button {
         background-color: #3d3f4b !important;
         color: white !important;
         border: none !important;
         padding: 14px 20px !important;
         font-size: 16px !important;
-        width: 100% !important;
+        width: 100% !important; 
+        max-width: 450px; /* Controla o tamanho do botão para não ficar largo demais */
         border-radius: 8px !important;
         margin-bottom: 10px !important;
     }
-    div.stButton > button:hover {
-        background-color: #4e515f !important;
+    div.stButton > button:hover { background-color: #4e515f !important; }
+    
+    /* Centralização do Selectbox */
+    div[data-testid="stSelectbox"] {
+        width: 100%;
+        max-width: 450px;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. RENDERIZAÇÃO DO LOGO (MODO ESCURO) ---
+# --- 3. RENDERIZAÇÃO DO LOGO (MODO ESCURO - BRANCO) ---
+# Mantendo o logo branco conforme o tema escuro exige
 logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png" 
 
 if os.path.exists(logo_path):
@@ -115,15 +109,18 @@ if os.path.exists(logo_path):
 # --- 4. CONTEÚDO CENTRALIZADO ---
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-setor = st.selectbox(
-    "Selecione o Setor",
-    ["Saúde", "Educação"],
-    index=None,
-    placeholder="Clique para escolher...",
-)
+# Centralizamos o seletor com uma coluna ou CSS
+col_sel, col_center, col_sel2 = st.columns([1, 4, 1])
+with col_center:
+    setor = st.selectbox(
+        "Selecione o Setor",
+        ["Saúde", "Educação"],
+        index=None,
+        placeholder="Clique para escolher...",
+    )
 
 if setor:
-    # Ajuste do texto da caixa azul conforme solicitado
+    # Texto da caixa azul conforme solicitado
     texto_caixa = f"{setor}: Selecione o municipio abaixo"
     
     st.markdown(f"""
@@ -132,6 +129,7 @@ if setor:
         </div>
     """, unsafe_allow_html=True)
 
+    # Botões centralizados dentro do container
     if setor == "Saúde":
         if st.button("🏙️ Bom Jesus da Penha"):
             st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
