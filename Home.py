@@ -33,24 +33,23 @@ st.markdown("""
         font-size: 15px !important;
         width: 100% !important;
         display: block !important;
-        transition: all 0.3s ease !important; /* Suaviza a transição do hover */
+        transition: all 0.3s ease !important;
     }
 
     /* BOTÃO ATIVO (ONDE O USUÁRIO ESTÁ) */
     div.stButton > button[key="nav_home"] {
-        background-color: #3d3f4b !important; /* Cinza cápsula do dashboard */
+        background-color: #3d3f4b !important; 
         color: white !important;
         border-radius: 8px !important;
         font-weight: 500 !important;
     }
 
-    /* EFEITO HOVER - LEVE ESCURECIDA IGUAL À IMAGEM SOLICITADA */
+    /* EFEITO HOVER */
     div.stButton > button:hover {
         background-color: rgba(255, 255, 255, 0.05) !important;
         color: white !important;
     }
     
-    /* Escurecimento específico para o botão que já está preenchido */
     div.stButton > button[key="nav_home"]:hover {
         background-color: #2e303a !important; 
     }
@@ -58,27 +57,29 @@ st.markdown("""
     /* Ajuste de respiro no topo da sidebar */
     .st-emotion-cache-16idsys { padding-top: 2rem !important; }
 
-    /* Ajuste da imagem centralizada para não esticar */
-    [data-testid="stImage"] {
-        display: flex;
-        justify-content: center;
+    /* Estilização do campo de busca na sidebar para combinar com o dark mode */
+    [data-testid="stSidebar"] .stTextInput input {
+        background-color: #0e1117 !important;
+        color: white !important;
+        border: 1px solid #333 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. MENU LATERAL (SIDEBAR) ---
+# --- 3. MENU LATERAL (SIDEBAR) - COPIADO DO DESIGN DO DASHBOARD ---
 with st.sidebar:
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Botão Home (Marcado como Ativo)
+    # Botões de Navegação
     if st.button("Home", key="nav_home"):
         st.rerun()
     
-    # Botão de Navegação para a página de dados
     if st.button("Bom Jesus da Penha", key="nav_bj"):
         st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
     
-    st.markdown("<hr style='border-top: 1px solid #333;'>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # Seção de Filtros (Idêntico ao Dashboard enviado)
+    st.header("🔍 Filtros")
+    busca = st.text_input("Filtrar:", key="busca_home")
 
 # --- 4. CONTEÚDO CENTRAL (LOGOTIPO E TÍTULO) ---
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -86,17 +87,15 @@ col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    # Carregamento do Logo (Prioriza a versão clara para fundo escuro)
+    # Referenciando os logos conforme os nomes de arquivo enviados
     logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
     if not os.path.exists(logo_path):
         logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
 
     if os.path.exists(logo_path):
         img = Image.open(logo_path)
-        # Exibe o logo com largura controlada para ficar identico à imagem
         st.image(img, width=450)
     
-    # Título e Instrução exatamente como na imagem de referência
     st.markdown("""
         <div style='text-align: center; margin-top: 20px;'>
             <h2 style='font-weight: 400; color: #E0E0E0;'>Portal de Gestão de Recursos</h2>
