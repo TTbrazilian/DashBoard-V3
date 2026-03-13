@@ -6,22 +6,7 @@ import os
 import unicodedata
 import plotly.graph_objects as go
 
-# --- CORREÇÃO DE DESIGN: OCULTAR MENU PADRÃO E ADICIONAR SELETOR SUPERIOR ---
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
-
-st.markdown("""
-    <style>
-    [data-testid="stSidebarNav"] {display: none;}
-    .block-container {padding-top: 1rem;}
-    </style>
-""", unsafe_allow_html=True)
-
-# Menu Superior de Navegação
-col_nav, _ = st.columns([1, 3])
-with col_nav:
-    nav = st.selectbox("📍 Municípios", ["Bom Jesus da Penha", "Home"], index=0)
-    if nav == "Home":
-        st.switch_page("Home.py")
 
 # --- TRADUÇÃO GLOBAL DO PLOTLY ---
 pio.templates.default = "plotly_white"
@@ -54,9 +39,13 @@ def formar_real(valor):
 @st.cache_data
 def load_data():
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    # CORREÇÃO: Busca o arquivo na raiz, já que este script está dentro da pasta /pages
+    # Busca o arquivo subindo um nível caso esteja na pasta pages
     caminho = os.path.join(diretorio_atual, '..', 'fichas.csv')
-    if not os.path.exists(caminho): return None
+    if not os.path.exists(caminho): 
+        # Tenta na mesma pasta caso não esteja em subpasta
+        caminho = os.path.join(diretorio_atual, 'fichas.csv')
+        if not os.path.exists(caminho): return None
+        
     df = pd.read_csv(caminho, sep=None, engine='python', encoding='utf-8', header=1)
     df.columns = [str(c).strip() for c in df.columns]
     
@@ -107,6 +96,7 @@ if df_raw is not None:
     with c3: st.metric("Executado (Liquidado)", formar_real(executado))
     with c4: st.metric("% de Execução", f"{perc_exec:.2f}%".replace('.', ','))
 
+    # --- GRÁFICO DE EVOLUÇÃO MENSAL (RESTAURADO) ---
     st.subheader("📈 Evolução Mensal da Execução")
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     mensal_dados = [{"Mês": m, "Valor": df_filtrado_global[m].sum()} for m in meses if m in df_filtrado_global.columns]
