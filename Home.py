@@ -13,7 +13,7 @@ def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-# --- 2. CSS PARA DESIGN CENTRALIZADO ---
+# --- 2. CSS PARA CENTRALIZAÇÃO ABSOLUTA ---
 st.markdown("""
     <style>
     /* Limpeza de interface */
@@ -39,18 +39,31 @@ st.markdown("""
     .logo-img { width: 150px; pointer-events: none; }
     .brand-text { color: white; font-size: 16px; margin-top: 5px; }
 
-    /* Centralização Absoluta do Bloco Central */
+    /* Forçar centralização de todos os blocos do Streamlit */
+    [data-testid="stVerticalBlock"] {
+        align-items: center !important;
+        gap: 0rem !important;
+    }
+
+    /* Container principal centralizado */
     .main-content {
         display: flex;
         flex-direction: column;
         align-items: center;
         width: 100%;
-        max-width: 600px; /* Largura levemente maior para os botões respirarem */
+        max-width: 550px; /* Largura ideal para os elementos */
         margin: 0 auto;
-        padding-top: 100px;
+        padding-top: 80px;
     }
 
-    /* Caixa azul informativa */
+    /* Estilização do Selectbox centralizado */
+    div[data-testid="stSelectbox"] {
+        width: 100% !important;
+        max-width: 450px !important;
+        margin-bottom: 25px !important;
+    }
+
+    /* Caixa azul informativa centralizada */
     .info-banner {
         background-color: #16263a;
         padding: 12px 20px;
@@ -58,15 +71,16 @@ st.markdown("""
         border-left: 5px solid #2196F3;
         text-align: center;
         width: 100%;
+        max-width: 550px;
         margin-bottom: 20px;
     }
     .info-text { color: #90CAF9; margin: 0; font-size: 14px; font-weight: 500; }
 
-    /* Estilo dos Botões e Alinhamento Central */
+    /* Estilo e centralização dos Botões */
     div.stButton {
+        width: 100%;
         display: flex;
         justify-content: center;
-        width: 100%;
     }
     div.stButton > button {
         background-color: #3d3f4b !important;
@@ -75,23 +89,15 @@ st.markdown("""
         padding: 14px 20px !important;
         font-size: 16px !important;
         width: 100% !important; 
-        max-width: 450px; /* Controla o tamanho do botão para não ficar largo demais */
+        max-width: 450px; /* Mesma largura do selectbox para simetria */
         border-radius: 8px !important;
         margin-bottom: 10px !important;
     }
     div.stButton > button:hover { background-color: #4e515f !important; }
-    
-    /* Centralização do Selectbox */
-    div[data-testid="stSelectbox"] {
-        width: 100%;
-        max-width: 450px;
-        margin-bottom: 20px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. RENDERIZAÇÃO DO LOGO (MODO ESCURO - BRANCO) ---
-# Mantendo o logo branco conforme o tema escuro exige
+# --- 3. LOGOTIPO ---
 logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png" 
 
 if os.path.exists(logo_path):
@@ -107,17 +113,15 @@ if os.path.exists(logo_path):
     )
 
 # --- 4. CONTEÚDO CENTRALIZADO ---
+# Criamos uma div única para envolver todo o conteúdo e garantir o centro
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-# Centralizamos o seletor com uma coluna ou CSS
-col_sel, col_center, col_sel2 = st.columns([1, 4, 1])
-with col_center:
-    setor = st.selectbox(
-        "Selecione o Setor",
-        ["Saúde", "Educação"],
-        index=None,
-        placeholder="Clique para escolher...",
-    )
+setor = st.selectbox(
+    "Selecione o Setor",
+    ["Saúde", "Educação"],
+    index=None,
+    placeholder="Clique para escolher...",
+)
 
 if setor:
     # Texto da caixa azul conforme solicitado
@@ -129,7 +133,6 @@ if setor:
         </div>
     """, unsafe_allow_html=True)
 
-    # Botões centralizados dentro do container
     if setor == "Saúde":
         if st.button("🏙️ Bom Jesus da Penha"):
             st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
