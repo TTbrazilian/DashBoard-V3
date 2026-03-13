@@ -338,7 +338,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    st.subheader("📊 Natureza: Custeio x Capital")
+    st.subheader("📊 Custeio x Capital")
 
    
 
