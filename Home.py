@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS PARA DESIGN IDÊNTICO AO DASHBOARD E AJUSTE DE CABEÇALHO ---
+# --- 2. CSS PARA DESIGN IDÊNTICO AO DASHBOARD ---
 st.markdown("""
     <style>
     /* Remove elementos nativos e cabeçalho fixo */
@@ -57,12 +57,13 @@ st.markdown("""
     /* Respiro no topo da sidebar */
     .st-emotion-cache-16idsys { padding-top: 2rem !important; }
 
-    /* AJUSTE DO CABEÇALHO: Remove zoom e centraliza */
+    /* REMOVE TELA CHEIA E CENTRALIZA POSIÇÃO DO LOGO */
+    [data-testid="stImage"] {
+        display: flex;
+        justify-content: center;
+    }
     [data-testid="stImage"] img {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        pointer-events: none; /* Remove interação/tela cheia */
+        pointer-events: none; /* Desativa o clique e o ícone de tela cheia */
     }
     </style>
     """, unsafe_allow_html=True)
@@ -84,26 +85,29 @@ with st.sidebar:
     st.markdown("---")
     st.info("Selecione um município acima para visualizar os dados.")
 
-# --- 4. CONTEÚDO CENTRAL (CABEÇALHO AJUSTADO) ---
-col1, col2, col3 = st.columns([1, 1.5, 1]) # Ajuste de colunas para diminuir o tamanho central
+# --- 4. CONTEÚDO CENTRAL (POSIÇÃO EXATA DO LOGO) ---
+# Colunas ajustadas para centralizar o logo exatamente como na foto
+_, col_central, _ = st.columns([1, 2, 1])
 
-with col2:
-    # Espaçamento superior menor para parecer cabeçalho
+with col_central:
+    # Espaçamento para alinhar no topo como cabeçalho
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # Caminho dos logos conforme sua estrutura
     logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
     if not os.path.exists(logo_path):
         logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
 
     if os.path.exists(logo_path):
         img = Image.open(logo_path)
-        # Tamanho reduzido para 300 para atuar como cabeçalho de fato
-        st.image(img, width=300)
+        # Largura ajustada para manter proporção de cabeçalho
+        st.image(img, width=400)
     
+    # Texto e Estilo conforme solicitado
     st.markdown("""
-        <div style='text-align: center; margin-top: 0px;'>
-            <h2 style='font-weight: 400; color: #E0E0E0; font-size: 24px;'>Inteligência em Gestão</h2>
-            <hr style='border-top: 1px solid #333; width: 60%; margin: 15px auto;'>
+        <div style='text-align: center; margin-top: 10px;'>
+            <h2 style='font-weight: 400; color: #E0E0E0; font-size: 26px;'>Inteligência em Gestão</h2>
+            <hr style='border-top: 1px solid #333; width: 80%; margin: 20px auto;'>
             <div style='background-color: #16263a; padding: 15px; border-radius: 5px; border-left: 5px solid #2196F3;'>
                 <p style='color: #90CAF9; margin: 0; font-size: 14px;'>Utilize o menu lateral para navegar entre os dashboards.</p>
             </div>
