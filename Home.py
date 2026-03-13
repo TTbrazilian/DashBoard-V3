@@ -23,7 +23,7 @@ st.markdown("""
         background-color: #1a1c24 !important;
     }
 
-    /* ESTILO DOS BOTÕES EM CÁPSULA (PADRÃO BOM JESUS) */
+    /* BOTÕES ESTILO DASHBOARD */
     div.stButton > button {
         background-color: transparent !important;
         color: #9ea0a5 !important;
@@ -36,7 +36,7 @@ st.markdown("""
         transition: all 0.3s ease !important;
     }
 
-    /* BOTÃO ATIVO (ONDE O USUÁRIO ESTÁ) */
+    /* BOTÃO ATIVO */
     div.stButton > button[key="nav_home"] {
         background-color: #3d3f4b !important; 
         color: white !important;
@@ -44,50 +44,44 @@ st.markdown("""
         font-weight: 500 !important;
     }
 
-    /* EFEITO HOVER */
+    /* HOVER */
     div.stButton > button:hover {
-        background-color: rgba(255, 255, 255, 0.05) !important;
+        background-color: rgba(255,255,255,0.05) !important;
         color: white !important;
     }
-    
-    div.stButton > button[key="nav_home"]:hover {
-        background-color: #2e303a !important; 
+
+    /* ESPAÇO SUPERIOR */
+    .st-emotion-cache-16idsys {
+        padding-top: 2rem !important;
     }
 
-    /* Ajuste de respiro no topo da sidebar */
-    .st-emotion-cache-16idsys { padding-top: 2rem !important; }
-
-    /* Estilização do campo de busca na sidebar para combinar com o dark mode */
-    [data-testid="stSidebar"] .stTextInput input {
-        background-color: #0e1117 !important;
-        color: white !important;
-        border: 1px solid #333 !important;
+    /* LINHA DIVISÓRIA */
+    hr {
+        border: 1px solid #2a2c34;
     }
+
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# --- 3. MENU LATERAL (SIDEBAR) - COPIADO DO DESIGN DO DASHBOARD ---
+# --- 3. SIDEBAR (MESMO LAYOUT DA IMAGEM, SEM FILTROS) ---
 with st.sidebar:
-    # Botões de Navegação
+
     if st.button("Home", key="nav_home"):
         st.rerun()
-    
+
     if st.button("Bom Jesus da Penha", key="nav_bj"):
         st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
-    
-    st.markdown("---")
-    
-    # Seção de Filtros (Idêntico ao Dashboard enviado)
-    st.header("🔍 Filtros")
-    busca = st.text_input("Filtrar:", key="busca_home")
 
-# --- 4. CONTEÚDO CENTRAL (LOGOTIPO E TÍTULO) ---
-col1, col2, col3 = st.columns([1, 2, 1])
+    # linha igual da imagem
+    st.markdown("---")
+
+
+# --- 4. CONTEÚDO CENTRAL ---
+col1, col2, col3 = st.columns([1,2,1])
 
 with col2:
     st.markdown("<br><br>", unsafe_allow_html=True)
-    
-    # Referenciando os logos conforme os nomes de arquivo enviados
+
     logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
     if not os.path.exists(logo_path):
         logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
@@ -95,13 +89,25 @@ with col2:
     if os.path.exists(logo_path):
         img = Image.open(logo_path)
         st.image(img, width=450)
-    
+
     st.markdown("""
-        <div style='text-align: center; margin-top: 20px;'>
-            <h2 style='font-weight: 400; color: #E0E0E0;'>Portal de Gestão de Recursos</h2>
-            <hr style='border-top: 1px solid #333; width: 80%; margin: 20px auto;'>
-            <div style='background-color: #16263a; padding: 15px; border-radius: 5px; border-left: 5px solid #2196F3;'>
-                <p style='color: #90CAF9; margin: 0;'>Utilize o menu lateral para selecionar o município.</p>
-            </div>
+        <div style='text-align:center;margin-top:20px;'>
+
+        <h2 style='font-weight:400;color:#E0E0E0;'>
+        Portal de Gestão de Recursos
+        </h2>
+
+        <hr style='border-top:1px solid #333;width:80%;margin:20px auto;'>
+
+        <div style='background-color:#16263a;
+                    padding:15px;
+                    border-radius:5px;
+                    border-left:5px solid #2196F3;'>
+
+        <p style='color:#90CAF9;margin:0;'>
+        Utilize o menu lateral para selecionar o município.
+        </p>
+
+        </div>
         </div>
     """, unsafe_allow_html=True)
