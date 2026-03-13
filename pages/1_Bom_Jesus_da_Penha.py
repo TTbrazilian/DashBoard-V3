@@ -422,7 +422,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    st.subheader("🎯 Eficiência de Execução por Categoria")
+    st.subheader("🎯 % de Execução por Categoria")
 
    
 
