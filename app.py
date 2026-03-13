@@ -73,7 +73,7 @@ df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
-    busca = st.sidebar.text_input("Filtrar Ficha, Categoria ou Código da Fonte:")
+    busca = st.sidebar.text_input("Filtrar:")
 
     df_filtrado_global = df_raw.copy()
     if busca:
@@ -107,7 +107,7 @@ if df_raw is not None:
 
     # --- ANÁLISE 2: EVOLUÇÃO MENSAL ---
     st.subheader("📈 Evolução Mensal da Execução")
-    meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho']
+    meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     mensal_dados = [{"Mês": m, "Valor": df_filtrado_global[m].sum()} for m in meses if m in df_filtrado_global.columns]
     df_mensal = pd.DataFrame(mensal_dados)
     fig_evolucao = px.line(df_mensal, x='Mês', y='Valor', markers=True, color_discrete_sequence=["#00CC96"])
