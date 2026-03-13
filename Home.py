@@ -49,23 +49,32 @@ st.markdown("""
         color: white !important;
     }
 
-    /* 4. REMOÇÃO TOTAL DO ÍCONE DE TELA CHEIA (BOLINHA) */
-    /* Bloqueia qualquer botão ou overlay que o Streamlit tente criar sobre a imagem */
+    /* 4. BLOQUEIO TOTAL DO ÍCONE DE TELA CHEIA (BOLINHA) */
+    /* Remove qualquer botão ou elemento de overlay dentro do container de imagem */
     [data-testid="stImage"] button, 
     [data-testid="stImage"] [data-testid="StyledFullScreenButton"],
     [data-testid="stImage"] .st-emotion-cache-15zrgzn,
     [data-testid="stImage"] .st-emotion-cache-6aw8o6,
-    [data-testid="stImage"] div[class*="st-emotion-cache"] button {
+    [data-testid="stImage"] div[class*="st-emotion-cache"] button,
+    [data-testid="stImage"] div[data-testid="stExpander"] {
         display: none !important;
         visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
     }
 
-    /* Desativa a detecção de mouse na imagem (evita que o ícone sinta o hover) */
+    /* Desativa o hover e qualquer interação de mouse no bloco da imagem */
     [data-testid="stImage"] {
         pointer-events: none !important;
+        user-select: none !important;
         display: flex !important;
         justify-content: center !important;
-        margin-top: -50px !important; /* Mantém a posição de cabeçalho ajustada */
+        margin-top: -50px !important; /* Mantém a posição de cabeçalho */
+    }
+    
+    /* Garante que o container pai não dispare eventos de mouse */
+    [data-testid="stImage"] > div {
+        pointer-events: none !important;
     }
 
     .st-emotion-cache-16idsys { padding-top: 2rem !important; }
@@ -80,6 +89,7 @@ with st.sidebar:
     if st.button("Bom Jesus da Penha", key="nav_bj"):
         st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
     
+    # Placeholders para os demais municípios conforme solicitado
     if st.button("Município 2", key="nav_m2"):
         pass
         
@@ -92,7 +102,7 @@ with st.sidebar:
 col_l, col_c, col_r = st.columns([1, 1.2, 1])
 
 with col_c:
-    # Busca o logo conforme a sua estrutura de pastas
+    # Verificação de arquivos
     logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
     if not os.path.exists(logo_path):
         logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
