@@ -1,17 +1,17 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.io as pio
+import plotly.io as pio  # Importação necessária para forçar a tradução
 import os
 import unicodedata
 import plotly.graph_objects as go
 
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
-# --- TRADUÇÃO GLOBAL E FORÇADA ---
+# --- TRADUÇÃO GLOBAL DO PLOTLY ---
 pio.templates.default = "plotly_white"
 
-# Dicionário robusto com todos os nomes mapeados
+# CONFIG_PT Atualizado com todos os nomes dos ícones da ModeBar em português
 CONFIG_PT = {
     'displaylogo': False,
     'locale': 'pt-BR',
@@ -61,6 +61,7 @@ def load_data():
     if 'Ficha' in df.columns:
         df['Ficha'] = df['Ficha'].astype(str).str.replace('.0', '', regex=False).str.strip()
 
+    # Tratamento da coluna Fonte para garantir que seja string sem .0
     if 'Fonte' in df.columns:
         df['Fonte'] = df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
 
@@ -70,6 +71,7 @@ def load_data():
             df[col] = df[col].apply(limpar_valor)
     return df
 
+# --- CARREGAMENTO E FILTRAGEM ---
 df_raw = load_data()
 
 if df_raw is not None:
@@ -79,6 +81,7 @@ if df_raw is not None:
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
+        # Filtro: trata Fonte como string para busca parcial ou exata
         mask = (
             df_filtrado_global['Categoria'].apply(remover_acentos).str.contains(termo, na=False)
         ) | (
@@ -93,7 +96,7 @@ if df_raw is not None:
     st.title("📊 Bom Jesus da Penha - Saúde")
     st.markdown("---")
 
-    # KPIs
+    # --- KPIs ---
     orcado_total = df_filtrado_global['Orçado'].sum()
     saldo_total = df_filtrado_global['Saldo'].sum()
     executado = orcado_total - saldo_total
@@ -105,7 +108,7 @@ if df_raw is not None:
     with c3: st.metric("Executado (Liquidado)", formar_real(executado))
     with c4: st.metric("% de Execução", f"{perc_exec:.2f}%".replace('.', ','))
 
-    # Gráfico 1: Evolução
+    # --- ANÁLISE 2: EVOLUÇÃO MENSAL ---
     st.subheader("📈 Evolução Mensal da Execução")
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     mensal_dados = [{"Mês": m, "Valor": df_filtrado_global[m].sum()} for m in meses if m in df_filtrado_global.columns]
@@ -114,9 +117,22 @@ if df_raw is not None:
     fig_evolucao.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f', separators=',.')
     st.plotly_chart(fig_evolucao, use_container_width=True, config=CONFIG_PT)
 
-    # Detalhamento por Elemento
+    # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
+
+    st.markdown("""
+        <style>
+        @keyframes subirBarra {
+            from { clip-path: inset(100% 0 0 0); }
+            to { clip-path: inset(0% 0 0 0); }
+        }
+        .js-plotly-plot .point path {
+            animation: subirBarra 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            clip-path: inset(100% 0 0 0);
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
     elementos_disponiveis = sorted([str(x) for x in df_filtrado_global['Elemento'].dropna().unique()])
 
@@ -138,6 +154,7 @@ if df_raw is not None:
             busca_limpa = remover_acentos(busca)
             label_hover = "Categoria" if busca and (busca_limpa in lista_elementos) else ("Elemento" if busca else "Categoria")
             
+            # Gráfico com custom_data incluindo a Fonte para o Hover
             fig_detalhe = px.bar(
                 df_detalhe, x='Ficha', y='Orçado',
                 color_discrete_sequence=["#00CC96"], 
@@ -147,21 +164,24 @@ if df_raw is not None:
             fig_detalhe.update_traces(
                 hovertemplate=f"<b>{label_hover}:</b> %{{customdata[0]}}<br><b>Fonte:</b> %{{customdata[1]}}<br><b>Valor:</b> R$ %{{y:,.2f}}<extra></extra>",
                 text=df_detalhe['Orçado'].apply(formar_real),
-                textposition='outside'
+                textposition='outside',
+                cliponaxis=False,
+                width=0.8 if len(df_detalhe) < 12 else 0.5
             )
 
             fig_detalhe.update_layout(
                 xaxis_type='category', height=550, separators=',.',
-                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30])
+                yaxis=dict(range=[0, df_detalhe['Orçado'].max() * 1.30]),
+                margin=dict(t=80, b=50, l=50, r=50)
             )
 
-            st.plotly_chart(fig_detalhe, use_container_width=True, config=CONFIG_PT)
+            st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
             
             if st.button("⬅️ Voltar para Visão Geral"):
                 del st.session_state['elemento_ativo']
                 st.rerun()
    
-    # Natureza da Despesa
+    # --- NATUREZA DA DESPESA (CUSTEIO X CAPITAL) ---
     st.markdown("---")
     st.subheader("📊 Natureza: Custeio x Capital")
     
@@ -178,9 +198,25 @@ if df_raw is not None:
                          color='Natureza',
                          color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
     
-    fig_natureza.update_layout(height=450, separators=',.')
+    fig_natureza.update_layout(
+        margin=dict(t=50, b=50, l=20, r=20), 
+        height=450, 
+        showlegend=True,
+        separators=',.', 
+        legend=dict(
+            itemclick="toggle",
+            itemdoubleclick="toggleothers",
+            orientation="v", 
+            yanchor="middle", 
+            y=0.5, 
+            xanchor="left", 
+            x=1.05,
+            font=dict(size=16)
+        )
+    )
     fig_natureza.update_traces(
         textinfo='percent', 
+        textposition='inside',
         hovertemplate="<b>Natureza:</b> %{label}<br><b>Valor Total:</b> R$ %{value:,.2f}<extra></extra>"
     )
     
@@ -188,7 +224,7 @@ if df_raw is not None:
     with col_central_1:
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
 
-    # Eficiência
+    # --- EFICIÊNCIA DE EXECUÇÃO ---
     st.markdown("---")
     st.subheader("🎯 Eficiência de Execução por Categoria")
     
@@ -205,13 +241,20 @@ if df_raw is not None:
         textposition='outside',
         hovertemplate="<b>Categoria:</b> %{y}<br><b>Execução:</b> %{x:.2f}%<extra></extra>"
     )
-    fig_exec_final.update_layout(xaxis_title="Liquidado (%)", yaxis_title="", separators=',.', height=400)
+    fig_exec_final.update_layout(
+        xaxis_title="Liquidado (%)", yaxis_title="", 
+        coloraxis_showscale=False, height=400,
+        separators=',.',
+        margin=dict(l=200),
+        xaxis=dict(range=[0, 120])
+    )
     st.plotly_chart(fig_exec_final, use_container_width=True, config=CONFIG_PT)
 
-    # Relatório
+    # --- ANÁLISE 4: RELATÓRIO TÉCNICO ---
     st.markdown("---")
     st.subheader("📋 Relatório Detalhado")
     df_relatorio = df_filtrado_global.copy()
+    
     for col_val in ['Orçado', 'Saldo']:
         df_relatorio[col_val + '_F'] = df_relatorio[col_val].apply(formar_real)
 
@@ -222,6 +265,8 @@ if df_raw is not None:
             "Orçado_F": "Orçado", 
             "Saldo_F": "Saldo",
             "Elemento": st.column_config.TextColumn("Elemento", width="large"),
+            "Ficha": st.column_config.TextColumn("Ficha"),
+            "Fonte": st.column_config.TextColumn("Fonte"),
         },
     )
 
