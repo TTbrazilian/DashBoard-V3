@@ -118,7 +118,7 @@ setor = st.selectbox(
 
 if setor:
     # Texto da caixa azul conforme solicitado
-    texto_caixa = f"{setor}: Selecione o municipio abaixo"
+    texto_caixa = f"{setor}: Selecione o município abaixo"
     
     st.markdown(f"""
         <div class="info-banner">
