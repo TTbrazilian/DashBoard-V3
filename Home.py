@@ -13,7 +13,7 @@ def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-# --- 2. CSS PARA DESIGN E POSICIONAMENTO ---
+# --- 2. CSS PARA DESIGN REFINADO E TRAVA DE ESCRITA ---
 st.markdown("""
     <style>
     /* Limpeza de interface */
@@ -21,6 +21,12 @@ st.markdown("""
     [data-testid="stSidebar"] { display: none !important; }
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
+
+    /* Trava de escrita no Selectbox (Apenas clique permitido) */
+    div[data-baseweb="select"] input {
+        caret-color: transparent !important;
+        cursor: pointer !important;
+    }
 
     /* Identidade Canto Superior Esquerdo */
     .brand-container {
@@ -42,20 +48,19 @@ st.markdown("""
         margin-top: 5px;
     }
 
-    /* Centralização do conteúdo */
-    .stApp {
+    /* Centralização Absoluta do Bloco Central */
+    .main-content {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        width: 100%;
+        max-width: 450px;
+        margin: 0 auto;
+        padding-top: 100px;
     }
 
-    /* Estilização do seletor de setor no topo central */
-    .stSelectbox {
-        max-width: 300px;
-        margin: 0 auto 20px auto;
-    }
-
-    /* Caixa azul informativa colada aos botões */
+    /* Caixa azul informativa */
     .info-banner {
         background-color: #16263a;
         padding: 12px 20px;
@@ -63,7 +68,7 @@ st.markdown("""
         border-left: 5px solid #2196F3;
         text-align: center;
         width: 100%;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
     }
     .info-text {
         color: #90CAF9;
@@ -71,22 +76,32 @@ st.markdown("""
         font-size: 14px;
     }
 
-    /* Botões dos municípios */
+    /* Estilo dos Botões e Alinhamento */
+    [data-testid="stVerticalBlock"] > div {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+
     div.stButton > button {
         background-color: #3d3f4b !important;
         color: white !important;
         border: none !important;
         padding: 14px 20px !important;
         font-size: 16px !important;
-        width: 100% !important;
+        width: 100% !important; /* Mantém largura total dentro do container central */
         border-radius: 8px !important;
         margin-bottom: 10px !important;
+        transition: background 0.2s;
+    }
+    div.stButton > button:hover {
+        background-color: #4e515f !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. LOGOTIPO NO CANTO (MODO ESCURO) ---
-# Usando a versão branca conforme solicitado para contraste
+# --- 3. LOGOTIPO (BRANCO PARA MODO ESCURO) ---
+# Referência ao arquivo solicitado para contraste no tema escuro
 logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png" 
 
 if os.path.exists(logo_path):
@@ -101,47 +116,39 @@ if os.path.exists(logo_path):
         unsafe_allow_html=True
     )
 
-# --- 4. FLUXO DE NAVEGAÇÃO CENTRALIZADO ---
-col_l, col_c, col_r = st.columns([1, 1.5, 1])
+# --- 4. CONTEÚDO CENTRALIZADO ---
+# Usamos o container para garantir que tudo fique alinhado no meio
+st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-with col_c:
-    st.write("<br><br>", unsafe_allow_html=True) # Ajuste fino de altura
-    
-    # 1º Passo: Seleção do Setor (Funciona como o botão solicitado)
-    setor = st.selectbox(
-        "Selecione o Setor",
-        ["-", "Saúde", "Educação"],
-        index=0,
-        help="Escolha uma área para visualizar os municípios disponíveis."
-    )
+# Seleção do Setor (index=None obriga o usuário a clicar para escolher)
+setor = st.selectbox(
+    "Selecione o Setor",
+    ["Saúde", "Educação"],
+    index=None,
+    placeholder="Clique para escolher...",
+    label_visibility="visible"
+)
 
-    # 2º Passo: Exibição condicional baseada na escolha
-    if setor != "-":
-        # Caixa azul logo acima dos botões
-        st.markdown(f"""
-            <div class="info-banner">
-                <p class="info-text">Indicadores de {setor}: Selecione um município abaixo.</p>
-            </div>
-        """, unsafe_allow_html=True)
+if setor:
+    # Caixa azul logo acima dos botões
+    st.markdown(f"""
+        <div class="info-banner">
+            <p class="info-text">Indicadores de {setor}: Selecione um município abaixo.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-        if setor == "Saúde":
-            # Botão Bom Jesus aparece apenas em Saúde
-            if st.button("🏙️ Bom Jesus da Penha"):
-                st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
-            
-            if st.button("🏢 Município Saúde 2"):
-                pass
+    # Exibição condicional centralizada
+    if setor == "Saúde":
+        if st.button("🏙️ Bom Jesus da Penha"):
+            st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
+        
+        if st.button("🏢 Município Saúde 2"):
+            pass
 
-        elif setor == "Educação":
-            # Lista específica para Educação
-            if st.button("🏢 Município Educação A"):
-                pass
-            if st.button("🏢 Município Educação B"):
-                pass
-    else:
-        # Mensagem neutra antes da seleção
-        st.markdown("""
-            <div style='text-align: center; color: #9ea0a5; margin-top: 20px;'>
-                Aguardando seleção de setor...
-            </div>
-        """, unsafe_allow_html=True)
+    elif setor == "Educação":
+        if st.button("🏢 Município Educação A"):
+            pass
+        if st.button("🏢 Município Educação B"):
+            pass
+
+st.markdown('</div>', unsafe_allow_html=True)
