@@ -1,74 +1,104 @@
 import streamlit as st
 import os
 
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="IG2P - Portal de Gestão", layout="wide")
 
-# --- CSS PARA MENU SUPERIOR E ESTILO ---
+# --- CSS PARA DESIGN SUPERIOR E REMOÇÃO DE SIDEBAR NA HOME ---
 st.markdown("""
     <style>
+    /* Esconde elementos padrão do Streamlit */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
-    .stDeployButton {display:none;}
     footer {visibility: hidden;}
-    div[data-testid="stSidebarNav"] {display: none;} /* Esconde o menu lateral automático */
+    .stDeployButton {display:none;}
     
-    /* Estilização dos botões para parecerem categorias de e-commerce */
-    div.stButton > button {
-        background-color: #1e1e1e;
-        color: white;
-        border: 1px solid #333;
-        border-radius: 5px;
-        padding: 10px 20px;
-        font-weight: bold;
-        transition: 0.3s;
+    /* REMOVE A SIDEBAR APENAS NA HOME */
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+    [data-testid="stSidebarNav"] {
+        display: none;
+    }
+
+    /* BARRA DE NAVEGAÇÃO SUPERIOR REAL */
+    .nav-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100%;
-    }
-    div.stButton > button:hover {
-        border-color: #00CC96;
-        color: #00CC96;
-        background-color: #262730;
-    }
-    
-    .top-nav {
+        background-color: #1a1a1a;
+        padding: 10px 50px;
         display: flex;
-        justify-content: flex-start;
         align-items: center;
-        padding: 10px 0px;
-        background-color: #0e1117;
-        border-bottom: 1px solid #333;
-        margin-bottom: 20px;
+        z-index: 999999;
+        border-bottom: 2px solid #333;
+    }
+
+    /* ESTILIZAÇÃO DOS BOTÕES PARA PARECEREM MENU DE CATEGORIAS */
+    div.stButton > button {
+        background-color: #262626 !important;
+        color: #ffffff !important;
+        border: 1px solid #404040 !important;
+        border-radius: 4px !important;
+        padding: 8px 20px !important;
+        font-size: 14px !important;
+        transition: all 0.3s ease !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    div.stButton > button:hover {
+        border-color: #00CC96 !important;
+        color: #00CC96 !important;
+        background-color: #333333 !important;
+        transform: translateY(-2px);
+    }
+
+    /* AJUSTE DO CONTEÚDO PARA NÃO FICAR SOB A NAVBAR */
+    .main-content {
+        margin-top: 80px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- MENU SUPERIOR (ESTILO CATEGORIAS) ---
-with st.container():
-    # Criamos colunas para os botões ficarem lado a lado (como na foto)
-    # Adicione ou remova colunas conforme o número de municípios aumentar
-    col1, col2, col3, col4, col5 = st.columns([1, 1.5, 1, 1, 1])
-    
-    with col1:
-        if st.button("🏠 Home", use_container_width=True):
-            st.rerun() # Já estamos na Home
+# --- ESTRUTURA DO MENU SUPERIOR ---
+# Usamos colunas dentro de um container para simular a navbar da imagem
+st.markdown('<div class="nav-bar">', unsafe_allow_html=True)
+col_nav1, col_nav2, col_nav3, col_nav4, col_spacer = st.columns([1, 1.5, 1, 1, 4])
 
-    with col2:
-        if st.button("📍 Bom Jesus da Penha", use_container_width=True):
-            st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
+with col_nav1:
+    if st.button("🏠 HOME", use_container_width=True):
+        st.rerun()
 
-    with col3:
-        # Exemplo de como você adicionaria outro futuramente
-        st.button("🏢 Município X", disabled=True, use_container_width=True)
+with col_nav2:
+    if st.button("📍 BOM JESUS DA PENHA", use_container_width=True):
+        st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
 
-st.markdown("<br>", unsafe_allow_html=True)
+with col_nav3:
+    st.button("🏢 CIDADE X", disabled=True, use_container_width=True)
 
-# --- CONTEÚDO DA HOME ---
-col1_c, col2_c, col3_c = st.columns([1, 2, 1])
-with col2_c:
-    if os.path.exists("LOGOTIPO IG2P - OFICIAL.jpg"):
+with col_nav4:
+    st.button("📊 GERAL", disabled=True, use_container_width=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- CONTEÚDO CENTRALIZADO ---
+st.markdown('<div class="main-content">', unsafe_allow_html=True)
+
+c1, c2, c3 = st.columns([1, 1.2, 1])
+
+with c2:
+    # Tenta carregar o logotipo branco para combinar com o fundo dark
+    if os.path.exists("LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"):
+        st.image("LOGOTIPO IG2P - OFICIAL - BRANCO.jpg", use_container_width=True)
+    elif os.path.exists("LOGOTIPO IG2P - OFICIAL.jpg"):
         st.image("LOGOTIPO IG2P - OFICIAL.jpg", use_container_width=True)
-    else:
-        st.title("IG2P")
+    
+    st.markdown("<h1 style='text-align: center; color: white; margin-top: 20px;'>Portal de Gestão de Recursos</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #888;'>IG2P - Inteligência em Gestão Pública</p>", unsafe_allow_html=True)
+    
+    st.divider()
+    
+    st.info("💡 Bem-vindo! Utilize o menu superior para acessar os dashboards dos municípios.")
 
-st.markdown("<h1 style='text-align: center;'>Portal de Gestão de Recursos</h1>", unsafe_allow_html=True)
-st.divider()
-st.info("Utilize o menu superior para escolher o município e visualizar os dados.")
+st.markdown('</div>', unsafe_allow_html=True)
