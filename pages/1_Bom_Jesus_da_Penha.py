@@ -6,6 +6,30 @@ import os
 import unicodedata
 import plotly.graph_objects as go
 
+# --- CONFIGURAÇÃO DE DESIGN: MENU SUPERIOR E OCULTAR NAVEGAÇÃO PADRÃO ---
+st.markdown("""
+    <style>
+    /* Oculta o menu de páginas padrão do Streamlit na lateral */
+    [data-testid="stSidebarNav"] {display: none;}
+    
+    /* Ajusta o espaçamento superior para o menu customizado */
+    .block-container {padding-top: 1rem;}
+    </style>
+""", unsafe_allow_html=True)
+
+# Menu Superior
+col_menu, _ = st.columns([1, 3])
+with col_menu:
+    escolha = st.selectbox(
+        "📍 Municípios",
+        ["Bom Jesus da Penha", "Home"],
+        index=0,
+        key="menu_superior"
+    )
+
+if escolha == "Home":
+    st.switch_page("Home.py")
+
 # --- TRADUÇÃO GLOBAL DO PLOTLY ---
 pio.templates.default = "plotly_white"
 
