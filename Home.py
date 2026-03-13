@@ -4,41 +4,39 @@ import os
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="IG2P - Portal de Gestão", layout="wide")
 
-# --- CSS PARA FIXAR O MENU NA FAIXA DO TOPO ---
+# --- CSS RADICAL PARA FIXAR NO TOPO ABSOLUTO ---
 st.markdown("""
     <style>
-    /* Remove padding superior padrão do Streamlit e esconde elementos inúteis */
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
+    /* 1. ZERA TODO O ESPAÇAMENTO DO STREAMLIT */
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="stAppViewContainer"] {padding-top: 0px !important;}
+    .main .block-container {padding-top: 0px !important; padding-left: 0px !important; padding-right: 0px !important;}
+    
+    /* 2. ESCONDE SIDEBAR E ELEMENTOS PADRÃO */
+    [data-testid="stSidebar"] {display: none;}
     footer {visibility: hidden;}
     .stDeployButton {display:none;}
-    [data-testid="stHeader"] {display: none;}
-    
-    /* REMOVE A SIDEBAR NA HOME */
-    [data-testid="stSidebar"] {display: none;}
-    [data-testid="stSidebarNav"] {display: none;}
 
-    /* A FAIXA DO TOPO (NAVBAR) */
-    .top-nav-bar {
+    /* 3. A FAIXA DO TOPO (ESTILO E-COMMERCE) */
+    .nav-wrapper {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
-        height: 70px; /* Altura da faixa cinza */
-        background-color: #252525; /* Cor cinza escura da imagem exemplo */
+        height: 60px;
+        background-color: #252525; /* A cor cinza escuro do topo */
+        z-index: 999999;
         display: flex;
         align-items: center;
-        padding-left: 50px;
-        z-index: 999999;
         border-bottom: 1px solid #333;
     }
 
-    /* ESTILO DOS BOTÕES PARA ENCAIXAREM NA FAIXA */
+    /* 4. ESTILIZAÇÃO DOS BOTÕES PARA ENCAIXAREM NA FAIXA */
     div.stButton > button {
         background-color: transparent !important;
         color: #e0e0e0 !important;
         border: none !important;
-        height: 70px !important; /* Mesma altura da faixa para alinhar */
+        height: 60px !important;
         margin: 0 !important;
         border-radius: 0px !important;
         font-size: 14px !important;
@@ -51,41 +49,43 @@ st.markdown("""
         color: #00CC96 !important;
     }
 
-    /* AJUSTE PARA O CONTEÚDO NÃO SUBIR PARA TRÁS DA BARRA */
-    .main-content {
+    /* 5. AJUSTE DO CONTEÚDO PARA NÃO FICAR ESCONDIDO */
+    .content-area {
         margin-top: 100px;
+        padding: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- NAVBAR NO TOPO ---
-# Criamos a div da barra e usamos colunas do Streamlit dentro dela
-st.markdown('<div class="top-nav-bar">', unsafe_allow_html=True)
+# --- ESTRUTURA DA NAVBAR ---
+# Criamos o container que o CSS vai "pegar" e jogar para o topo
+st.markdown('<div class="nav-wrapper">', unsafe_allow_html=True)
 
-# As colunas precisam ser ajustadas para ficarem juntas à esquerda
-col_nav1, col_nav2, col_nav3, col_nav4, col_nav5, col_spacer = st.columns([0.6, 1.4, 1, 0.8, 1, 4])
+# Definimos colunas com larguras menores para os botões ficarem próximos
+# O primeiro número (0.2) é um recuo para a esquerda
+c_left, c1, c2, c3, c4, c5, c_spacer = st.columns([0.2, 0.6, 1.3, 0.8, 0.7, 0.8, 4])
 
-with col_nav1:
+with c1:
     if st.button("🏠 Home", key="home"):
         st.rerun()
-with col_nav2:
-    if st.button("📍 Bom Jesus da Penha", key="bj_penha"):
+with c2:
+    if st.button("📍 Bom Jesus da Penha", key="bj"):
         st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
-with col_nav3:
-    st.button("🏢 Cidade X", disabled=True, key="cidade_x")
-with col_nav4:
-    st.button("📊 Geral", disabled=True, key="geral")
-with col_nav5:
-    st.button("☰ Cidades", key="menu_cidades")
+with c3:
+    st.button("🏢 Cidade X", disabled=True)
+with c4:
+    st.button("📊 Geral", disabled=True)
+with c5:
+    st.button("☰ Cidades")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- CONTEÚDO CENTRALIZADO ---
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
+# --- ÁREA DO CONTEÚDO ---
+st.markdown('<div class="content-area">', unsafe_allow_html=True)
 
-c1, c2, c3 = st.columns([1, 2, 1])
+col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
 
-with c2:
+with col_c2:
     # Logotipo
     if os.path.exists("LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"):
         st.image("LOGOTIPO IG2P - OFICIAL - BRANCO.jpg", use_container_width=True)
