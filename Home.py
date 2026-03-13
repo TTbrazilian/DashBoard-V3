@@ -10,6 +10,7 @@ st.set_page_config(
 )
 
 # Função para converter imagem para base64 (necessário para o HTML)
+# Isso permite carregar a imagem direto do arquivo local
 def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
@@ -66,6 +67,7 @@ st.markdown("""
     .logo-img {
         width: 380px;
         pointer-events: none; /* Impede qualquer interação ou "bolinha" */
+        user-select: none;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -90,10 +92,11 @@ with st.sidebar:
 col_l, col_c, col_r = st.columns([1, 1.2, 1])
 
 with col_c:
-    # Lógica de busca do logo
-    logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
+    # Lógica de busca do logo - PRIORIZA A VERSÃO OFICIAL COM FUNDO ESCURO
+    logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
+    # Fallback caso a versão oficial não exista
     if not os.path.exists(logo_path):
-        logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
+        logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
 
     if os.path.exists(logo_path):
         # Renderização via HTML puro para não criar o botão de fullscreen
