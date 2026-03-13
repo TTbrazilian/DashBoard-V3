@@ -2,53 +2,58 @@ import streamlit as st
 import os
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="IG2P - Portal de Gestão", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="IG2P - Portal de Gestão", 
+    layout="wide", 
+    initial_sidebar_state="expanded" # Mantém aberto por padrão, mas o usuário pode fechar no botão >
+)
 
-# --- 2. CSS PARA CORRIGIR A VISIBILIDADE DA SIDEBAR ---
+# --- 2. CSS PARA LIMPAR E MANTER O CONTROLE ---
 st.markdown("""
     <style>
-    /* Esconde elementos padrão do cabeçalho */
-    [data-testid="stHeader"] {visibility: hidden;}
-    .stDeployButton {display:none;}
+    /* Esconde o cabeçalho nativo mas mantém o botão de fechar/abrir a sidebar */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+    }
     
-    /* ESCONDE APENAS A LISTA AUTOMÁTICA DE LINKS (O que causou o sumiço) */
+    /* ESCONDE APENAS A LISTA DE ARQUIVOS QUE O STREAMLIT GERA */
     [data-testid="stSidebarNav"] {
         display: none !important;
     }
 
-    /* GARANTE QUE A SIDEBAR APAREÇA E TENHA COR */
+    /* Estilo da Sidebar */
     [data-testid="stSidebar"] {
-        visibility: visible !important;
         background-color: #111111 !important;
     }
 
-    /* Ajuste de respiro para os botões não colarem no topo */
-    .st-emotion-cache-16idsys {
-        padding-top: 3rem !important;
-    }
-    
-    /* Centralização do conteúdo principal */
+    /* Remove o botão de Deploy e outros lixos */
+    .stDeployButton {display:none;}
+    footer {visibility: hidden;}
+
+    /* Respiro para o conteúdo não colar no topo */
     .main .block-container {
-        padding-top: 3rem !important;
+        padding-top: 2rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 3. CONTEÚDO DA SIDEBAR ---
-# Note que agora o conteúdo está fora de qualquer condicional para forçar a renderização
+# O Streamlit já coloca um botão de ">" no topo da sidebar para abrir/fechar.
 with st.sidebar:
+    st.markdown("<br>", unsafe_allow_html=True) # Espaçador top
+    
     # Botão Home
-    if st.button("🏠 Home", use_container_width=True, key="home_btn"):
+    if st.button("🏠 Home", use_container_width=True, key="home_nav"):
         st.rerun()
     
     st.markdown("---")
     
-    # Seção de Municípios
+    # Menu de Municípios
     with st.expander("📍 Municípios", expanded=True):
-        if st.button("🏙️ Bom Jesus da Penha", use_container_width=True, key="bj_btn"):
+        if st.button("🏙️ Bom Jesus da Penha", use_container_width=True, key="bj_nav"):
             st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
         
-        st.button("🏢 Município X", disabled=True, use_container_width=True, key="x_btn")
+        st.button("🏢 Município X", disabled=True, use_container_width=True, key="x_nav")
 
 # --- 4. CONTEÚDO CENTRAL DA HOME ---
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -66,4 +71,4 @@ with col2:
     st.markdown("<p style='text-align: center; color: #888;'>IG2P - Inteligência em Gestão Pública</p>", unsafe_allow_html=True)
     
     st.divider()
-    st.info("Utilize o menu lateral à esquerda para navegar entre os municípios.")
+    st.info("Utilize a barra lateral à esquerda (botão > no topo) para navegar.")
