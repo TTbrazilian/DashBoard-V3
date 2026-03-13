@@ -1,64 +1,53 @@
 import streamlit as st
 import os
 
-# Configuração da página - centralizada aqui para o portal todo
-st.set_page_config(
-    page_title="IG2P - Gestão Estratégica", 
-    layout="wide", 
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="IG2P - Portal de Gestão", layout="wide")
 
-# --- ESTILIZAÇÃO PARA CENTRALIZAR O CONTEÚDO ---
+# --- CSS PARA MENU SUPERIOR E ESTILO ---
 st.markdown("""
     <style>
-    .main-container {
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display:none;}
+    footer {visibility: hidden;}
+    div[data-testid="stSidebarNav"] {display: none;} /* Esconde o menu lateral automático */
+    
+    .top-nav {
         display: flex;
-        flex-direction: column;
+        justify-content: flex-start;
         align-items: center;
-        justify-content: center;
-    }
-    .stImage {
-        display: flex;
-        justify-content: center;
+        padding: 10px 0px;
+        background-color: #0e1117;
+        border-bottom: 1px solid #333;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-def main():
-    # --- LOGOTIPO ---
-    # Colunas para centralizar a imagem no meio da tela
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        # Tenta carregar a imagem com fundo branco/transparente para a Home
-        # Se preferir a de fundo preto, mude o nome do arquivo abaixo
-        nome_logo = "LOGOTIPO IG2P - OFICIAL.jpg"
-        
-        if os.path.exists(nome_logo):
-            st.image(nome_logo, use_container_width=True)
-        else:
-            st.title("IG2P")
+# --- MENU SUPERIOR ---
+with st.container():
+    col_btn, _ = st.columns([1, 4])
+    with col_btn:
+        # Usamos um selectbox que parece um botão de menu
+        municipio_selecionado = st.selectbox(
+            "📍 Selecionar Município",
+            ["Home", "Bom Jesus da Penha"],
+            index=0,
+            key="nav_menu"
+        )
 
-    # --- TEXTO DE BOAS-VINDAS ---
-    st.markdown("<h1 style='text-align: center;'>Portal de Gestão de Recursos</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 1.2rem; color: #666;'>Inteligência em Gestão Pública e Privada</p>", unsafe_allow_html=True)
-    
-    st.divider()
+# Redirecionamento lógico
+if municipio_selecionado == "Bom Jesus da Penha":
+    st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
 
-    # --- INSTRUÇÕES ---
-    st.markdown("### 📍 Navegação")
-    st.info("Para acessar os dados de um município específico, utilize o **menu ao lado esquerdo**.")
-    
-    # Grid de Municípios (Exemplo visual para quando você adicionar mais)
-    st.subheader("Municípios Atendidos")
-    c1, c2, c3 = st.columns(3)
-    
-    with c1:
-        st.success("✅ **Bom Jesus da Penha**")
-    with c2:
-        st.write("⏳ *Em breve...*")
-    with c3:
-        st.write("⏳ *Em breve...*")
+# --- CONTEÚDO DA HOME ---
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if os.path.exists("LOGOTIPO IG2P - OFICIAL.jpg"):
+        st.image("LOGOTIPO IG2P - OFICIAL.jpg", use_container_width=True)
+    else:
+        st.title("IG2P")
 
-if __name__ == "__main__":
-    main()
+st.markdown("<h1 style='text-align: center;'>Portal de Gestão de Recursos</h1>", unsafe_allow_html=True)
+st.divider()
+st.info("Utilize o menu superior para escolher o município e visualizar os dados.")
