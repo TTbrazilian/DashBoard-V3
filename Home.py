@@ -5,10 +5,10 @@ import os
 st.set_page_config(
     page_title="IG2P - Portal de Gestão", 
     layout="wide", 
-    initial_sidebar_state="expanded" # Mantém aberto por padrão, mas o usuário pode fechar no botão >
+    initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS PARA LIMPAR E MANTER O CONTROLE ---
+# --- 2. CSS PARA LIMPAR A SIDEBAR E MANTER O CONTROLE ---
 st.markdown("""
     <style>
     /* Esconde o cabeçalho nativo mas mantém o botão de fechar/abrir a sidebar */
@@ -16,50 +16,55 @@ st.markdown("""
         background-color: transparent !important;
     }
     
-    /* ESCONDE APENAS A LISTA DE ARQUIVOS QUE O STREAMLIT GERA */
+    /* ESCONDE A LISTA AUTOMÁTICA DE ARQUIVOS (Links que o Streamlit gera) */
     [data-testid="stSidebarNav"] {
         display: none !important;
     }
 
-    /* Estilo da Sidebar */
+    /* Estilo da Sidebar (Fundo escuro conforme as fotos) */
     [data-testid="stSidebar"] {
         background-color: #111111 !important;
     }
 
-    /* Remove o botão de Deploy e outros lixos */
+    /* Remove o botão de Deploy e lixos visuais */
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
 
-    /* Respiro para o conteúdo não colar no topo */
+    /* Espaçamento para o conteúdo não colar no topo */
     .main .block-container {
         padding-top: 2rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. CONTEÚDO DA SIDEBAR ---
-# O Streamlit já coloca um botão de ">" no topo da sidebar para abrir/fechar.
+# --- 3. MENU LATERAL (SIDEBAR) CUSTOMIZADO ---
 with st.sidebar:
-    st.markdown("<br>", unsafe_allow_html=True) # Espaçador top
+    # Espaçador inicial
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    # Botão Home
-    if st.button("🏠 Home", use_container_width=True, key="home_nav"):
+    # Botão Home (Sempre no topo, conforme pedido)
+    if st.button("🏠 Home", use_container_width=True, key="nav_home"):
         st.rerun()
     
     st.markdown("---")
     
-    # Menu de Municípios
+    # Seção escalável de Municípios
+    # Usar o expander permite adicionar dezenas de nomes sem poluir o visual
     with st.expander("📍 Municípios", expanded=True):
-        if st.button("🏙️ Bom Jesus da Penha", use_container_width=True, key="bj_nav"):
+        if st.button("🏙️ Bom Jesus da Penha", use_container_width=True, key="nav_bj"):
             st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
         
-        st.button("🏢 Município X", disabled=True, use_container_width=True, key="x_nav")
+        # Futuros municípios entram aqui seguindo o mesmo padrão:
+        # if st.button("🏙️ Nome do Municipio", use_container_width=True):
+        #     st.switch_page("pages/2_Nome_Do_Arquivo.py")
+        
+        st.button("🏢 Município X (Em breve)", disabled=True, use_container_width=True)
 
 # --- 4. CONTEÚDO CENTRAL DA HOME ---
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    # Lógica do Logotipo
+    # Lógica do Logotipo (Branco ou Original)
     logo_path = "LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
     if not os.path.exists(logo_path):
         logo_path = "LOGOTIPO IG2P - OFICIAL.jpg"
@@ -71,4 +76,4 @@ with col2:
     st.markdown("<p style='text-align: center; color: #888;'>IG2P - Inteligência em Gestão Pública</p>", unsafe_allow_html=True)
     
     st.divider()
-    st.info("Utilize a barra lateral à esquerda (botão > no topo) para navegar.")
+    st.info("Utilize o menu lateral para selecionar o município e visualizar os dados.")
