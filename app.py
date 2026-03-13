@@ -220,7 +220,7 @@ if df_raw is not None:
     
     fig_natureza = px.pie(df_natureza, values='Orçado', names='Natureza', hole=.4,
                          color='Natureza',
-                         color_discrete_map={'Custeio':'#00CC96', 'Capital':'#EF553B'})
+                         color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
     
     fig_natureza.update_layout(
         margin=dict(t=50, b=50, l=20, r=20), 
