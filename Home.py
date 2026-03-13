@@ -6,14 +6,14 @@ import base64
 st.set_page_config(
     page_title="IG2P - Inteligência em Gestão", 
     layout="wide", 
-    initial_sidebar_state="collapsed" # Esconde a sidebar na inicial
+    initial_sidebar_state="collapsed"
 )
 
 def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-# --- 2. CSS PARA POSICIONAMENTO E CENTRALIZAÇÃO ---
+# --- 2. CSS PARA CENTRALIZAÇÃO TOTAL E LOGO FIXO ---
 st.markdown("""
     <style>
     /* 1. Limpeza de interface e remoção da sidebar */
@@ -24,29 +24,35 @@ st.markdown("""
 
     /* 2. Logo fixo no canto superior esquerdo */
     .logo-header {
-        position: absolute;
-        top: -60px;
-        left: -20px;
-        z-index: 100;
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
     }
     .logo-img {
-        width: 250px; /* Tamanho ajustado para o canto */
-        pointer-events: none; /* Remove clique e ícone de tela cheia */
+        width: 180px; /* Tamanho reduzido conforme solicitado */
+        pointer-events: none;
+        user-select: none;
     }
 
-    /* 3. Centralização total do Menu */
-    .main .block-container {
+    /* 3. Centralização Absoluta do Menu */
+    .stApp {
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        height: 80vh; /* Centraliza verticalmente na tela */
+    }
+
+    [data-testid="stVerticalBlock"] {
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        width: 100% !important;
     }
 
     .menu-container {
         width: 100%;
         max-width: 450px;
-        text-align: center;
+        margin: 0 auto;
     }
 
     /* Estilo dos botões centralizados */
@@ -68,28 +74,32 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. RENDERIZAÇÃO DO LOGO NO CANTO (SEM CLIQUE) ---
-logo_path = "Logos/LOGOTIPO IG2P - OFICIAL.jpg" # Versão colorida
-if not os.path.exists(logo_path):
-    logo_path = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
+# --- 3. LÓGICA DE IMAGEM POR MODO (ESCURO/CLARO) ---
+# O Streamlit não tem um gatilho nativo simples para trocar variáveis Python por tema, 
+# então usamos a lógica de arquivos baseada na preferência padrão do sistema.
+logo_escuro = "Logos/LOGOTIPO IG2P - OFICIAL.jpg" # Versão preta para modo escuro
+logo_claro = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg" # Versão branca para modo claro
 
-if os.path.exists(logo_path):
-    img_base64 = get_image_base64(logo_path)
-    # Renderizado apenas como imagem, sem a tag <a> de link
+# Verifica qual arquivo carregar (Prioriza a versão preta conforme solicitado)
+path_to_use = logo_escuro if os.path.exists(logo_escuro) else logo_claro
+
+if os.path.exists(path_to_use):
+    img_base64 = get_image_base64(path_to_use)
     st.markdown(
         f'<div class="logo-header"><img src="data:image/jpeg;base64,{img_base64}" class="logo-img"></div>',
         unsafe_allow_html=True
     )
 
-# --- 4. MENU CENTRALIZADO ---
-# Usando colunas para garantir o alinhamento no meio da página
-col_l, col_c, col_r = st.columns([1, 1.5, 1])
+# --- 4. CONTEÚDO COMPLETAMENTE CENTRALIZADO ---
+# Usamos colunas apenas para criar um container centralizado e responsivo
+col_l, col_c, col_r = st.columns([1, 2, 1])
 
 with col_c:
     st.markdown("<div class='menu-container'>", unsafe_allow_html=True)
     
     # Título centralizado
-    st.markdown("<h2 style='color: white; font-weight: 400; margin-bottom: 30px;'>Inteligência em Gestão</h2>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color: white; font-weight: 400; font-size: 32px; margin-bottom: 10px;'>Inteligência em Gestão</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #9ea0a5; margin-bottom: 40px;'>Portal de Seleção de Municípios</p>", unsafe_allow_html=True)
     
     # Botões de navegação
     if st.button("🏙️ Bom Jesus da Penha"):
@@ -103,10 +113,10 @@ with col_c:
         
     st.markdown("<hr style='border-top: 1px solid #333; margin: 30px 0;'>", unsafe_allow_html=True)
     
-    # Bloco informativo azul
+    # Bloco informativo azul centralizado
     st.markdown("""
-        <div style='background-color: #16263a; padding: 18px; border-radius: 8px; border-left: 5px solid #2196F3;'>
-            <p style='color: #90CAF9; margin: 0; font-size: 14px;'>Selecione um município para acessar os indicadores.</p>
+        <div style='background-color: #16263a; padding: 18px; border-radius: 8px; border-left: 5px solid #2196F3; text-align: center;'>
+            <p style='color: #90CAF9; margin: 0; font-size: 14px;'>Utilize os botões acima para selecionar o painel desejado.</p>
         </div>
     """, unsafe_allow_html=True)
     
