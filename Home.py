@@ -3,22 +3,27 @@ import os
 from PIL import Image
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="IG2P - Portal de Gestão", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="IG2P - Portal de Gestão", 
+    layout="wide", 
+    initial_sidebar_state="expanded"
+)
 
-# --- 2. CSS PARA DESIGN IDÊNTICO À FOTO (MENU LATERAL) ---
+# --- 2. CSS PARA DESIGN FIEL À IMAGEM ---
 st.markdown("""
     <style>
+    /* Remove elementos nativos desnecessários */
     header[data-testid="stHeader"] { background-color: transparent !important; }
     [data-testid="stSidebarNav"] { display: none !important; }
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
 
-    /* SIDEBAR ESCURA CONFORME PADRÃO SOLICITADO */
+    /* SIDEBAR ESCURA (DESIGN DARK) */
     [data-testid="stSidebar"] {
         background-color: #1a1c24 !important;
     }
 
-    /* ESTILO DOS BOTÕES - DESIGN DE CÁPSULA ARREDONDADA */
+    /* BOTÕES EM ESTILO CÁPSULA (IGUAL À FOTO) */
     div.stButton > button {
         background-color: transparent !important;
         color: #9ea0a5 !important;
@@ -31,7 +36,7 @@ st.markdown("""
         transition: all 0.3s ease !important;
     }
 
-    /* ITEM HOME ATIVO (CÁPSULA CINZA) */
+    /* DESTAQUE PARA O BOTÃO HOME (ATIVO) */
     div.stButton > button[key="nav_home"] {
         background-color: #3d3f4b !important;
         color: white !important;
@@ -39,7 +44,7 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* EFEITO HOVER - ESCURECER */
+    /* EFEITO HOVER (ESCURECE AO PASSAR O MOUSE) */
     div.stButton > button:hover {
         background-color: rgba(255, 255, 255, 0.05) !important;
         color: white !important;
@@ -49,12 +54,16 @@ st.markdown("""
         background-color: #2e303a !important;
     }
 
+    /* AJUSTE DE ESPAÇAMENTO SUPERIOR */
     .st-emotion-cache-16idsys { padding-top: 3rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 3. MENU LATERAL (SIDEBAR) ---
 with st.sidebar:
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Navegação manual conforme design solicitado
     if st.button("Home", key="nav_home"):
         st.rerun()
     
@@ -63,37 +72,26 @@ with st.sidebar:
     
     st.markdown("---")
 
-# --- 4. LÓGICA DO LOGOTIPO (MODO CLARO vs ESCURO) ---
-# Caminhos baseados na sua estrutura de pastas
-path_logo_branco = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
-path_logo_oficial = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
-
-def get_logo():
-    # Detecta o tema atual do Streamlit (claro ou escuro)
-    # Nota: 'theme' funciona melhor se definido no config.toml, 
-    # caso contrário, usamos a detecção de arquivo como fallback
-    try:
-        if st.get_option("theme.base") == "dark":
-            return path_logo_branco
-        return path_logo_oficial
-    except:
-        return path_logo_branco # Default para o design escuro que você prefere
-
-# --- 5. CONTEÚDO CENTRAL ---
-st.markdown("<br>", unsafe_allow_html=True)
+# --- 4. CONTEÚDO CENTRAL COM LOGOTIPO DINÂMICO ---
 col_1, col_2, col_3 = st.columns([1, 2, 1])
 
 with col_2:
-    # Exibição do Logo referenciando os nomes de arquivo corretos
-    logo_atual = get_logo()
+    st.markdown("<br><br>", unsafe_allow_html=True)
     
-    if os.path.exists(logo_atual):
-        img = Image.open(logo_atual)
+    # Definição dos caminhos dos logos
+    logo_branco = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.jpg"
+    logo_oficial = "Logos/LOGOTIPO IG2P - OFICIAL.jpg"
+    
+    # Lógica simples para escolher o logo (Prioriza branco no design dark)
+    # Tenta detectar o modo do sistema ou usa o branco como padrão para o fundo escuro
+    logo_para_exibir = logo_branco if os.path.exists(logo_branco) else logo_oficial
+
+    if os.path.exists(logo_para_exibir):
+        img = Image.open(logo_para_exibir)
         st.image(img, use_container_width=True)
     else:
-        # Fallback caso o caminho da pasta Logos esteja diferente
-        st.warning(f"Logotipo não encontrado em: {logo_atual}")
+        st.error("Logotipo não encontrado na pasta Logos.")
 
-    st.markdown("<h3 style='text-align: center; color: #888; font-weight: 400;'>Portal de Gestão de Recursos</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #888; font-weight: 400; margin-top: 10px;'>Portal de Gestão de Recursos</h3>", unsafe_allow_html=True)
     st.divider()
     st.info("Utilize o menu lateral para selecionar o município.")
