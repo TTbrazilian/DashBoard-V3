@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS PARA DESIGN IDÊNTICO E REMOÇÃO DE FULLSCREEN ---
+# --- 2. CSS PARA DESIGN IDÊNTICO E REMOÇÃO TOTAL DE INTERAÇÃO NA IMAGEM ---
 st.markdown("""
     <style>
     /* Remove elementos nativos */
@@ -50,24 +50,24 @@ st.markdown("""
         color: white !important;
     }
 
-    /* REMOVE ÍCONE DE TELA CHEIA E INTERAÇÃO COM A IMAGEM */
-    button[title="View fullscreen"], 
+    /* REMOVE DEFINITIVAMENTE O BOTÃO DE TELA CHEIA */
+    /* Alvo: Botões de overlay, botões de tela cheia e containers de ícones sobre imagens */
+    [data-testid="stImage"] button, 
+    [data-testid="stHorizontalBlock"] button,
     [data-testid="StyledFullScreenButton"],
-    .st-emotion-cache-15zrgzn { 
-        display: none !important; 
+    .st-emotion-cache-15zrgzn,
+    .st-emotion-cache-0 {
+        display: none !important;
     }
     
-    [data-testid="stImage"] img {
-        pointer-events: none !important;
-    }
-
-    /* CENTRALIZAÇÃO E POSIÇÃO DO LOGO */
+    /* Desativa cliques e qualquer interação na imagem */
     [data-testid="stImage"] {
+        pointer-events: none !important;
         display: flex !important;
         justify-content: center !important;
         margin-top: -50px !important;
     }
-    
+
     .st-emotion-cache-16idsys { padding-top: 2rem !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -98,6 +98,7 @@ with col_c:
 
     if os.path.exists(logo_path):
         img = Image.open(logo_path)
+        # O width=380 mantém o tamanho que você aprovou
         st.image(img, width=380)
     
     st.markdown("""
