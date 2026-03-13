@@ -73,7 +73,7 @@ df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
-    busca = st.sidebar.text_input("Filtrar:")
+    busca = st.sidebar.text_input(" Filtrar:")
 
     df_filtrado_global = df_raw.copy()
     if busca:
