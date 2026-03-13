@@ -9,10 +9,8 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
 # --- TRADUÇÃO GLOBAL DO PLOTLY ---
-# Isso configura o motor do Plotly para falar Português antes de gerar os gráficos
 pio.templates.default = "plotly_white"
 
-# Configuração manual dos botões para garantir 100%
 CONFIG_PT = {
     'displaylogo': False,
     'locale': 'pt-BR',
@@ -76,7 +74,6 @@ if df_raw is not None:
     df_filtrado_global = df_raw.copy()
     if busca:
         termo = remover_acentos(busca)
-        # Filtro preciso para categorias e fichas
         mask = (
             df_filtrado_global['Categoria'].apply(remover_acentos) == termo
         ) | (
@@ -110,23 +107,20 @@ if df_raw is not None:
     fig_evolucao.update_layout(yaxis_tickprefix='R$ ', yaxis_tickformat=',.2f', separators=',.')
     st.plotly_chart(fig_evolucao, use_container_width=True, config=CONFIG_PT)
 
-   # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
+    # --- ANÁLISE 3: DETALHAMENTO POR ELEMENTO ---
     st.markdown("---")
     st.subheader("📦 Detalhamento por Elemento")
 
-    # CSS de Elite: Anima as barras uma por uma com atraso (Stagger effect)
     st.markdown("""
         <style>
         @keyframes subirBarra {
             from { clip-path: inset(100% 0 0 0); }
             to { clip-path: inset(0% 0 0 0); }
         }
-        /* Alvo: as formas das barras do Plotly */
         .js-plotly-plot .point path {
             animation: subirBarra 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
             clip-path: inset(100% 0 0 0);
         }
-        /* Gerando o atraso para as primeiras 50 barras (efeito cascata) */
         .js-plotly-plot .point path:nth-child(1) { animation-delay: 0.05s; }
         .js-plotly-plot .point path:nth-child(2) { animation-delay: 0.10s; }
         .js-plotly-plot .point path:nth-child(3) { animation-delay: 0.15s; }
@@ -156,7 +150,6 @@ if df_raw is not None:
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
-            # Lógica de Hover (Inverte para Categoria se a busca for por Elemento)
             lista_elementos = [remover_acentos(e) for e in df_raw['Elemento'].unique()]
             busca_limpa = remover_acentos(busca)
             label_hover = "Categoria" if busca and (busca_limpa in lista_elementos) else ("Elemento" if busca else "Categoria")
@@ -169,7 +162,7 @@ if df_raw is not None:
 
             fig_detalhe.update_traces(
                 hovertemplate=f"<b>{label_hover}:</b> %{{customdata[0]}}<br><b>Valor:</b> R$ %{{y:,.2f}}<extra></extra>",
-                text=df_detalhe['Orçado'].apply(formar_real), # Correção dos 200k
+                text=df_detalhe['Orçado'].apply(formar_real),
                 textposition='outside',
                 cliponaxis=False,
                 width=0.8 if len(df_detalhe) < 12 else 0.5
@@ -218,9 +211,15 @@ if df_raw is not None:
     df_filtrado_global['Natureza'] = df_filtrado_global['Elemento'].apply(
         lambda x: 'Capital (Invest.)' if '4.4' in str(x) else 'Custeio (Manut.)'
     )
+    
+    # Agrupamento e lógica para garantir que Capital apareça na legenda
     df_natureza = df_filtrado_global.groupby('Natureza')['Orçado'].sum().reset_index()
+    if 'Capital (Invest.)' not in df_natureza['Natureza'].values:
+        nova_linha = pd.DataFrame({'Natureza': ['Capital (Invest.)'], 'Orçado': [0.0]})
+        df_natureza = pd.concat([df_natureza, nova_linha], ignore_index=True)
     
     fig_natureza = px.pie(df_natureza, values='Orçado', names='Natureza', hole=.4,
+                         color='Natureza',
                          color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
     
     fig_natureza.update_layout(
@@ -228,7 +227,16 @@ if df_raw is not None:
         height=450, 
         showlegend=True,
         separators=',.', 
-        legend=dict(itemclick=False, itemdoubleclick=False, orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
+        legend=dict(
+            itemclick="toggle",          # Torna clicável novamente
+            itemdoubleclick="toggleothers",
+            orientation="v", 
+            yanchor="middle", 
+            y=0.5, 
+            xanchor="left", 
+            x=1.05,
+            font=dict(size=16)           # Fonte da legenda aumentada para 16
+        )
     )
     fig_natureza.update_traces(
         textinfo='percent', 
@@ -240,33 +248,6 @@ if df_raw is not None:
     _, col_central_1, _ = st.columns([1, 2, 1])
     with col_central_1:
         st.plotly_chart(fig_natureza, use_container_width=True, config=CONFIG_PT)
-
-
-    # --- TOP 5 MAIORES DESPESAS ---
-    st.markdown("---")
-    st.subheader("💰 Top 5 Maiores Despesas")
-    
-    df_top_elementos = df_filtrado_global.groupby('Elemento')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
-    
-    fig_top = px.pie(df_top_elementos, values='Orçado', names='Elemento', hole=.4,
-                    color_discrete_sequence=px.colors.qualitative.Pastel)
-    
-    fig_top.update_layout(
-        margin=dict(t=20, b=20, l=20, r=150), 
-        height=580, 
-        showlegend=True,
-        separators=',.', 
-        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.15, font=dict(size=13))
-    )
-    
-    fig_top.update_traces(
-        textinfo='percent', 
-        textposition='inside', 
-        insidetextfont=dict(size=16, color="black"),
-        hovertemplate="<b>Elemento:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<extra></extra>"
-    )
-    
-    st.plotly_chart(fig_top, use_container_width=True, config=CONFIG_PT)
 
 
     # ---  EFICIÊNCIA DE EXECUÇÃO ---
@@ -299,7 +280,7 @@ if df_raw is not None:
 
     # --- ANÁLISE 4: RELATÓRIO TÉCNICO ---
     st.markdown("---")
-    st.subheader("📋 Relatório Detalhado (Estilo Relatório)")
+    st.subheader("📋 Relatório Detalhado")
     df_relatorio = df_filtrado_global.copy()
     
     for col_val in ['Orçado', 'Saldo']:
