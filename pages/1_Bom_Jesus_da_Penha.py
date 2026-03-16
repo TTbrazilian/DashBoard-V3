@@ -156,13 +156,13 @@ if df_raw is not None:
                     st.rerun()
 
         if 'elemento_ativo' in st.session_state:
-            # Script de scroll disparado quando o elemento está ativo
+            # Script de scroll disparado quando o elemento está ativo (Alterado para 'center')
             components.html(
                 """
                 <script>
                     window.parent.document.getElementById('foco_grafico').scrollIntoView({
                         behavior: 'smooth',
-                        block: 'start'
+                        block: 'center'
                     });
                 </script>
                 """,
