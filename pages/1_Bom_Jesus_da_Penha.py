@@ -137,8 +137,8 @@ if df_raw is not None:
 
     st.markdown("---")
     
-    # CRIAÇÃO DA ÂNCORA (Usa-se o ID 'detalhe')
-    st.markdown('<div id="detalhe"></div>', unsafe_allow_html=True)
+    # 1. Definimos o ID onde o foco deve ir
+    st.markdown('<div id="grafico_detalhado"></div>', unsafe_allow_html=True)
     st.subheader("📦 Detalhamento por Elemento")
 
     st.markdown("""
@@ -161,12 +161,19 @@ if df_raw is not None:
         cols_botoes = st.columns(4)
         for i, elemento in enumerate(elementos_disponiveis):
             with cols_botoes[i % 4]:
-                # Adição do link de âncora no clique do botão
                 if st.button(elemento, use_container_width=True, key=f"btn_{i}"):
                     st.session_state['elemento_ativo'] = elemento
-                    # Força a navegação para o ID #detalhe na URL para o navegador rolar a página
-                    st.markdown(f'<a href="#detalhe" target="_self" id="click_anchor"></a><script>document.getElementById("click_anchor").click();</script>', unsafe_allow_html=True)
-                    st.rerun()
+                    # 2. Injetamos o JavaScript que garante a rolagem após o rerun do Streamlit
+                    st.components.v1.html(
+                        f"""
+                        <script>
+                            window.parent.document.getElementById('grafico_detalhado').scrollIntoView({{
+                                behavior: 'smooth'
+                            }});
+                        </script>
+                        """,
+                        height=0
+                    )
 
         if 'elemento_ativo' in st.session_state:
             ele = st.session_state['elemento_ativo']
