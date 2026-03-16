@@ -243,32 +243,46 @@ if df_raw is not None:
     )
     st.plotly_chart(fig_exec_final, use_container_width=True, config=CONFIG_PT)
 
-    # --- NOVO GRÁFICO: SOMA TOTAL POR CATEGORIA ---
+    # --- NOVO GRÁFICO: COMPARATIVO ORÇADO X EXECUTADO POR CATEGORIA ---
     st.markdown("---")
-    st.subheader("💰 Valor Orçado Total por Categoria")
+    st.subheader("💰 Orçado vs Executado por Categoria")
     
-    df_soma_categoria = df_filtrado_global.groupby('Categoria')['Orçado'].sum().reset_index().sort_values('Orçado', ascending=False)
+    # Agrupando dados de Orçado e Saldo para calcular o Executado
+    df_comp_cat = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
+    df_comp_cat['Executado'] = df_comp_cat['Orçado'] - df_comp_cat['Saldo']
     
+    # Reorganizando o DataFrame para formato longo (necessário para barras agrupadas)
+    df_melted = df_comp_cat.melt(id_vars='Categoria', value_vars=['Orçado', 'Executado'], 
+                                var_name='Tipo', value_name='Valor')
+    
+    # Ordenando para que a categoria com maior Orçado venha primeiro
+    ordem_categorias = df_comp_cat.sort_values('Orçado', ascending=False)['Categoria'].tolist()
+
     fig_soma_cat = px.bar(
-        df_soma_categoria, 
+        df_melted, 
         x='Categoria', 
-        y='Orçado',
-        color_discrete_sequence=["#2196F3"],
-        text='Orçado'
+        y='Valor',
+        color='Tipo',
+        barmode='group',
+        color_discrete_map={'Orçado': '#2196F3', 'Executado': '#00CC96'},
+        category_orders={'Categoria': ordem_categorias},
+        text='Valor'
     )
     
     fig_soma_cat.update_traces(
         texttemplate='R$ %{y:,.2f}',
         textposition='outside',
-        hovertemplate="<b>Categoria:</b> %{x}<br><b>Total Orçado:</b> R$ %{y:,.2f}<extra></extra>"
+        hovertemplate="<b>Categoria:</b> %{x}<br><b>%{customdata[0]}:</b> R$ %{y:,.2f}<extra></extra>",
+        customdata=df_melted[['Tipo']]
     )
     
     fig_soma_cat.update_layout(
         xaxis_title="",
-        yaxis_title="Valor Total (R$)",
+        yaxis_title="Valor (R$)",
         height=500,
+        legend_title="Legenda",
         separators=',.',
-        yaxis=dict(range=[0, df_soma_categoria['Orçado'].max() * 1.25])
+        yaxis=dict(range=[0, df_comp_cat['Orçado'].max() * 1.25])
     )
     st.plotly_chart(fig_soma_cat, use_container_width=True, config=CONFIG_PT)
 
