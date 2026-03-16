@@ -66,7 +66,24 @@ df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
-    busca = st.sidebar.text_input("Filtrar:")
+    
+    # Gerenciar o estado da busca para os botões funcionarem
+    if 'busca_input' not in st.session_state:
+        st.session_state['busca_input'] = ""
+
+    busca = st.sidebar.text_input("Filtrar:", value=st.session_state['busca_input'])
+
+    # Botões de Categoria como atalho
+    categorias_unicas = sorted(df_raw['Categoria'].unique())
+    st.sidebar.write("Categorias:")
+    for cat in categorias_unicas:
+        if st.sidebar.button(cat, use_container_width=True):
+            st.session_state['busca_input'] = cat
+            st.rerun()
+    
+    if st.sidebar.button("Limpar Filtros", type="secondary"):
+        st.session_state['busca_input'] = ""
+        st.rerun()
 
     df_filtrado_global = df_raw.copy()
     if busca:
