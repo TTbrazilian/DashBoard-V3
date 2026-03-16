@@ -66,47 +66,28 @@ df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
-    
-    # Gerenciar o estado da busca para os botões funcionarem
-    if 'busca_input' not in st.session_state:
-        st.session_state['busca_input'] = ""
-
-    # Campo de texto vinculado ao session_state
-    busca = st.sidebar.text_input("Filtrar:", value=st.session_state['busca_input'], key="filtro_texto")
-    
-    # Sincroniza o valor digitado de volta para o estado
-    st.session_state['busca_input'] = busca
-
-    # Botões de Categoria como atalho (Abaixo do campo de pesquisa)
-    categorias_unicas = sorted(df_raw['Categoria'].unique())
-    st.sidebar.write("Categorias:")
-    for cat in categorias_unicas:
-        if st.sidebar.button(cat, use_container_width=True):
-            st.session_state['busca_input'] = cat
-            st.rerun()
-    
-    if st.sidebar.button("Limpar Filtros", type="secondary"):
-        st.session_state['busca_input'] = ""
-        st.rerun()
+    busca = st.sidebar.text_input("Filtrar:")
 
     df_filtrado_global = df_raw.copy()
-    if st.session_state['busca_input']:
-        termo = remover_acentos(st.session_state['busca_input'])
+    if busca:
+        termo = remover_acentos(busca)
         
         # Mapeamento para verificar se a busca é exatamente uma Categoria
         categorias_existentes = {remover_acentos(cat): cat for cat in df_raw['Categoria'].unique()}
         
         if termo in categorias_existentes:
+            # Filtro restrito: Se digitar "MAC", traz apenas a categoria MAC
             mask = df_filtrado_global['Categoria'].apply(remover_acentos) == termo
         else:
+            # Busca ampla caso não seja uma categoria exata
             mask = (
                 df_filtrado_global['Categoria'].apply(remover_acentos).str.contains(termo, na=False)
             ) | (
-                df_filtrado_global['Ficha'] == st.session_state['busca_input'].strip()
+                df_filtrado_global['Ficha'] == busca.strip()
             ) | (
                 df_filtrado_global['Elemento'].apply(remover_acentos).str.contains(termo, na=False)
             ) | (
-                df_filtrado_global['Fonte'].str.contains(st.session_state['busca_input'].strip(), na=False)
+                df_filtrado_global['Fonte'].str.contains(busca.strip(), na=False)
             )
         df_filtrado_global = df_filtrado_global[mask]
 
@@ -166,8 +147,8 @@ if df_raw is not None:
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
             lista_elementos = [remover_acentos(e) for e in df_raw['Elemento'].unique()]
-            busca_limpa = remover_acentos(st.session_state['busca_input'])
-            label_hover = "Categoria" if st.session_state['busca_input'] and (busca_limpa in lista_elementos) else ("Elemento" if st.session_state['busca_input'] else "Categoria")
+            busca_limpa = remover_acentos(busca)
+            label_hover = "Categoria" if busca and (busca_limpa in lista_elementos) else ("Elemento" if busca else "Categoria")
             
             fig_detalhe = px.bar(
                 df_detalhe, x='Ficha', y='Orçado',
@@ -266,12 +247,15 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("💰 Orçado vs Executado por Categoria")
     
+    # Agrupando dados de Orçado e Saldo para calcular o Executado
     df_comp_cat = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
     df_comp_cat['Executado'] = df_comp_cat['Orçado'] - df_comp_cat['Saldo']
     
+    # Reorganizando o DataFrame para formato longo (necessário para barras agrupadas)
     df_melted = df_comp_cat.melt(id_vars='Categoria', value_vars=['Orçado', 'Executado'], 
                                 var_name='Tipo', value_name='Valor')
     
+    # Ordenando para que a categoria com maior Orçado venha primeiro
     ordem_categorias = df_comp_cat.sort_values('Orçado', ascending=False)['Categoria'].tolist()
 
     fig_soma_cat = px.bar(
