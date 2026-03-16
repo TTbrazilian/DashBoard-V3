@@ -66,11 +66,23 @@ df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
-    busca = st.sidebar.text_input("Filtrar:")
+    
+    if 'busca' not in st.session_state:
+        st.session_state.busca = ""
+
+    # Campo de pesquisa vinculado à key 'busca' no session_state
+    busca = st.sidebar.text_input("Filtrar:", key="busca")
+
+    # Botões de categoria logo abaixo do campo de pesquisa
+    categorias_unicas = sorted(df_raw['Categoria'].unique())
+    for cat in categorias_unicas:
+        if st.sidebar.button(cat, use_container_width=True):
+            st.session_state.busca = cat
+            st.rerun()
 
     df_filtrado_global = df_raw.copy()
-    if busca:
-        termo = remover_acentos(busca)
+    if st.session_state.busca:
+        termo = remover_acentos(st.session_state.busca)
         
         # Mapeamento para verificar se a busca é exatamente uma Categoria
         categorias_existentes = {remover_acentos(cat): cat for cat in df_raw['Categoria'].unique()}
@@ -83,11 +95,11 @@ if df_raw is not None:
             mask = (
                 df_filtrado_global['Categoria'].apply(remover_acentos).str.contains(termo, na=False)
             ) | (
-                df_filtrado_global['Ficha'] == busca.strip()
+                df_filtrado_global['Ficha'] == st.session_state.busca.strip()
             ) | (
                 df_filtrado_global['Elemento'].apply(remover_acentos).str.contains(termo, na=False)
             ) | (
-                df_filtrado_global['Fonte'].str.contains(busca.strip(), na=False)
+                df_filtrado_global['Fonte'].str.contains(st.session_state.busca.strip(), na=False)
             )
         df_filtrado_global = df_filtrado_global[mask]
 
@@ -147,8 +159,8 @@ if df_raw is not None:
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
             lista_elementos = [remover_acentos(e) for e in df_raw['Elemento'].unique()]
-            busca_limpa = remover_acentos(busca)
-            label_hover = "Categoria" if busca and (busca_limpa in lista_elementos) else ("Elemento" if busca else "Categoria")
+            busca_limpa = remover_acentos(st.session_state.busca)
+            label_hover = "Categoria" if st.session_state.busca and (busca_limpa in lista_elementos) else ("Elemento" if st.session_state.busca else "Categoria")
             
             fig_detalhe = px.bar(
                 df_detalhe, x='Ficha', y='Orçado',
