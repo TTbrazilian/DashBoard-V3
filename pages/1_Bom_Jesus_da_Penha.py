@@ -137,8 +137,8 @@ if df_raw is not None:
 
     st.markdown("---")
     
-    # 1. Definimos o ID onde o foco deve ir
-    st.markdown('<div id="grafico_detalhado"></div>', unsafe_allow_html=True)
+    # Marcador de destino
+    st.markdown('<div id="foco_grafico"></div>', unsafe_allow_html=True)
     st.subheader("📦 Detalhamento por Elemento")
 
     st.markdown("""
@@ -163,12 +163,13 @@ if df_raw is not None:
             with cols_botoes[i % 4]:
                 if st.button(elemento, use_container_width=True, key=f"btn_{i}"):
                     st.session_state['elemento_ativo'] = elemento
-                    # 2. Injetamos o JavaScript que garante a rolagem após o rerun do Streamlit
+                    # JS corrigido para centralizar 100% o gráfico na tela
                     st.components.v1.html(
                         f"""
                         <script>
-                            window.parent.document.getElementById('grafico_detalhado').scrollIntoView({{
-                                behavior: 'smooth'
+                            window.parent.document.getElementById('foco_grafico').scrollIntoView({{
+                                behavior: 'smooth',
+                                block: 'center'
                             }});
                         </script>
                         """,
