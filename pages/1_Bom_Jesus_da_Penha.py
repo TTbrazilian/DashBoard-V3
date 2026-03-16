@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.io as pio
+import plotly.io as pio  # Importação necessária para forçar a tradução
 import os
 import unicodedata
 import plotly.graph_objects as go
@@ -11,9 +11,10 @@ st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 # --- TRADUÇÃO GLOBAL DO PLOTLY ---
 pio.templates.default = "plotly_white"
 
+# CONFIG_PT alterado para manter a barra mas remover as tooltips (textos de hover)
 CONFIG_PT = {
     'displaylogo': False,
-    'showTips': False,
+    'showTips': False,  # Esta linha desativa os balões de texto dos ícones
     'modeBarButtonsToolTipNames': {}
 }
 
@@ -38,8 +39,10 @@ def formar_real(valor):
 @st.cache_data
 def load_data():
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+    # Busca o arquivo subindo um nível caso esteja na pasta pages
     caminho = os.path.join(diretorio_atual, '..', 'fichas.csv')
     if not os.path.exists(caminho):
+        # Tenta na mesma pasta caso não esteja em subpasta
         caminho = os.path.join(diretorio_atual, 'fichas.csv')
         if not os.path.exists(caminho): return None
         
@@ -64,15 +67,19 @@ df_raw = load_data()
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
     
+    # Inicializa o estado da busca se não existir
     if 'busca' not in st.session_state:
         st.session_state.busca = ""
 
+    # O campo de texto agora reflete o que está no session_state
     busca = st.sidebar.text_input("Filtrar:", value=st.session_state.busca)
     st.session_state.busca = busca
 
+    # --- INSERÇÃO DOS BOTÕES DE CATEGORIA ---
     if 'Categoria' in df_raw.columns:
         st.sidebar.write("---")
         st.sidebar.write("Categorias:")
+        # O dropna() evita o erro de TypeError ao ordenar se houver nulos
         cats = sorted(df_raw['Categoria'].dropna().unique())
         for c in cats:
             if st.sidebar.button(c, use_container_width=True, key=f"cat_{c}"):
@@ -82,10 +89,13 @@ if df_raw is not None:
         if st.sidebar.button("Limpar Filtros", type="secondary", use_container_width=True):
             st.session_state.busca = ""
             st.rerun()
+    # ----------------------------------------
 
     df_filtrado_global = df_raw.copy()
     if st.session_state.busca:
         termo = remover_acentos(st.session_state.busca)
+        
+        # Mapeamento para verificar se a busca é exatamente uma Categoria
         categorias_existentes = {remover_acentos(cat): cat for cat in df_raw['Categoria'].unique() if pd.notna(cat)}
         
         if termo in categorias_existentes:
@@ -116,6 +126,7 @@ if df_raw is not None:
     with c3: st.metric("Executado (Liquidado)", formar_real(executado))
     with c4: st.metric("% de Execução", f"{perc_exec:.2f}%".replace('.', ','))
 
+    # --- GRÁFICO DE EVOLUÇÃO MENSAL ---
     st.subheader("📈 Evolução Mensal da Execução")
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     mensal_dados = [{"Mês": m, "Valor": df_filtrado_global[m].sum()} for m in meses if m in df_filtrado_global.columns]
@@ -125,8 +136,9 @@ if df_raw is not None:
     st.plotly_chart(fig_evolucao, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
-    # ÂNCORA PARA O FOCO
-    st.markdown('<div id="detalhamento"></div>', unsafe_allow_html=True)
+    
+    # CRIAÇÃO DA ÂNCORA (Usa-se o ID 'detalhe')
+    st.markdown('<div id="detalhe"></div>', unsafe_allow_html=True)
     st.subheader("📦 Detalhamento por Elemento")
 
     st.markdown("""
@@ -149,11 +161,11 @@ if df_raw is not None:
         cols_botoes = st.columns(4)
         for i, elemento in enumerate(elementos_disponiveis):
             with cols_botoes[i % 4]:
-                # O BOTÃO AGORA REDIRECIONA PARA A ÂNCORA
+                # Adição do link de âncora no clique do botão
                 if st.button(elemento, use_container_width=True, key=f"btn_{i}"):
                     st.session_state['elemento_ativo'] = elemento
-                    # Injeta o script de rolagem diretamente
-                    st.markdown('<script>window.location.hash = "detalhamento";</script>', unsafe_allow_html=True)
+                    # Força a navegação para o ID #detalhe na URL para o navegador rolar a página
+                    st.markdown(f'<a href="#detalhe" target="_self" id="click_anchor"></a><script>document.getElementById("click_anchor").click();</script>', unsafe_allow_html=True)
                     st.rerun()
 
         if 'elemento_ativo' in st.session_state:
@@ -259,6 +271,7 @@ if df_raw is not None:
     )
     st.plotly_chart(fig_exec_final, use_container_width=True, config=CONFIG_PT)
 
+    # --- COMPARATIVO ORÇADO X EXECUTADO ---
     st.markdown("---")
     st.subheader("💰 Orçado vs Executado por Categoria")
     
