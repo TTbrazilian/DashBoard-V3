@@ -66,43 +66,28 @@ df_raw = load_data()
 
 if df_raw is not None:
     st.sidebar.header("🔍 Filtros")
-    
-    # Inicializa o estado se não existir
-    if 'texto_busca' not in st.session_state:
-        st.session_state.texto_busca = ""
-
-    # O widget usa a key para se manter sincronizado
-    busca = st.sidebar.text_input("Filtrar:", key="texto_busca")
-
-    # Botões de categoria como atalhos
-    categorias_unicas = sorted(df_raw['Categoria'].unique())
-    for cat in categorias_unicas:
-        if st.sidebar.button(cat, use_container_width=True):
-            st.session_state.texto_busca = cat
-            st.rerun()
+    busca = st.sidebar.text_input("Filtrar:")
 
     df_filtrado_global = df_raw.copy()
-    
-    # Usamos o valor atual do widget (ou do estado alterado pelo botão)
-    termo_final = st.session_state.texto_busca
-    
-    if termo_final:
-        termo = remover_acentos(termo_final)
+    if busca:
+        termo = remover_acentos(busca)
         
         # Mapeamento para verificar se a busca é exatamente uma Categoria
         categorias_existentes = {remover_acentos(cat): cat for cat in df_raw['Categoria'].unique()}
         
         if termo in categorias_existentes:
+            # Filtro restrito: Se digitar "MAC", traz apenas a categoria MAC
             mask = df_filtrado_global['Categoria'].apply(remover_acentos) == termo
         else:
+            # Busca ampla caso não seja uma categoria exata
             mask = (
                 df_filtrado_global['Categoria'].apply(remover_acentos).str.contains(termo, na=False)
             ) | (
-                df_filtrado_global['Ficha'] == termo_final.strip()
+                df_filtrado_global['Ficha'] == busca.strip()
             ) | (
                 df_filtrado_global['Elemento'].apply(remover_acentos).str.contains(termo, na=False)
             ) | (
-                df_filtrado_global['Fonte'].str.contains(termo_final.strip(), na=False)
+                df_filtrado_global['Fonte'].str.contains(busca.strip(), na=False)
             )
         df_filtrado_global = df_filtrado_global[mask]
 
@@ -162,8 +147,8 @@ if df_raw is not None:
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
             
             lista_elementos = [remover_acentos(e) for e in df_raw['Elemento'].unique()]
-            busca_limpa = remover_acentos(st.session_state.texto_busca)
-            label_hover = "Categoria" if st.session_state.texto_busca and (busca_limpa in lista_elementos) else ("Elemento" if st.session_state.texto_busca else "Categoria")
+            busca_limpa = remover_acentos(busca)
+            label_hover = "Categoria" if busca and (busca_limpa in lista_elementos) else ("Elemento" if busca else "Categoria")
             
             fig_detalhe = px.bar(
                 df_detalhe, x='Ficha', y='Orçado',
@@ -258,35 +243,53 @@ if df_raw is not None:
     )
     st.plotly_chart(fig_exec_final, use_container_width=True, config=CONFIG_PT)
 
-    # --- COMPARATIVO ORÇADO X EXECUTADO POR CATEGORIA ---
+    # --- NOVO GRÁFICO: COMPARATIVO ORÇADO X EXECUTADO POR CATEGORIA ---
     st.markdown("---")
     st.subheader("💰 Orçado vs Executado por Categoria")
     
+    # Agrupando dados de Orçado e Saldo para calcular o Executado
     df_comp_cat = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
     df_comp_cat['Executado'] = df_comp_cat['Orçado'] - df_comp_cat['Saldo']
+    
+    # Reorganizando o DataFrame para formato longo (necessário para barras agrupadas)
     df_melted = df_comp_cat.melt(id_vars='Categoria', value_vars=['Orçado', 'Executado'], 
                                 var_name='Tipo', value_name='Valor')
+    
+    # Ordenando para que a categoria com maior Orçado venha primeiro
     ordem_categorias = df_comp_cat.sort_values('Orçado', ascending=False)['Categoria'].tolist()
 
     fig_soma_cat = px.bar(
-        df_melted, x='Categoria', y='Valor', color='Tipo', barmode='group',
+        df_melted, 
+        x='Categoria', 
+        y='Valor',
+        color='Tipo',
+        barmode='group',
         color_discrete_map={'Orçado': '#2196F3', 'Executado': '#00CC96'},
-        category_orders={'Categoria': ordem_categorias}, text='Valor'
+        category_orders={'Categoria': ordem_categorias},
+        text='Valor'
     )
+    
     fig_soma_cat.update_traces(
-        texttemplate='R$ %{y:,.2f}', textposition='outside',
+        texttemplate='R$ %{y:,.2f}',
+        textposition='outside',
         hovertemplate="<b>Categoria:</b> %{x}<br><b>%{customdata[0]}:</b> R$ %{y:,.2f}<extra></extra>",
         customdata=df_melted[['Tipo']]
     )
+    
     fig_soma_cat.update_layout(
-        xaxis_title="", yaxis_title="Valor (R$)", height=500, legend_title="Legenda",
-        separators=',.', yaxis=dict(range=[0, df_comp_cat['Orçado'].max() * 1.25])
+        xaxis_title="",
+        yaxis_title="Valor (R$)",
+        height=500,
+        legend_title="Legenda",
+        separators=',.',
+        yaxis=dict(range=[0, df_comp_cat['Orçado'].max() * 1.25])
     )
     st.plotly_chart(fig_soma_cat, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
     st.subheader("📋 Relatório Detalhado")
     df_relatorio = df_filtrado_global.copy()
+    
     for col_val in ['Orçado', 'Saldo']:
         df_relatorio[col_val + '_F'] = df_relatorio[col_val].apply(formar_real)
 
@@ -294,7 +297,8 @@ if df_raw is not None:
         df_relatorio[['Categoria', 'Ficha', 'Elemento', 'Fonte', 'Orçado_F', 'Saldo_F']],
         use_container_width=True, hide_index=True, disabled=True,
         column_config={
-            "Orçado_F": "Orçado", "Saldo_F": "Saldo",
+            "Orçado_F": "Orçado",
+            "Saldo_F": "Saldo",
             "Elemento": st.column_config.TextColumn("Elemento", width="large"),
             "Ficha": st.column_config.TextColumn("Ficha"),
             "Fonte": st.column_config.TextColumn("Fonte"),
