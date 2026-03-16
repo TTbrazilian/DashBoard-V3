@@ -5,6 +5,7 @@ import plotly.io as pio  # Importação necessária para forçar a tradução
 import os
 import unicodedata
 import plotly.graph_objects as go
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
@@ -160,8 +161,23 @@ if df_raw is not None:
             with cols_botoes[i % 4]:
                 if st.button(elemento, use_container_width=True, key=f"btn_{i}"):
                     st.session_state['elemento_ativo'] = elemento
+                    st.rerun()
 
         if 'elemento_ativo' in st.session_state:
+            # SCRIPT DE SCROLL AUTOMÁTICO
+            components.html(
+                """
+                <script>
+                    var mainPanel = window.parent.document.getElementsByClassName('main')[0];
+                    var subheader = Array.from(window.parent.document.querySelectorAll('h3')).find(el => el.innerText.includes('Detalhamento de Fichas'));
+                    if(subheader) {
+                        subheader.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    }
+                </script>
+                """,
+                height=0,
+            )
+
             ele = st.session_state['elemento_ativo']
             df_detalhe = df_filtrado_global[df_filtrado_global['Elemento'] == ele].sort_values('Orçado', ascending=False).copy()
             
