@@ -6,6 +6,7 @@ import os
 import unicodedata
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
+from random import random
 
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
@@ -151,25 +152,33 @@ if df_raw is not None:
         cols_botoes = st.columns(4)
         for i, elemento in enumerate(elementos_disponiveis):
             with cols_botoes[i % 4]:
-                if st.button(elemento, use_container_width=True, key=f"btn_{i}"):
+                if st.button(elemento, use_container_width=True, key=f"btn_detalhamento_fichas_{i}"):
                     st.session_state['elemento_ativo'] = elemento
                     st.rerun()
 
         if 'elemento_ativo' in st.session_state:
             # Script de scroll disparado quando o elemento está ativo (Alterado para 'center')
+            ele = st.session_state['elemento_ativo']
+            scroll_id = random()
             components.html(
-                """
-                <script>
-                    window.parent.document.getElementById('foco_grafico').scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center'
-                    });
+                '''
+                <script id="scroll_''' + str(scroll_id) + '''">
+                    var scroll = () => {
+                        const el = window.parent.document.querySelector('.st-key-detalhamento-fichas');
+                        if (el) {
+                            el.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center"
+                            });
+                        }
+                    };
+
+                    setTimeout(scroll, 150);
                 </script>
-                """,
-                height=0
+                ''',
+                height=0,
             )
 
-            ele = st.session_state['elemento_ativo']
             df_detalhe = df_filtrado_global[df_filtrado_global['Elemento'] == ele].sort_values('Orçado', ascending=False).copy()
             
             st.subheader(f"📊 Detalhamento de Fichas: {ele}")
@@ -198,7 +207,7 @@ if df_raw is not None:
                 margin=dict(t=80, b=50, l=50, r=50)
             )
 
-            st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT)
+            st.plotly_chart(fig_detalhe, use_container_width=True, theme=None, config=CONFIG_PT, key="detalhamento-fichas")
             
             if st.button("⬅️ Voltar para Visão Geral"):
                 del st.session_state['elemento_ativo']
@@ -272,7 +281,7 @@ if df_raw is not None:
     st.plotly_chart(fig_exec_final, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
-    st.subheader("💰 Orçado vs Executado por Categoria")
+    st.subheader("💰 Orçado X Executado por Categoria")
     
     df_comp_cat = df_filtrado_global.groupby('Categoria').agg({'Orçado': 'sum', 'Saldo': 'sum'}).reset_index()
     df_comp_cat['Executado'] = df_comp_cat['Orçado'] - df_comp_cat['Saldo']
