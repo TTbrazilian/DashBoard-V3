@@ -134,7 +134,9 @@ if setor:
             pass
 
     elif setor == "Educação":
-        if st.button("🏢 Município Educação A"):
-            pass
+        # Botão de Alpinópolis adicionado conforme solicitado
+        if st.button("🏙️ Alpinópolis"):
+            st.switch_page("pages/1_Alpinópolis.py")
+            
         if st.button("🏢 Município Educação B"):
             pass
