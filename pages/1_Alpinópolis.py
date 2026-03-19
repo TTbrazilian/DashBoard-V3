@@ -69,22 +69,26 @@ def load_all_data():
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
-    # --- BARRA LATERAL (LÓGICA DE SETOR E MUNICÍPIOS) ---
-    st.sidebar.title("🔍 Filtros de Análise")
-    
-    # Mapeamento de Setores e Municípios
+    # --- LÓGICA DE NAVEGAÇÃO POR SETOR (TOPO DA PÁGINA) ---
     setores = {
-        "Educação": ["Alpinópolis", "São José da Barra", "Bom Jesus"],
-        "Saúde": ["Passos", "Itaú de Minas"]
+        "Educação": ["Home", "Alpinópolis", "São José da Barra", "Bom Jesus"],
+        "Saúde": ["Home", "Passos", "Itaú de Minas"]
     }
     
-    setor_atual = "Educação" # Definido pelo contexto dos arquivos carregados
-    municipios_do_setor = setores[setor_atual]
+    # Define o setor baseada no arquivo carregado (Alpinópolis = Educação)
+    setor_atual = "Educação"
+    municipios_visiveis = setores[setor_atual]
     
-    st.sidebar.subheader("Municípios do Setor")
-    municipio_selecionado = st.sidebar.radio("Alternar entre municípios:", municipios_do_setor, index=0)
-    
-    st.sidebar.markdown("---")
+    # Criar botões no topo para alternar entre municípios do mesmo setor
+    cols_nav = st.columns(len(municipios_visiveis))
+    for i, nome_mun in enumerate(municipios_visiveis):
+        with cols_nav[i]:
+            st.button(nome_mun, use_container_width=True, key=f"btn_{nome_mun}")
+
+    st.markdown("---")
+
+    # --- BARRA LATERAL ---
+    st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Pesquisar (Atividade, Elemento ou Ficha):", "")
     
     df_f = df_f_raw.copy()
@@ -95,7 +99,7 @@ if df_f_raw is not None and df_r is not None:
         df_f = df_f[mask]
 
     # --- TÍTULO PRINCIPAL ---
-    st.markdown(f"<h1 style='text-align: left;'>🎓 Gestão de Recursos - {municipio_selecionado}</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: left;'>🎓 Gestão de Recursos - Alpinópolis</h1>", unsafe_allow_html=True)
     
     # --- MÉTRICAS ---
     cols_liq = [c for c in df_f.columns if 'Liquidado' in c]
@@ -158,6 +162,16 @@ if df_f_raw is not None and df_r is not None:
     st.plotly_chart(fig3, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
+
+    # --- MONITORAMENTO ---
+    st.subheader("📋 Monitoramento de Recursos Vinculados")
+    c1, c2 = st.columns(2)
+    with c1:
+        pnae_total = df_f[df_f['Atividade'].str.contains('Alimentação|PNAE', case=False, na=False)]['Orçado'].sum()
+        st.info(f"**PNAE (Merenda):** {formar_real(pnae_total)}")
+    with c2:
+        qse_total = df_f[df_f['Fonte'].str.contains('1550', na=False)]['Orçado'].sum()
+        st.success(f"**Salário Educação (QSE):** {formar_real(qse_total)}")
 
     # --- TABELAS ---
     st.markdown("---")
