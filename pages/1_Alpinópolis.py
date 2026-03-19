@@ -30,7 +30,7 @@ def buscar_arquivo(nome):
 
 @st.cache_data
 def load_all_data():
-    arquivo_f = "Alpinópolis.csv"
+    arquivo_f = "Educação Gestão de  Recursos Alpinópolis - 2026 - Fichas.csv"
     arquivo_r = "Alpinópolis_R.csv"
     
     path_f = buscar_arquivo(arquivo_f)
@@ -71,30 +71,19 @@ def load_all_data():
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
-    # --- BARRA LATERAL (FILTROS ESTILO BOM JESUS) ---
+    # --- BARRA LATERAL (FILTRO ÚNICO) ---
     st.sidebar.title("🔍 Filtros de Análise")
-    
     search_term = st.sidebar.text_input("Pesquisar (Atividade, Elemento ou Ficha):", "")
-    
-    filtro_categoria = st.sidebar.multiselect("Categoria:", sorted(df_f_raw['Categoria'].unique()))
-    filtro_fonte = st.sidebar.multiselect("Fonte de Recurso:", sorted(df_f_raw['Fonte'].unique()))
 
-    # Aplicação dos Filtros (Lógica de Pesquisa Precisa)
+    # Aplicação da Pesquisa Precisa (Afeta todos os cálculos abaixo)
     df_f = df_f_raw.copy()
-    
     if search_term:
-        # Pesquisa precisa em múltiplas colunas
         mask = (
             df_f['Atividade'].str.contains(search_term, case=False, na=False) |
             df_f['Elemento'].str.contains(search_term, case=False, na=False) |
             df_f['Ficha'].astype(str).str.contains(search_term, case=False, na=False)
         )
         df_f = df_f[mask]
-        
-    if filtro_categoria:
-        df_f = df_f[df_f['Categoria'].isin(filtro_categoria)]
-    if filtro_fonte:
-        df_f = df_f[df_f['Fonte'].isin(filtro_fonte)]
 
     # --- TÍTULO PRINCIPAL ---
     st.title("🎓 Gestão de Recursos - Alpinópolis")
@@ -104,7 +93,6 @@ if df_f_raw is not None and df_r is not None:
     # --- MÉTRICAS (LIMITES) ---
     cols_liq = [c for c in df_f.columns if 'Liquidado' in c]
     
-    # Cálculos baseados no DataFrame Filtrado
     receita_fundeb = df_r[df_r['Categoria'] == 'FUNDEB']['Total'].sum()
     df_f_70 = df_f[(df_f['Fonte'].str.contains('1540|1500', na=False)) & (df_f['Elemento'].str.contains('3.1.90', na=False))]
     despesa_70 = df_f_70[cols_liq].sum().sum()
@@ -122,9 +110,9 @@ if df_f_raw is not None and df_r is not None:
     
     st.markdown("---")
 
-    # --- GRÁFICOS (UM EM BAIXO DO OUTRO E CENTRALIZADOS) ---
+    # --- GRÁFICOS CENTRALIZADOS ---
     
-    # 1. Evolução FUNDEB
+    # 1. Evolução Mensal
     st.markdown("<h3 style='text-align: center;'>Evolução Mensal FUNDEB 70%</h3>", unsafe_allow_html=True)
     meses = ['Janeiro', 'Fevereiro', 'Março'] 
     evol_data = []
@@ -144,7 +132,7 @@ if df_f_raw is not None and df_r is not None:
 
     st.markdown("---")
 
-    # 2. Custeio vs Capital
+    # 2. Natureza da Despesa
     st.markdown("<h3 style='text-align: center;'>Natureza da Despesa (Custeio x Capital)</h3>", unsafe_allow_html=True)
     df_f['Natureza'] = df_f['Elemento'].apply(lambda x: 'Capital (Invest.)' if '4.4' in str(x) else 'Custeio (Manut.)')
     res_nat = df_f.groupby('Natureza')['Orçado'].sum().reset_index()
@@ -166,11 +154,11 @@ if df_f_raw is not None and df_r is not None:
 
     st.markdown("---")
 
-    # --- RELATÓRIO FINAL ---
+    # --- TABELA DETALHADA ---
     st.subheader("📋 Relatório Detalhado das Fichas")
     df_rel = df_f[['Categoria', 'Atividade', 'Ficha', 'Elemento', 'Fonte', 'Orçado', 'Saldo']].copy()
     for c in ['Orçado', 'Saldo']: df_rel[c] = df_rel[c].apply(formar_real)
     st.dataframe(df_rel, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro ao carregar os arquivos. Certifique-se de que 'Alpinópolis_R.csv' e o arquivo de Fichas estão na pasta correta.")
+    st.error("Erro ao carregar os arquivos na raiz do projeto.")
