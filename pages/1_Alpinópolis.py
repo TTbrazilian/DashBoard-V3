@@ -7,14 +7,13 @@ import os
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão de Recursos - Alpinópolis", layout="wide")
 
-# --- LÓGICA DE FILTRAGEM DA BARRA LATERAL (VIA CSS) ---
-# Como este arquivo é de Alpinópolis (Educação), escondemos os municípios de Saúde.
+# --- FILTRO DO MENU LATERAL (APENAS OCULTA OS ITENS) ---
+# Alpinópolis é Educação. O código abaixo esconde "Bom Jesus" da barra lateral.
 st.markdown(
     """
     <style>
-        /* Esconde municípios que não são do setor de Educação na barra lateral nativa */
-        [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")),
-        [data-testid="stSidebarNav"] ul li:has(span:contains("Passos")) {
+        /* Oculta o item 'Bom Jesus' do menu lateral nativo */
+        [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")) {
             display: none !important;
         }
     </style>
@@ -84,23 +83,6 @@ def load_all_data():
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
-    # --- LÓGICA DE FILTRAGEM DO SETOR (TOP NAVIGATION) ---
-    mapeamento_setores = {
-        "Alpinópolis": "Educação",
-        "São José da Barra": "Educação",
-        "Bom Jesus": "Saúde",
-        "Passos": "Saúde"
-    }
-    
-    setor_atual = "Educação"
-    itens_navegacao = ["Home"] + [m for m, s in mapeamento_setores.items() if s == setor_atual]
-    
-    cols_nav = st.columns(len(itens_navegacao))
-    for idx, item in enumerate(itens_navegacao):
-        cols_nav[idx].button(item, use_container_width=True, key=f"nav_{item}")
-
-    st.markdown("---")
-
     # --- BARRA LATERAL ---
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Pesquisar (Atividade, Elemento ou Ficha):", "")
