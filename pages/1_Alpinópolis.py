@@ -69,9 +69,15 @@ def load_all_data():
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
-    # --- BARRA LATERAL (FILTRO ÚNICO) ---
+    # --- BARRA LATERAL ---
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Pesquisar (Atividade, Elemento ou Ficha):", "")
+    
+    # Botões de Categoria na barra lateral
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Categorias de Receita")
+    categorias_disp = sorted(df_r['Categoria'].unique())
+    cat_selecionada = st.sidebar.radio("Selecione a Categoria:", categorias_disp)
 
     df_f = df_f_raw.copy()
     if search_term:
@@ -83,7 +89,6 @@ if df_f_raw is not None and df_r is not None:
     # --- TÍTULO PRINCIPAL ---
     st.markdown("<h1 style='text-align: left;'>🎓 Gestão de Recursos - Alpinópolis</h1>", unsafe_allow_html=True)
     
-
     # --- MÉTRICAS ---
     cols_liq = [c for c in df_f.columns if 'Liquidado' in c]
     receita_fundeb = df_r[df_r['Categoria'] == 'FUNDEB']['Total'].sum()
@@ -119,9 +124,7 @@ if df_f_raw is not None and df_r is not None:
         fig1 = px.bar(pd.DataFrame(evol_data), x='Mês', y='Valor', color='Tipo', barmode='group',
                       color_discrete_map={"Receita Realizada": "#636EFA", "Despesa 70%": "#00CC96"})
         fig1.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig1.update_layout(separators=",.",
-                           legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02),
-                           margin=dict(l=20, r=100, t=20, b=20))
+        fig1.update_layout(separators=",.", legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
         _, col_center, _ = st.columns([0.2, 9.6, 0.2])
         with col_center: st.plotly_chart(fig1, use_container_width=True, config=CONFIG_PT)
 
@@ -134,8 +137,7 @@ if df_f_raw is not None and df_r is not None:
     fig2 = px.pie(res_nat, values='Orçado', names='Natureza', hole=.4,
                   color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
     fig2.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
-    fig2.update_layout(separators=",.",
-                       legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
+    fig2.update_layout(separators=",.", legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
     _, col_center, _ = st.columns([1, 2, 1])
     with col_center: st.plotly_chart(fig2, use_container_width=True, config=CONFIG_PT)
 
@@ -146,9 +148,7 @@ if df_f_raw is not None and df_r is not None:
     res_atv = df_f.groupby('Atividade')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
     fig3 = px.bar(res_atv, x='Orçado', y='Atividade', orientation='h', color_discrete_sequence=['#636EFA'])
     fig3.update_traces(hovertemplate="<b>%{y}</b><br>Total: R$ %{x:,.2f}<extra></extra>")
-    fig3.update_layout(separators=",.",
-                       yaxis={'categoryorder':'total ascending'}, 
-                       legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
+    fig3.update_layout(separators=",.", yaxis={'categoryorder':'total ascending'})
     _, col_center, _ = st.columns([0.2, 9.6, 0.2])
     with col_center: st.plotly_chart(fig3, use_container_width=True, config=CONFIG_PT)
 
@@ -164,53 +164,38 @@ if df_f_raw is not None and df_r is not None:
         qse_total = df_f[df_f['Fonte'].str.contains('1550', na=False)]['Orçado'].sum()
         st.success(f"**Salário Educação (QSE):** {formar_real(qse_total)}")
 
-    # --- TABELA DETALHADA ---
+    # --- TABELAS ---
     st.markdown("---")
     st.subheader("📋 Relatório Geral de Fichas")
     df_rel = df_f[['Atividade', 'Ficha', 'Elemento', 'Fonte', 'Orçado', 'Saldo']].copy()
     for c in ['Orçado', 'Saldo']: df_rel[c] = df_rel[c].apply(formar_real)
     st.dataframe(df_rel, use_container_width=True, hide_index=True)
 
-    # --- TABELA DE RECEITAS ---
     st.markdown("---")
     st.subheader("📊 Relatório Geral das Receitas")
     df_r_rel = df_r[['Código', 'Categoria', 'Descrição da Receita', 'Total', 'Orçado Receitas']].copy()
-    for c in ['Total', 'Orçado Receitas']: 
-        df_r_rel[c] = df_r_rel[c].apply(formar_real)
+    for c in ['Total', 'Orçado Receitas']: df_r_rel[c] = df_r_rel[c].apply(formar_real)
     st.dataframe(df_r_rel, use_container_width=True, hide_index=True)
 
-    # --- GRÁFICO DINÂMICO DE RECEITAS ---
+    # --- SEÇÃO DINÂMICA DE RECEITAS ---
     st.markdown("---")
-    st.markdown("<h3 style='text-align: center;'>Análise Mensal por Categoria de Receita</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>Análise Mensal por Receita Específica</h3>", unsafe_allow_html=True)
     
-    categorias = sorted(df_r['Categoria'].unique())
-    cat_selecionada = st.selectbox("Selecione uma Categoria para visualizar a evolução:", categorias)
+    # Filtro de Descrição baseado na Categoria escolhida na barra lateral
+    descricoes_filtradas = sorted(df_r[df_r['Categoria'] == cat_selecionada]['Descrição da Receita'].unique())
+    receita_especifica = st.selectbox("Selecione a Descrição da Receita:", descricoes_filtradas)
     
-    df_cat = df_r[df_r['Categoria'] == cat_selecionada]
-    meses_col = ['Janeiro', 'Fevereiro', 'Março']
+    df_rec_sel = df_r[df_r['Descrição da Receita'] == receita_especifica]
     
     evol_rec = []
-    for mes in meses_col:
-        if mes in df_cat.columns:
-            for _, row in df_cat.iterrows():
-                evol_rec.append({
-                    "Mês": mes, 
-                    "Valor": row[mes], 
-                    "Descrição": row['Descrição da Receita']
-                })
+    for mes in meses:
+        if mes in df_rec_sel.columns:
+            evol_rec.append({"Mês": mes, "Valor": df_rec_sel[mes].sum()})
     
     if evol_rec:
-        df_plot = pd.DataFrame(evol_rec)
-        fig_rec = px.bar(df_plot, x='Mês', y='Valor', color='Descrição', barmode='group')
-        
-        fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>Receita: %{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig_rec.update_layout(
-            separators=",.", 
-            yaxis_title="Valor (R$)", 
-            xaxis_title="Mês",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        
+        fig_rec = px.bar(pd.DataFrame(evol_rec), x='Mês', y='Valor', color_discrete_sequence=['#636EFA'])
+        fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>Receita: " + receita_especifica + "<br>Valor: R$ %{y:,.2f}<extra></extra>")
+        fig_rec.update_layout(separators=",.", yaxis_title="Valor (R$)", xaxis_title="Mês")
         _, col_center, _ = st.columns([0.2, 9.6, 0.2])
         with col_center: st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
