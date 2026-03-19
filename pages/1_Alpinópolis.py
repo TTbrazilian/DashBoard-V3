@@ -30,7 +30,7 @@ def buscar_arquivo(nome):
 
 @st.cache_data
 def load_all_data():
-    arquivo_f = "Educação Gestão de  Recursos Alpinópolis - 2026 - Fichas.csv"
+    arquivo_f = "Alpinópolis.csv"
     arquivo_r = "Alpinópolis_R.csv"
     
     path_f = buscar_arquivo(arquivo_f)
