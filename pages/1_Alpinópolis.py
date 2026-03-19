@@ -69,23 +69,15 @@ def load_all_data():
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
-    # --- LÓGICA DE NAVEGAÇÃO POR SETOR (TOPO DA PÁGINA) ---
+    # --- LÓGICA DE FILTRAGEM DO MENU (MESMO SETOR) ---
     setores = {
         "Educação": ["Home", "Alpinópolis", "São José da Barra", "Bom Jesus"],
         "Saúde": ["Home", "Passos", "Itaú de Minas"]
     }
     
-    # Define o setor baseada no arquivo carregado (Alpinópolis = Educação)
-    setor_atual = "Educação"
-    municipios_visiveis = setores[setor_atual]
-    
-    # Criar botões no topo para alternar entre municípios do mesmo setor
-    cols_nav = st.columns(len(municipios_visiveis))
-    for i, nome_mun in enumerate(municipios_visiveis):
-        with cols_nav[i]:
-            st.button(nome_mun, use_container_width=True, key=f"btn_{nome_mun}")
-
-    st.markdown("---")
+    # Definindo o setor atual (Educação para este contexto)
+    setor_selecionado = "Educação"
+    municipios_do_setor = setores[setor_selecionado]
 
     # --- BARRA LATERAL ---
     st.sidebar.title("🔍 Filtros de Análise")
