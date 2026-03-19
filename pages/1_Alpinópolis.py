@@ -179,7 +179,7 @@ if df_f_raw is not None and df_r is not None:
         df_r_rel[c] = df_r_rel[c].apply(formar_real)
     st.dataframe(df_r_rel, use_container_width=True, hide_index=True)
 
-    # --- GRÁFICO DINÂMICO DE RECEITAS (NOVA SEÇÃO) ---
+    # --- GRÁFICO DINÂMICO DE RECEITAS ---
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>Análise Mensal por Categoria de Receita</h3>", unsafe_allow_html=True)
     
@@ -187,19 +187,30 @@ if df_f_raw is not None and df_r is not None:
     cat_selecionada = st.selectbox("Selecione uma Categoria para visualizar a evolução:", categorias)
     
     df_cat = df_r[df_r['Categoria'] == cat_selecionada]
-    meses_col = ['Janeiro', 'Fevereiro', 'Março'] # Adicione mais meses se houver no CSV
+    meses_col = ['Janeiro', 'Fevereiro', 'Março']
     
     evol_rec = []
     for mes in meses_col:
         if mes in df_cat.columns:
-            valor_mes = df_cat[mes].sum()
-            evol_rec.append({"Mês": mes, "Valor": valor_mes})
+            for _, row in df_cat.iterrows():
+                evol_rec.append({
+                    "Mês": mes, 
+                    "Valor": row[mes], 
+                    "Descrição": row['Descrição da Receita']
+                })
     
     if evol_rec:
-        fig_rec = px.line(pd.DataFrame(evol_rec), x='Mês', y='Valor', markers=True,
-                          color_discrete_sequence=['#636EFA'])
-        fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig_rec.update_layout(separators=",.", yaxis_title="Valor (R$)", xaxis_title="Mês")
+        df_plot = pd.DataFrame(evol_rec)
+        fig_rec = px.bar(df_plot, x='Mês', y='Valor', color='Descrição', barmode='group')
+        
+        fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>Receita: %{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
+        fig_rec.update_layout(
+            separators=",.", 
+            yaxis_title="Valor (R$)", 
+            xaxis_title="Mês",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        
         _, col_center, _ = st.columns([0.2, 9.6, 0.2])
         with col_center: st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
