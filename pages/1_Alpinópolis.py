@@ -171,5 +171,13 @@ if df_f_raw is not None and df_r is not None:
     for c in ['Orçado', 'Saldo']: df_rel[c] = df_rel[c].apply(formar_real)
     st.dataframe(df_rel, use_container_width=True, hide_index=True)
 
+    # --- TABELA DE RECEITAS (NOVA SEÇÃO) ---
+    st.markdown("---")
+    st.subheader("📊 Relatório Geral das Receitas")
+    df_r_rel = df_r[['Código', 'Categoria', 'Descrição da Receita', 'Total', 'Orçado Receitas']].copy()
+    for c in ['Total', 'Orçado Receitas']: 
+        df_r_rel[c] = df_r_rel[c].apply(formar_real)
+    st.dataframe(df_r_rel, use_container_width=True, hide_index=True)
+
 else:
     st.error("Erro ao localizar as bases de dados. Verifique os nomes dos arquivos CSV.")
