@@ -69,31 +69,29 @@ def load_all_data():
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
-    # --- LÓGICA DE FILTRAGEM DO SETOR (TOP NAVIGATION) ---
-    # Define quais municípios pertencem a quais setores
-    mapeamento_setores = {
+    # --- LÓGICA DE FILTRAGEM DO MENU LATERAL POR SETOR ---
+    mapeamento_municipios = {
         "Alpinópolis": "Educação",
         "São José da Barra": "Educação",
         "Bom Jesus": "Saúde",
         "Passos": "Saúde"
     }
     
-    # Contexto atual: Alpinópolis (Educação)
-    setor_atual = "Educação"
+    # Define o setor do município atual
+    setor_atual = mapeamento_municipios.get("Alpinópolis")
     
-    # Filtra os itens da navegação para que contenham apenas o mesmo setor
-    # Esta lógica impede que municípios de setores diferentes apareçam juntos no topo
-    itens_navegacao = ["Home"] + [m for m, s in mapeamento_setores.items() if s == setor_atual]
-    
-    # Simulação da barra de navegação superior (conforme a foto)
-    cols_nav = st.columns(len(itens_navegacao))
-    for idx, item in enumerate(itens_navegacao):
-        cols_nav[idx].button(item, use_container_width=True, key=f"nav_{item}")
-
-    st.markdown("---")
+    # Filtra a lista para mostrar na sidebar apenas os do mesmo setor
+    municipios_exibir = [m for m, s in mapeamento_municipios.items() if s == setor_atual]
 
     # --- BARRA LATERAL ---
     st.sidebar.title("🔍 Filtros de Análise")
+    
+    # Exibe a navegação lateral apenas com municípios do mesmo setor
+    st.sidebar.subheader("Navegação por Município")
+    for mun in municipios_exibir:
+        st.sidebar.page_link(f"pages/{mun}.py" if mun != "Home" else "Home.py", label=mun)
+
+    st.sidebar.markdown("---")
     search_term = st.sidebar.text_input("Pesquisar (Atividade, Elemento ou Ficha):", "")
     
     df_f = df_f_raw.copy()
