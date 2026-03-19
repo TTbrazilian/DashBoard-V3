@@ -69,15 +69,23 @@ def load_all_data():
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
-    # --- LÓGICA DE FILTRAGEM DO MENU (MESMO SETOR) ---
-    setores = {
-        "Educação": ["Home", "Alpinópolis", "São José da Barra", "Bom Jesus"],
-        "Saúde": ["Home", "Passos", "Itaú de Minas"]
+    # --- LÓGICA DE FILTRAGEM DO SETOR (CORREÇÃO MENU SUPERIOR) ---
+    municipios_setores = {
+        "Alpinópolis": "Educação",
+        "São José da Barra": "Educação",
+        "Bom Jesus": "Saúde",
+        "Passos": "Saúde"
     }
     
-    # Definindo o setor atual (Educação para este contexto)
-    setor_selecionado = "Educação"
-    municipios_do_setor = setores[setor_selecionado]
+    # Identifica o setor do arquivo atual (Alpinópolis)
+    setor_atual = municipios_setores.get("Alpinópolis")
+    
+    # Filtra para que no menu apareçam APENAS municípios do mesmo setor
+    # Isso impede que "Bom Jesus" apareça enquanto estivermos em "Alpinópolis"
+    municipios_mesmo_setor = [m for m, s in municipios_setores.items() if s == setor_atual]
+    
+    # Adiciona "Home" à lista de navegação permitida
+    navegacao_valida = ["Home"] + municipios_mesmo_setor
 
     # --- BARRA LATERAL ---
     st.sidebar.title("🔍 Filtros de Análise")
