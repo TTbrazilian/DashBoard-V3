@@ -82,8 +82,7 @@ if df_f_raw is not None and df_r is not None:
 
     # --- TÍTULO PRINCIPAL ---
     st.markdown("<h1 style='text-align: center;'>🎓 Gestão de Recursos - Alpinópolis</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center;'>Relatório G35T40 - Educação</h3>", unsafe_allow_html=True)
-    st.markdown("---")
+    
 
     # --- MÉTRICAS ---
     cols_liq = [c for c in df_f.columns if 'Liquidado' in c]
