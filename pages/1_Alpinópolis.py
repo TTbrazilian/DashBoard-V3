@@ -5,7 +5,7 @@ import plotly.io as pio
 import os
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Gestão de Recursos - Alpinópolis", layout="wide")
+st.set_page_config(page_title="Alpinópolis - Educação", layout="wide")
 
 # --- FILTRO DO MENU LATERAL (APENAS OCULTA OS ITENS) ---
 # Alpinópolis é Educação. O código abaixo esconde "Bom Jesus" da barra lateral.
