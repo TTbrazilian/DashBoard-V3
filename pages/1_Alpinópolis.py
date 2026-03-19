@@ -25,7 +25,7 @@ def formar_real(valor):
 @st.cache_data
 def load_all_data():
     dir_at = os.path.dirname(os.path.abspath(__file__))
-    path_f = os.path.join(dir_at, '..', '1_Alpinópolis.csv')
+    path_f = os.path.join(dir_at, '..', 'Alpinópolis.csv')
     path_r = os.path.join(dir_at, '..', 'Alpinópolis_R.csv')
     
     # 1. Despesas (Fichas) - Header duplo
