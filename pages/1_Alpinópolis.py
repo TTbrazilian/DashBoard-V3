@@ -73,12 +73,6 @@ if df_f_raw is not None and df_r is not None:
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Pesquisar (Atividade, Elemento ou Ficha):", "")
     
-    # Botões de Categoria na barra lateral
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Categorias de Receita")
-    categorias_disp = sorted(df_r['Categoria'].unique())
-    cat_selecionada = st.sidebar.radio("Selecione a Categoria:", categorias_disp)
-
     df_f = df_f_raw.copy()
     if search_term:
         mask = (df_f['Atividade'].str.contains(search_term, case=False, na=False) |
@@ -181,9 +175,16 @@ if df_f_raw is not None and df_r is not None:
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>Análise Mensal por Receita Específica</h3>", unsafe_allow_html=True)
     
-    # Filtro de Descrição baseado na Categoria escolhida na barra lateral
-    descricoes_filtradas = sorted(df_r[df_r['Categoria'] == cat_selecionada]['Descrição da Receita'].unique())
-    receita_especifica = st.selectbox("Selecione a Descrição da Receita:", descricoes_filtradas)
+    # Layout de controles acima do gráfico
+    c_cat, c_desc = st.columns([1, 1])
+    
+    with c_cat:
+        categorias_disp = sorted(df_r['Categoria'].unique())
+        cat_selecionada = st.radio("Selecione a Categoria:", categorias_disp, horizontal=True)
+        
+    with c_desc:
+        descricoes_filtradas = sorted(df_r[df_r['Categoria'] == cat_selecionada]['Descrição da Receita'].unique())
+        receita_especifica = st.selectbox("Selecione a Descrição da Receita:", descricoes_filtradas)
     
     df_rec_sel = df_r[df_r['Descrição da Receita'] == receita_especifica]
     
