@@ -9,11 +9,14 @@ st.set_page_config(page_title="Gestão de Recursos - Alpinópolis", layout="wide
 
 # --- FILTRO DO MENU LATERAL (APENAS OCULTA OS ITENS) ---
 # Alpinópolis é Educação. O código abaixo esconde "Bom Jesus" da barra lateral.
+# --- FILTRO DO MENU LATERAL (OCULTA ITENS DE OUTROS SETORES) ---
 st.markdown(
     """
     <style>
-        /* Oculta o item 'Bom Jesus' do menu lateral nativo */
-        [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")) {
+        /* Tenta esconder pelo texto exato que aparece na sua imagem */
+        [data-testid="stSidebarNav"] ul li div:has(span:contains("Bom Jesus")),
+        [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")),
+        [data-testid="stSidebarNav"] ul li:has(span:contains("Penha")) {
             display: none !important;
         }
     </style>
