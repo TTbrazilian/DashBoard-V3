@@ -122,7 +122,6 @@ if df_f_raw is not None and df_r is not None:
         fig1.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig1.update_layout(legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02),
                            margin=dict(l=20, r=100, t=20, b=20))
-        # Ajuste de colunas para não esmagar o gráfico
         _, col_center, _ = st.columns([0.2, 9.6, 0.2])
         with col_center: st.plotly_chart(fig1, use_container_width=True, config=CONFIG_PT)
 
