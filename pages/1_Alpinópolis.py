@@ -120,8 +120,10 @@ if df_f_raw is not None and df_r is not None:
         fig1 = px.bar(pd.DataFrame(evol_data), x='Mês', y='Valor', color='Tipo', barmode='group',
                       color_discrete_map={"Receita Realizada": "#636EFA", "Despesa 70%": "#00CC96"})
         fig1.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig1.update_layout(legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
-        _, col_center, _ = st.columns([1, 4, 1])
+        fig1.update_layout(legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02),
+                           margin=dict(l=20, r=100, t=20, b=20))
+        # Ajuste de colunas para não esmagar o gráfico
+        _, col_center, _ = st.columns([0.2, 9.6, 0.2])
         with col_center: st.plotly_chart(fig1, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
@@ -144,9 +146,9 @@ if df_f_raw is not None and df_r is not None:
     res_atv = df_f.groupby('Atividade')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
     fig3 = px.bar(res_atv, x='Orçado', y='Atividade', orientation='h', color_discrete_sequence=['#636EFA'])
     fig3.update_traces(hovertemplate="<b>%{y}</b><br>Total: R$ %{x:,.2f}<extra></extra>")
-    fig3.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=True, 
+    fig3.update_layout(yaxis={'categoryorder':'total ascending'}, 
                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
-    _, col_center, _ = st.columns([1, 4, 1])
+    _, col_center, _ = st.columns([0.2, 9.6, 0.2])
     with col_center: st.plotly_chart(fig3, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
