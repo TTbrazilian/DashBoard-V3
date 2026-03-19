@@ -177,10 +177,13 @@ if df_f_raw is not None and df_r is not None:
         categorias_disp = sorted(df_r['Categoria'].unique())
         cat_selecionada = st.radio("Selecione a Categoria:", categorias_disp, horizontal=True)
     with c_desc:
+        # Correção: Filtra descrições APENAS da categoria selecionada para evitar soma cruzada
         desc_disp = sorted(df_r[df_r['Categoria'] == cat_selecionada]['Descrição da Receita'].unique())
         receita_especifica = st.selectbox("Selecione a Descrição da Receita:", desc_disp)
     
-    df_rec_sel = df_r[df_r['Descrição da Receita'] == receita_especifica]
+    # Filtro rigoroso: Categoria + Descrição para precisão de 100%
+    df_rec_sel = df_r[(df_r['Categoria'] == cat_selecionada) & (df_r['Descrição da Receita'] == receita_especifica)]
+    
     evol_rec = [{"Mês": m, "Valor": df_rec_sel[m].sum()} for m in meses if m in df_rec_sel.columns]
     
     if evol_rec:
