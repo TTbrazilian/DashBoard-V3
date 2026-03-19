@@ -7,32 +7,23 @@ import os
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão de Recursos - Alpinópolis", layout="wide")
 
+# --- LÓGICA DE FILTRAGEM DA BARRA LATERAL (VIA CSS) ---
+# Como este arquivo é de Alpinópolis (Educação), escondemos os municípios de Saúde.
+st.markdown(
+    """
+    <style>
+        /* Esconde municípios que não são do setor de Educação na barra lateral nativa */
+        [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")),
+        [data-testid="stSidebarNav"] ul li:has(span:contains("Passos")) {
+            display: none !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 pio.templates.default = "plotly_white"
 CONFIG_PT = {'displaylogo': False, 'showTips': False}
-
-# --- LÓGICA DE FILTRAGEM NATIVA DA BARRA LATERAL (MESMO SETOR) ---
-# Mapeia quais arquivos/municípios pertencem a cada setor
-setores = {
-    "Alpinópolis": "Educação",
-    "São José da Barra": "Educação",
-    "Bom Jesus": "Saúde",
-    "Passos": "Saúde"
-}
-
-# Identifica o setor deste arquivo (Alpinópolis = Educação)
-setor_atual = setores.get("Alpinópolis")
-
-# Itera sobre todas as páginas disponíveis no projeto e oculta as de setores diferentes
-if "manage_nav" not in st.session_state:
-    from streamlit.source_util import get_pages
-    all_pages = get_pages("")
-    
-    for page_key, page_info in all_pages.items():
-        page_name = page_info['page_name']
-        # Se a página for um município e o setor for diferente do atual, ela é removida da visualização
-        if page_name in setores and setores[page_name] != setor_atual:
-            del all_pages[page_key]
-    st.session_state.manage_nav = True
 
 # --- FUNÇÕES UTILITÁRIAS ---
 def limpar_valor(valor):
@@ -63,6 +54,7 @@ def load_all_data():
     if not path_f or not path_r:
         return None, None
     
+    # 1. Despesas (Fichas)
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
@@ -70,9 +62,11 @@ def load_all_data():
         else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
 
+    # 2. Receitas
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
     
+    # Limpeza de valores
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado']):
             df_f[col] = df_f[col].apply(limpar_valor)
@@ -90,6 +84,23 @@ def load_all_data():
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
+    # --- LÓGICA DE FILTRAGEM DO SETOR (TOP NAVIGATION) ---
+    mapeamento_setores = {
+        "Alpinópolis": "Educação",
+        "São José da Barra": "Educação",
+        "Bom Jesus": "Saúde",
+        "Passos": "Saúde"
+    }
+    
+    setor_atual = "Educação"
+    itens_navegacao = ["Home"] + [m for m, s in mapeamento_setores.items() if s == setor_atual]
+    
+    cols_nav = st.columns(len(itens_navegacao))
+    for idx, item in enumerate(itens_navegacao):
+        cols_nav[idx].button(item, use_container_width=True, key=f"nav_{item}")
+
+    st.markdown("---")
+
     # --- BARRA LATERAL ---
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Pesquisar (Atividade, Elemento ou Ficha):", "")
@@ -124,7 +135,7 @@ if df_f_raw is not None and df_r is not None:
     
     st.markdown("---")
 
-    # --- GRÁFICOS ---
+    # --- GRÁFICO 1 ---
     st.markdown("<h3 style='text-align: center;'>FUNDEB: Receita Realizada vs Despesa de Pessoal (70%)</h3>", unsafe_allow_html=True)
     meses = ['Janeiro', 'Fevereiro', 'Março'] 
     evol_data = []
@@ -138,27 +149,35 @@ if df_f_raw is not None and df_r is not None:
     if evol_data:
         fig1 = px.bar(pd.DataFrame(evol_data), x='Mês', y='Valor', color='Tipo', barmode='group',
                       color_discrete_map={"Receita Realizada": "#636EFA", "Despesa 70%": "#00CC96"})
+        fig1.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig1.update_layout(separators=",.", legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
         st.plotly_chart(fig1, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
+
+    # --- GRÁFICO 2 ---
     st.markdown("<h3 style='text-align: center;'>Natureza da Despesa (Custeio x Capital)</h3>", unsafe_allow_html=True)
     df_f['Natureza'] = df_f['Elemento'].apply(lambda x: 'Capital (Invest.)' if str(x).startswith('4.') else 'Custeio (Manut.)')
     res_nat = df_f.groupby('Natureza')['Orçado'].sum().reset_index()
     fig2 = px.pie(res_nat, values='Orçado', names='Natureza', hole=.4,
                   color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
+    fig2.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
     fig2.update_layout(separators=",.", legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
     st.plotly_chart(fig2, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
+
+    # --- GRÁFICO 3 ---
     st.markdown("<h3 style='text-align: center;'>Maiores Investimentos por Atividade</h3>", unsafe_allow_html=True)
     res_atv = df_f.groupby('Atividade')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
     fig3 = px.bar(res_atv, x='Orçado', y='Atividade', orientation='h', color_discrete_sequence=['#636EFA'])
+    fig3.update_traces(hovertemplate="<b>%{y}</b><br>Total: R$ %{x:,.2f}<extra></extra>")
     fig3.update_layout(separators=",.", yaxis={'categoryorder':'total ascending'})
     st.plotly_chart(fig3, use_container_width=True, config=CONFIG_PT)
 
-    # --- TABELAS ---
     st.markdown("---")
+
+    # --- TABELAS ---
     st.subheader("📋 Relatório Geral de Fichas")
     df_rel = df_f[['Atividade', 'Ficha', 'Elemento', 'Fonte', 'Orçado', 'Saldo']].copy()
     for c in ['Orçado', 'Saldo']: df_rel[c] = df_rel[c].apply(formar_real)
@@ -170,9 +189,10 @@ if df_f_raw is not None and df_r is not None:
     for c in ['Total', 'Orçado Receitas']: df_r_rel[c] = df_r_rel[c].apply(formar_real)
     st.dataframe(df_r_rel, use_container_width=True, hide_index=True)
 
-    # --- ANÁLISE DINÂMICA ---
+    # --- SEÇÃO DINÂMICA DE RECEITAS ---
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>Análise Mensal por Receita Específica</h3>", unsafe_allow_html=True)
+    
     c_cat, c_desc = st.columns([1, 1])
     with c_cat:
         categorias_disp = sorted(df_r['Categoria'].unique())
@@ -186,6 +206,7 @@ if df_f_raw is not None and df_r is not None:
     
     if evol_rec:
         fig_rec = px.bar(pd.DataFrame(evol_rec), x='Mês', y='Valor', color_discrete_sequence=['#636EFA'])
+        fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>Receita: " + receita_especifica + "<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_rec.update_layout(separators=",.", yaxis_title="Valor (R$)", xaxis_title="Mês")
         st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
