@@ -103,7 +103,7 @@ if df_f_raw is not None and df_r is not None:
     
     st.markdown("---")
 
-    # --- GRÁFICO 1: EVOLUÇÃO FUNDEB ---
+    # --- GRÁFICO 1 ---
     st.markdown("<h3 style='text-align: center;'>FUNDEB: Receita Realizada vs Despesa de Pessoal (70%)</h3>", unsafe_allow_html=True)
     meses = ['Janeiro', 'Fevereiro', 'Março'] 
     evol_data = []
@@ -119,12 +119,11 @@ if df_f_raw is not None and df_r is not None:
                       color_discrete_map={"Receita Realizada": "#636EFA", "Despesa 70%": "#00CC96"})
         fig1.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig1.update_layout(separators=",.", legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
-        _, col_center, _ = st.columns([0.2, 9.6, 0.2])
-        with col_center: st.plotly_chart(fig1, use_container_width=True, config=CONFIG_PT)
+        st.plotly_chart(fig1, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
-    # --- GRÁFICO 2: CUSTEIO VS CAPITAL ---
+    # --- GRÁFICO 2 ---
     st.markdown("<h3 style='text-align: center;'>Natureza da Despesa (Custeio x Capital)</h3>", unsafe_allow_html=True)
     df_f['Natureza'] = df_f['Elemento'].apply(lambda x: 'Capital (Invest.)' if str(x).startswith('4.') else 'Custeio (Manut.)')
     res_nat = df_f.groupby('Natureza')['Orçado'].sum().reset_index()
@@ -132,23 +131,21 @@ if df_f_raw is not None and df_r is not None:
                   color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
     fig2.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
     fig2.update_layout(separators=",.", legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
-    _, col_center, _ = st.columns([1, 2, 1])
-    with col_center: st.plotly_chart(fig2, use_container_width=True, config=CONFIG_PT)
+    st.plotly_chart(fig2, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
-    # --- GRÁFICO 3: TOP INVESTIMENTOS ---
+    # --- GRÁFICO 3 ---
     st.markdown("<h3 style='text-align: center;'>Maiores Investimentos por Atividade</h3>", unsafe_allow_html=True)
     res_atv = df_f.groupby('Atividade')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
     fig3 = px.bar(res_atv, x='Orçado', y='Atividade', orientation='h', color_discrete_sequence=['#636EFA'])
     fig3.update_traces(hovertemplate="<b>%{y}</b><br>Total: R$ %{x:,.2f}<extra></extra>")
     fig3.update_layout(separators=",.", yaxis={'categoryorder':'total ascending'})
-    _, col_center, _ = st.columns([0.2, 9.6, 0.2])
-    with col_center: st.plotly_chart(fig3, use_container_width=True, config=CONFIG_PT)
+    st.plotly_chart(fig3, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
-    # --- MONITORAMENTO QSE E PNAE ---
+    # --- MONITORAMENTO ---
     st.subheader("📋 Monitoramento de Recursos Vinculados")
     c1, c2 = st.columns(2)
     with c1:
@@ -175,30 +172,22 @@ if df_f_raw is not None and df_r is not None:
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>Análise Mensal por Receita Específica</h3>", unsafe_allow_html=True)
     
-    # Layout de controles acima do gráfico
     c_cat, c_desc = st.columns([1, 1])
-    
     with c_cat:
         categorias_disp = sorted(df_r['Categoria'].unique())
         cat_selecionada = st.radio("Selecione a Categoria:", categorias_disp, horizontal=True)
-        
     with c_desc:
-        descricoes_filtradas = sorted(df_r[df_r['Categoria'] == cat_selecionada]['Descrição da Receita'].unique())
-        receita_especifica = st.selectbox("Selecione a Descrição da Receita:", descricoes_filtradas)
+        desc_disp = sorted(df_r[df_r['Categoria'] == cat_selecionada]['Descrição da Receita'].unique())
+        receita_especifica = st.selectbox("Selecione a Descrição da Receita:", desc_disp)
     
     df_rec_sel = df_r[df_r['Descrição da Receita'] == receita_especifica]
-    
-    evol_rec = []
-    for mes in meses:
-        if mes in df_rec_sel.columns:
-            evol_rec.append({"Mês": mes, "Valor": df_rec_sel[mes].sum()})
+    evol_rec = [{"Mês": m, "Valor": df_rec_sel[m].sum()} for m in meses if m in df_rec_sel.columns]
     
     if evol_rec:
         fig_rec = px.bar(pd.DataFrame(evol_rec), x='Mês', y='Valor', color_discrete_sequence=['#636EFA'])
         fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>Receita: " + receita_especifica + "<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_rec.update_layout(separators=",.", yaxis_title="Valor (R$)", xaxis_title="Mês")
-        _, col_center, _ = st.columns([0.2, 9.6, 0.2])
-        with col_center: st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
+        st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
 else:
-    st.error("Erro ao localizar as bases de dados. Verifique os nomes dos arquivos CSV.")
+    st.error("Erro ao localizar as bases de dados.")
