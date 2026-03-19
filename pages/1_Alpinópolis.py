@@ -1,127 +1,153 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import unicodedata
+import plotly.io as pio
 import os
+import unicodedata
+import plotly.graph_objects as go
 
-# --- FUNÇÕES DE APOIO (PADRÃO BOM JESUS) ---
-def limpar_valor(v):
-    if pd.isna(v) or str(v).strip() in ["", "-", "R$ 0,00"]: return 0.0
-    s = str(v).replace('R$', '').replace('.', '').replace(',', '.').strip()
-    try: return float(s)
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Gestão de Recursos - Alpinópolis", layout="wide")
+
+# --- TRADUÇÃO GLOBAL DO PLOTLY ---
+pio.templates.default = "plotly_white"
+CONFIG_PT = {'displaylogo': False, 'showTips': False, 'modeBarButtonsToolTipNames': {}}
+
+# --- FUNÇÕES UTILITÁRIAS ---
+def remover_acentos(texto):
+    if not texto: return ""
+    return "".join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn').lower().strip()
+
+def limpar_valor(valor):
+    if pd.isna(valor) or str(valor).strip() in ["", "-", "R$ 0,00", "0"]:
+        return 0.0
+    s_valor = str(valor).replace('R$', '').replace(' ', '').replace('.', '').replace(',', '.')
+    try: return float(s_valor)
     except: return 0.0
 
 def formar_real(valor):
-    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    if valor is None: return "R$ 0,00"
+    a_la_us = f"{valor:,.2f}"
+    a_la_br = a_la_us.replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {a_la_br}"
 
 @st.cache_data
-def load_data_alpinopolis():
-    # Carregando o arquivo específico solicitado
-    file_path = 'Alpinópolis.csv'
-    if not os.path.exists(file_path): return None
+def load_data():
+    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+    caminho = os.path.join(diretorio_atual, '..', 'Alpinópolis.csv')
+    if not os.path.exists(caminho):
+        caminho = os.path.join(diretorio_atual, 'Alpinópolis.csv')
+        if not os.path.exists(caminho): return None
     
-    # header=1 pois a primeira linha do seu CSV são rótulos de grupo (Empenhado/Liquidado/Pago)
-    df = pd.read_csv(file_path, sep=None, engine='python', encoding='utf-8', header=1)
-    df.columns = [str(c).strip() for c in df.columns]
+    # Lendo com header=[0,1] para lidar com as colunas triplas (Empenhado/Liquidado/Pago)
+    df = pd.read_csv(caminho, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     
-    # Limpeza financeira básica
-    cols_fin = ['Orçado', 'Saldo', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+    # Simplificando os nomes das colunas para facilitar a lógica
+    new_cols = []
+    for col in df.columns:
+        if "Unnamed" in col[0]:
+            new_cols.append(col[1].strip())
+        else:
+            new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
+    df.columns = new_cols
     
-    # Como as colunas de meses são triplicadas, o pandas cria listas. 
-    # Para as análises do PDF, usaremos sempre a coluna de 'Liquidado'.
+    # Limpeza de tipos
+    if 'Ficha' in df.columns:
+        df['Ficha'] = df['Ficha'].astype(str).str.replace('.0', '', regex=False).str.strip()
+    if 'Fonte' in df.columns:
+        df['Fonte'] = df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+
+    # Limpeza financeira (Orçado e colunas de Liquidado que o PDF prioriza)
+    cols_para_limpar = ['Orçado', 'Saldo'] + [c for c in df.columns if 'Liquidado' in c]
+    for col in df.columns:
+        if any(k in col for k in cols_para_limpar):
+            df[col] = df[col].apply(limpar_valor)
+            
     return df
 
-def main_alpinopolis_edu():
-    st.title("🎓 Gestão Educacional - Alpinópolis")
-    df = load_data_alpinopolis()
-    
-    if df is None:
-        st.error("Arquivo Alpinópolis.csv não encontrado.")
-        return
+# --- CARREGAMENTO ---
+df_raw = load_data()
 
-    # --- 1. ANÁLISE FUNDEB 70% (Base: Pág 3 e 6 do PDF) ---
-    # No PDF, a análise foca no percentual aplicado em Pessoal com recursos do FUNDEB.
-    st.header("📊 Aplicação FUNDEB 70% (Pessoal)")
-    
-    # Filtro lógico: Fonte 1540/1500 (FUNDEB) e Elementos de Despesa de Pessoal (3.1.90)
-    df_fundeb_70 = df[
-        (df['Fonte'].astype(str).str.contains('1540|1500', na=False)) & 
-        (df['Elemento'].astype(str).str.contains('3.1.90|Vencimentos|Obrigações Patronais', na=False))
-    ].copy()
+if df_raw is not None:
+    # CSS Responsivo
+    st.markdown("""
+        <style>
+        @media (max-width: 768px) {
+            [data-testid="stMetricValue"] { font-size: 1.8rem !important; }
+            div.stButton > button { width: 100% !important; margin-bottom: 5px; }
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
-    total_fundeb_70 = df_fundeb_70['Orçado'].apply(limpar_valor).sum()
-    # Simulação de Receita FUNDEB (No dashboard real, isso viria de uma tabela de receita ou KPI fixo)
-    receita_fundeb_estimada = 6000000.00 
-    perc_fundeb = (total_fundeb_70 / receita_fundeb_estimada) * 100 if receita_fundeb_estimada > 0 else 0
-
-    c1, c2 = st.columns(2)
-    c1.metric("Total Gasto (Pessoal FUNDEB)", formar_real(total_fundeb_70))
-    c2.metric("% Aplicado (Mínimo 70%)", f"{perc_fundeb:.2f}%", delta=f"{perc_fundeb-70:.2f}%")
-
-    # --- 2. MÍNIMO CONSTITUCIONAL 25% (Base: Pág 4 e 5 do PDF) ---
+    st.title("🎓 Alpinópolis - Gestão da Educação")
     st.markdown("---")
-    st.header("🏛️ Mínimo Constitucional (25%)")
-    
-    # Filtro: Recursos Próprios (Geralmente Fonte 1500 sem subvinculação ou específica do tesouro)
-    df_proprio = df[df['Fonte'].astype(str).str.contains('1500', na=False)].copy()
-    gasto_proprio = df_proprio['Orçado'].apply(limpar_valor).sum()
-    
-    # Gráfico de Barra Horizontal (Igual pág 4 do PDF)
-    fig_25 = px.bar(
-        x=[gasto_proprio], y=["Recursos Próprios"],
-        orientation='h', title="Investimento em Educação vs Limite 25%",
-        color_discrete_sequence=['#00CC96']
-    )
-    st.plotly_chart(fig_25, use_container_width=True)
 
-    # --- 3. CUSTEIO VS CAPITAL (Base: Pág 7 do PDF) ---
+    # --- MÉTRICAS (Pág 3 e 4 do PDF) ---
+    orcado_total = df_raw['Orçado'].sum()
+    saldo_total = df_raw['Saldo'].sum()
+    # No seu CSV, a soma de todos os 'Liquidado' dos meses gera o executado real
+    cols_liquidado = [c for c in df_raw.columns if 'Liquidado' in c and any(m in c for m in ['Janeiro', 'Fevereiro', 'Março'])] # etc
+    executado_total = df_raw[[c for c in df_raw.columns if 'Liquidado' in c]].sum().sum()
+    
+    c1, c2, c3 = st.columns(3)
+    with c1: st.metric("Previsão Orçamentária", formar_real(orcado_total))
+    with c2: st.metric("Total Liquidado (Executado)", formar_real(executado_total))
+    with c3: st.metric("Saldo em Fichas", formar_real(saldo_total))
+
     st.markdown("---")
-    st.header("📦 Natureza da Despesa: Custeio x Capital")
-    
-    def rotular_natureza(elemento):
-        ele = str(elemento)
-        if '4.4.90' in ele or 'Equipamentos' in ele or 'Obras' in ele:
-            return 'Capital (Investimento)'
-        return 'Custeio (Manutenção)'
 
-    df['Natureza'] = df['Elemento'].apply(rotular_natureza)
-    resumo_natureza = df.groupby('Natureza')['Orçado'].apply(lambda x: x.apply(limpar_valor).sum()).reset_index()
+    # --- ANÁLISE FUNDEB 70% (Pág 3 do PDF) ---
+    st.subheader("📊 FUNDEB 70% - Profissionais da Educação")
+    # Filtro: Fontes 1540 (FUNDEB 70) ou similar e Elemento de Pessoal (3.1.90)
+    df_fundeb = df_raw[df_raw['Fonte'].str.contains('1540|1500', na=False) & df_raw['Elemento'].str.contains('3.1.90', na=False)]
+    gasto_fundeb = df_fundeb[[c for c in df_fundeb.columns if 'Liquidado' in c]].sum().sum()
     
-    fig_natureza = px.pie(
-        resumo_natureza, values='Orçado', names='Natureza',
-        color_discrete_map={'Custeio (Manutenção)': '#00CC96', 'Capital (Investimento)': '#EF553B'},
-        hole=0.4
-    )
-    st.plotly_chart(fig_natureza, use_container_width=True)
+    col_f1, col_f2 = st.columns([2, 1])
+    with col_f1:
+        # Gráfico de barras por mês do FUNDEB 70
+        meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+        dados_mes_fundeb = []
+        for m in meses:
+            col_m = f"{m}_Liquidado"
+            if col_m in df_fundeb.columns:
+                dados_mes_fundeb.append({"Mês": m, "Valor": df_fundeb[col_m].sum()})
+        
+        fig_fundeb = px.bar(pd.DataFrame(dados_mes_fundeb), x='Mês', y='Valor', color_discrete_sequence=['#00CC96'], title="Evolução Mensal FUNDEB 70%")
+        st.plotly_chart(fig_fundeb, use_container_width=True, config=CONFIG_PT)
+    
+    with col_f2:
+        st.write("**Resumo FUNDEB 70%**")
+        st.info(f"Total Acumulado: \n\n {formar_real(gasto_fundeb)}")
+        st.caption("Nota: O cálculo de percentual exato requer a importação da aba 'Receitas'.")
 
-    # --- 4. DESPESAS POR ELEMENTO (Base: Pág 8 e 9 do PDF) ---
     st.markdown("---")
-    st.header("📑 Detalhamento por Elemento (Liquidado)")
-    
-    # Agrupamento para ver onde o dinheiro está saindo (Folha, Material, Serviços)
-    resumo_elemento = df.groupby('Elemento')['Orçado'].apply(lambda x: x.apply(limpar_valor).sum()).reset_index()
-    resumo_elemento = resumo_elemento.sort_values(by='Orçado', ascending=False).head(10)
-    
-    fig_elem = px.bar(
-        resumo_elemento, x='Orçado', y='Elemento', orientation='h',
-        title="Top 10 Maiores Gastos por Elemento",
-        color_discrete_sequence=['#636EFA']
-    )
-    st.plotly_chart(fig_elem, use_container_width=True)
 
-    # --- 5. ALIMENTAÇÃO ESCOLAR - PNAE (Base: Pág 10 do PDF) ---
+    # --- CUSTEIO VS CAPITAL (Pág 7 do PDF) ---
+    st.subheader("📦 Natureza da Despesa (Custeio x Capital)")
+    df_raw['Natureza'] = df_raw['Elemento'].apply(lambda x: 'Capital (Invest.)' if any(k in str(x) for k in ['4.4', 'Equipamentos', 'Obras']) else 'Custeio (Manut.)')
+    resumo_natureza = df_raw.groupby('Natureza')['Orçado'].sum().reset_index()
+    
+    fig_nat = px.pie(resumo_natureza, values='Orçado', names='Natureza', hole=.4, color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
+    fig_nat.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+    st.plotly_chart(fig_nat, use_container_width=True, config=CONFIG_PT)
+
     st.markdown("---")
-    st.header("🍎 Monitoramento PNAE (Merenda)")
-    # Filtro por Atividade ou Elemento que contenha "Alimentação" ou "Merenda"
-    df_pnae = df[df['Atividade'].astype(str).str.contains('Alimentação|Merenda|PNAE', case=False, na=False)].copy()
-    
-    if not df_pnae.empty:
-        gasto_pnae = df_pnae['Orçado'].apply(limpar_valor).sum()
-        st.info(f"O investimento total identificado para Alimentação Escolar em Alpinópolis é de **{formar_real(gasto_pnae)}**.")
-        st.dataframe(df_pnae[['Ficha', 'Atividade', 'Elemento', 'Orçado']], use_container_width=True)
-    else:
-        st.warning("Nenhuma ficha específica de Alimentação Escolar (PNAE) detectada com esses termos.")
 
-if __name__ == "__main__":
-    main_alpinopolis_edu()
+    # --- TOP GASTOS POR ELEMENTO (Pág 8 do PDF) ---
+    st.subheader("📑 Maiores Investimentos por Elemento")
+    resumo_ele = df_raw.groupby('Elemento')['Orçado'].sum().reset_index().sort_values('Orçado', ascending=False).head(8)
+    fig_ele = px.bar(resumo_ele, x='Orçado', y='Elemento', orientation='h', color_discrete_sequence=['#636EFA'])
+    fig_ele.update_layout(yaxis={'categoryorder':'total ascending'})
+    st.plotly_chart(fig_ele, use_container_width=True, config=CONFIG_PT)
+
+    # --- RELATÓRIO FINAL ---
+    st.markdown("---")
+    st.subheader("📋 Relatório Detalhado das Fichas")
+    df_final = df_raw[['Categoria', 'Atividade', 'Ficha', 'Elemento', 'Fonte', 'Orçado', 'Saldo']].copy()
+    for c in ['Orçado', 'Saldo']:
+        df_final[c] = df_final[c].apply(formar_real)
+    
+    st.dataframe(df_final, use_container_width=True, hide_index=True)
+
+else:
+    st.error("Arquivo '1_Alpinópolis.csv' não encontrado ou formato inválido.")
