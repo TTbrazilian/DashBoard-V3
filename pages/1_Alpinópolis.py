@@ -69,23 +69,28 @@ def load_all_data():
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
-    # --- LÓGICA DE FILTRAGEM DO SETOR (CORREÇÃO MENU SUPERIOR) ---
-    municipios_setores = {
+    # --- LÓGICA DE FILTRAGEM DO SETOR (TOP NAVIGATION) ---
+    # Define quais municípios pertencem a quais setores
+    mapeamento_setores = {
         "Alpinópolis": "Educação",
         "São José da Barra": "Educação",
         "Bom Jesus": "Saúde",
         "Passos": "Saúde"
     }
     
-    # Identifica o setor do arquivo atual (Alpinópolis)
-    setor_atual = municipios_setores.get("Alpinópolis")
+    # Contexto atual: Alpinópolis (Educação)
+    setor_atual = "Educação"
     
-    # Filtra para que no menu apareçam APENAS municípios do mesmo setor
-    # Isso impede que "Bom Jesus" apareça enquanto estivermos em "Alpinópolis"
-    municipios_mesmo_setor = [m for m, s in municipios_setores.items() if s == setor_atual]
+    # Filtra os itens da navegação para que contenham apenas o mesmo setor
+    # Esta lógica impede que municípios de setores diferentes apareçam juntos no topo
+    itens_navegacao = ["Home"] + [m for m, s in mapeamento_setores.items() if s == setor_atual]
     
-    # Adiciona "Home" à lista de navegação permitida
-    navegacao_valida = ["Home"] + municipios_mesmo_setor
+    # Simulação da barra de navegação superior (conforme a foto)
+    cols_nav = st.columns(len(itens_navegacao))
+    for idx, item in enumerate(itens_navegacao):
+        cols_nav[idx].button(item, use_container_width=True, key=f"nav_{item}")
+
+    st.markdown("---")
 
     # --- BARRA LATERAL ---
     st.sidebar.title("🔍 Filtros de Análise")
@@ -162,16 +167,6 @@ if df_f_raw is not None and df_r is not None:
     st.plotly_chart(fig3, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
-
-    # --- MONITORAMENTO ---
-    st.subheader("📋 Monitoramento de Recursos Vinculados")
-    c1, c2 = st.columns(2)
-    with c1:
-        pnae_total = df_f[df_f['Atividade'].str.contains('Alimentação|PNAE', case=False, na=False)]['Orçado'].sum()
-        st.info(f"**PNAE (Merenda):** {formar_real(pnae_total)}")
-    with c2:
-        qse_total = df_f[df_f['Fonte'].str.contains('1550', na=False)]['Orçado'].sum()
-        st.success(f"**Salário Educação (QSE):** {formar_real(qse_total)}")
 
     # --- TABELAS ---
     st.markdown("---")
