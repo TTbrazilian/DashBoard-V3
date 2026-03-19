@@ -171,13 +171,37 @@ if df_f_raw is not None and df_r is not None:
     for c in ['Orçado', 'Saldo']: df_rel[c] = df_rel[c].apply(formar_real)
     st.dataframe(df_rel, use_container_width=True, hide_index=True)
 
-    # --- TABELA DE RECEITAS (NOVA SEÇÃO) ---
+    # --- TABELA DE RECEITAS ---
     st.markdown("---")
     st.subheader("📊 Relatório Geral das Receitas")
     df_r_rel = df_r[['Código', 'Categoria', 'Descrição da Receita', 'Total', 'Orçado Receitas']].copy()
     for c in ['Total', 'Orçado Receitas']: 
         df_r_rel[c] = df_r_rel[c].apply(formar_real)
     st.dataframe(df_r_rel, use_container_width=True, hide_index=True)
+
+    # --- GRÁFICO DINÂMICO DE RECEITAS (NOVA SEÇÃO) ---
+    st.markdown("---")
+    st.markdown("<h3 style='text-align: center;'>Análise Mensal por Categoria de Receita</h3>", unsafe_allow_html=True)
+    
+    categorias = sorted(df_r['Categoria'].unique())
+    cat_selecionada = st.selectbox("Selecione uma Categoria para visualizar a evolução:", categorias)
+    
+    df_cat = df_r[df_r['Categoria'] == cat_selecionada]
+    meses_col = ['Janeiro', 'Fevereiro', 'Março'] # Adicione mais meses se houver no CSV
+    
+    evol_rec = []
+    for mes in meses_col:
+        if mes in df_cat.columns:
+            valor_mes = df_cat[mes].sum()
+            evol_rec.append({"Mês": mes, "Valor": valor_mes})
+    
+    if evol_rec:
+        fig_rec = px.line(pd.DataFrame(evol_rec), x='Mês', y='Valor', markers=True,
+                          color_discrete_sequence=['#636EFA'])
+        fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
+        fig_rec.update_layout(separators=",.", yaxis_title="Valor (R$)", xaxis_title="Mês")
+        _, col_center, _ = st.columns([0.2, 9.6, 0.2])
+        with col_center: st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
 else:
     st.error("Erro ao localizar as bases de dados. Verifique os nomes dos arquivos CSV.")
