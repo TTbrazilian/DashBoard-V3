@@ -22,11 +22,25 @@ def limpar_valor(valor):
 def formar_real(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+def buscar_arquivo(nome):
+    """Garante que o arquivo seja encontrado em diferentes ambientes"""
+    caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome), 
+                os.path.join(os.path.dirname(__file__), "..", nome)]
+    for p in caminhos:
+        if os.path.exists(p): return p
+    return None
+
 @st.cache_data
 def load_all_data():
-    dir_at = os.path.dirname(os.path.abspath(__file__))
-    path_f = os.path.join(dir_at, '..', 'Alpinópolis.csv')
-    path_r = os.path.join(dir_at, '..', 'Alpinópolis_R.csv')
+    # AJUSTE: Nomes exatos dos arquivos conforme o seu ambiente
+    arquivo_f = "Educação Gestão de  Recursos Alpinópolis - 2026 - Fichas.csv"
+    arquivo_r = "Alpinópolis_R.csv"
+    
+    path_f = buscar_arquivo(arquivo_f)
+    path_r = buscar_arquivo(arquivo_r)
+    
+    if not path_f or not path_r:
+        return None, None
     
     # 1. Despesas (Fichas) - Header duplo
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
@@ -47,6 +61,11 @@ def load_all_data():
     for col in df_r.columns:
         if any(k in col for k in ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado']):
             df_r[col] = df_r[col].apply(limpar_valor)
+    
+    # AJUSTE: Conversão para String para evitar AttributeError no .str.contains
+    df_f['Fonte'] = df_f['Fonte'].astype(str)
+    df_f['Elemento'] = df_f['Elemento'].astype(str)
+    df_f['Atividade'] = df_f['Atividade'].astype(str)
     
     return df_f, df_r
 
@@ -69,9 +88,7 @@ if df_f is not None and df_r is not None:
     perc_70 = (despesa_70 / receita_fundeb * 100) if receita_fundeb > 0 else 0
 
     # B. MÍNIMO CONSTITUCIONAL 25% (Pág 4 e 5 do PDF)
-    # Base de cálculo: Impostos + Transferências (Dedução FUNDEB já considerada no Total do CSV)
     receita_base_25 = df_r[df_r['Categoria'].isin(['Impostos', 'Transferências'])]['Total'].sum()
-    # Despesa Rec. Próprios (Fonte 1500)
     df_f_25 = df_f[df_f['Fonte'].str.contains('1500', na=False)]
     despesa_25 = df_f_25[cols_liq].sum().sum()
     perc_25 = (despesa_25 / receita_base_25 * 100) if receita_base_25 > 0 else 0
@@ -92,17 +109,19 @@ if df_f is not None and df_r is not None:
 
     # --- ANÁLISE FUNDEB (Pág 6 do PDF) ---
     st.subheader("📊 FUNDEB: Receita vs Despesa de Pessoal")
-    meses_disponiveis = ['Janeiro', 'Fevereiro', 'Março'] # Ajuste conforme evolução dos meses
+    meses_disponiveis = ['Janeiro', 'Fevereiro', 'Março'] 
     evol_fundeb = []
     for m in meses_disponiveis:
-        rec_m = df_r[(df_r['Categoria'] == 'FUNDEB')][m].sum()
-        desp_m = df_f_70[f"{m}_Liquidado"].sum()
-        evol_fundeb.append({"Mês": m, "Tipo": "Receita FUNDEB", "Valor": rec_m})
-        evol_fundeb.append({"Mês": m, "Tipo": "Despesa 70%", "Valor": desp_m})
+        if m in df_r.columns and f"{m}_Liquidado" in df_f_70.columns:
+            rec_m = df_r[(df_r['Categoria'] == 'FUNDEB')][m].sum()
+            desp_m = df_f_70[f"{m}_Liquidado"].sum()
+            evol_fundeb.append({"Mês": m, "Tipo": "Receita FUNDEB", "Valor": rec_m})
+            evol_fundeb.append({"Mês": m, "Tipo": "Despesa 70%", "Valor": desp_m})
     
-    fig_fundeb = px.bar(pd.DataFrame(evol_fundeb), x='Mês', y='Valor', color='Tipo', barmode='group',
-                        color_discrete_map={"Receita FUNDEB": "#636EFA", "Despesa 70%": "#00CC96"})
-    st.plotly_chart(fig_fundeb, use_container_width=True, config=CONFIG_PT)
+    if evol_fundeb:
+        fig_fundeb = px.bar(pd.DataFrame(evol_fundeb), x='Mês', y='Valor', color='Tipo', barmode='group',
+                            color_discrete_map={"Receita FUNDEB": "#636EFA", "Despesa 70%": "#00CC96"})
+        st.plotly_chart(fig_fundeb, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
@@ -123,13 +142,11 @@ if df_f is not None and df_r is not None:
         fig_bar.update_layout(yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig_bar, use_container_width=True)
 
-    # --- DETALHAMENTO PNAE E SALÁRIO EDUCAÇÃO (Pág 10 e 13 do PDF) ---
+    # --- DETALHAMENTO PNAE E SALÁRIO EDUCAÇÃO ---
     st.markdown("---")
     st.subheader("🍎 Alimentação Escolar (PNAE) e Recursos QSE")
     
-    # Filtro PNAE (Merenda)
     df_pnae = df_f[df_f['Atividade'].str.contains('Alimentação|Merenda', case=False, na=False)]
-    # Filtro Salário Educação (Fonte 1550)
     df_qse = df_f[df_f['Fonte'].str.contains('1550', na=False)]
     
     tab1, tab2 = st.tabs(["Alimentação Escolar", "Salário Educação (QSE)"])
@@ -140,7 +157,7 @@ if df_f is not None and df_r is not None:
         st.write(f"Total Orçado QSE: **{formar_real(df_qse['Orçado'].sum())}**")
         st.dataframe(df_qse[['Ficha', 'Atividade', 'Elemento', 'Orçado', 'Saldo']], use_container_width=True, hide_index=True)
 
-    # --- RELATÓRIO FINAL (IGUAL BOM JESUS) ---
+    # --- RELATÓRIO FINAL ---
     st.markdown("---")
     st.subheader("📋 Relatório Geral de Fichas")
     df_final = df_f[['Categoria', 'Atividade', 'Ficha', 'Elemento', 'Fonte', 'Orçado', 'Saldo']].copy()
@@ -148,4 +165,4 @@ if df_f is not None and df_r is not None:
     st.dataframe(df_final, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro no carregamento das bases de Alpinópolis.")
+    st.error("Erro no carregamento das bases. Verifique se os arquivos CSV estão na raiz do projeto.")
