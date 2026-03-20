@@ -92,6 +92,7 @@ if df_f_raw is not None and df_r is not None:
         desc = desc.upper()
         if 'VAAR' in desc: return 'VAAR'
         if 'ETI' in desc or 'TEMPO INTEGRAL' in desc: return 'ETI'
+        if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
         return 'Principal'
 
     def cat_fonte_desp(fonte):
@@ -127,7 +128,7 @@ if df_f_raw is not None and df_r is not None:
     
     st.markdown("<p style='text-align: center;'><b>Distribuição por Categoria</b></p>", unsafe_allow_html=True)
     fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
-                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
+                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
     fig_r_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
     fig_r_pie.update_layout(separators=",.")
     st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
@@ -140,7 +141,7 @@ if df_f_raw is not None and df_r is not None:
             val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
             dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
     fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='group',
-                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
+                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
     fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
     fig_r_bar.update_layout(separators=",.", yaxis_title="R$")
     st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
