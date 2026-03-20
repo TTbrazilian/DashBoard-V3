@@ -86,7 +86,7 @@ if df_f_raw is not None and df_r is not None:
     # --- TÍTULO ---
     st.markdown("<h1 style='text-align: left;'>📘 Painel Especial: FUNDEB</h1>", unsafe_allow_html=True)
 
-    # --- CATEGORIZAÇÃO ---
+    # --- CATEGORIZAÇÃO (REGRAS DA EMPRESA) ---
     def cat_receita(desc):
         desc = desc.upper()
         if 'VAAR' in desc: return 'VAAR'
@@ -106,7 +106,7 @@ if df_f_raw is not None and df_r is not None:
     df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
     df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(cat_fonte_desp)
 
-    # --- INDICADORES ---
+    # --- INDICADORES (CARDS) ---
     tot_rec_ano = df_r_fundeb['Total'].sum()
     tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
     rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
@@ -133,14 +133,14 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
 
     with c2:
-        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Empilhada</b></p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Agrupada</b></p>", unsafe_allow_html=True)
         meses = ['Janeiro', 'Fevereiro', 'Março']
         dados_m_r = []
         for m in meses:
             for cat in df_r_fundeb['Subcategoria'].unique():
                 val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
-        fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='stack',
+        fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='group',
                            color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
         fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_r_bar.update_layout(separators=",.", yaxis_title="R$")
@@ -159,7 +159,7 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
     with c4:
-        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Empilhada</b></p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Agrupada</b></p>", unsafe_allow_html=True)
         dados_m_f = []
         for m in meses:
             c_liq = f"{m}_Liquidado"
@@ -168,14 +168,14 @@ if df_f_raw is not None and df_r is not None:
                     val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum()
                     dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         if dados_m_f:
-            fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='stack')
+            fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
             fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
             fig_f_bar.update_layout(separators=",.", yaxis_title="R$")
             st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
-    # --- SEÇÃO 3: ANÁLISES E COMPARAÇÃO ---
+    # --- SEÇÃO 3: ANÁLISES E COMPARAÇÃO FINAL ---
     st.subheader("🔹 3. Análises e Equilíbrio")
     
     total_desp_liq = df_f_fundeb[col_liq_total].sum().sum()
@@ -183,11 +183,10 @@ if df_f_raw is not None and df_r is not None:
         "Tipo": ["Total Receitas", "Total Despesas (Liq.)"],
         "Valor": [tot_rec_ano, total_desp_liq]
     })
-    # AJUSTE: barmode='group' para ficar lado a lado
-    fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto=False, barmode='group',
+    
+    fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', barmode='group',
                       color_discrete_map={"Total Receitas": "#636EFA", "Total Despesas (Liq.)": "#EF553B"})
     
-    # AJUSTE: Hover padrão BR
     fig_comp.update_traces(
         texttemplate='R$ %{y:,.2f}', 
         textposition='outside', 
