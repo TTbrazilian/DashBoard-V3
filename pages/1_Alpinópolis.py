@@ -7,7 +7,7 @@ import os
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Alpinópolis - FUNDEB", layout="wide")
 
-# --- FILTRO DO MENU LATERAL (CSS) ---
+# --- FILTRO DO MENU LATERAL (OCULTA ITENS DE OUTROS SETORES) ---
 st.markdown(
     """
     <style>
@@ -69,10 +69,11 @@ def load_all_data():
     df_f['Fonte'] = df_f['Fonte'].astype(str)
     return df_f, df_r
 
+# --- PROCESSAMENTO DE DADOS ---
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
-    # --- BARRA LATERAL ---
+    # --- FILTROS LATERAIS ---
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Pesquisar na Planilha:", "")
     df_f = df_f_raw.copy()
@@ -82,109 +83,117 @@ if df_f_raw is not None and df_r is not None:
                 df_f['Ficha'].astype(str).str.contains(search_term, case=False, na=False))
         df_f = df_f[mask]
 
-    st.markdown("<h1 style='text-align: left;'>📘 Painel FUNDEB - Alpinópolis</h1>", unsafe_allow_html=True)
+    # --- TÍTULO ---
+    st.markdown("<h1 style='text-align: left;'>📘 Painel Especial: FUNDEB</h1>", unsafe_allow_html=True)
 
-    # --- LÓGICA DE FILTRAGEM FUNDEB (RECEITAS) ---
-    df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
-    # Mapeamento sugerido: Principal, VAAR, ETI (Baseado na Descrição)
-    def categorizar_receita(desc):
+    # --- CATEGORIZAÇÃO (PEDIDO DA VÉIA) ---
+    def cat_receita(desc):
         desc = desc.upper()
         if 'VAAR' in desc: return 'VAAR'
         if 'ETI' in desc or 'TEMPO INTEGRAL' in desc: return 'ETI'
         return 'Principal'
-    
-    df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(categorizar_receita)
-    meses = ['Janeiro', 'Fevereiro', 'Março']
 
-    # --- LÓGICA DE FILTRAGEM FUNDEB (DESPESAS) ---
-    # Fontes sugeridas: 1540 (70%), 15403 (30%), 1546 (ETI), 2540 (Superávit)
-    def categorizar_despesa(fonte):
-        if '1540' in fonte and '7' in fonte: return '15407 (70%)'
-        if '1540' in fonte and '3' in fonte: return '15403 (30%)'
+    def cat_fonte_desp(fonte):
+        if '15407' in fonte or ('1540' in fonte and fonte.endswith('7')): return '15407 (70%)'
+        if '15403' in fonte or ('1540' in fonte and fonte.endswith('3')): return '15403 (30%)'
         if '1546' in fonte: return '1546 (ETI)'
         if '2540' in fonte: return '2540 (Superávit)'
-        return 'Outras Fontes FUNDEB'
+        return 'Outras Fontes'
 
+    df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
+    df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
+    
     df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
-    df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(categorizar_despesa)
+    df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(cat_fonte_desp)
 
     # --- INDICADORES (CARDS) ---
     tot_rec_ano = df_r_fundeb['Total'].sum()
     tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
     
-    # Cálculo Regra dos 70% (Receita acumulada exceto VAAR vs Despesa 15407)
+    # Regra dos 70%: (Despesa 15407) / (Receita total - VAAR)
     rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
-    desp_70_total = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == '15407 (70%)'][[c for c in df_f.columns if 'Liquidado' in c]].sum().sum()
-    perc_70 = (desp_70_total / rec_base_70 * 100) if rec_base_70 > 0 else 0
+    col_liq_total = [c for c in df_f.columns if 'Liquidado' in c]
+    desp_70_val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == '15407 (70%)'][col_liq_total].sum().sum()
+    perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total Arrecadado (Ano)", formar_real(tot_rec_ano))
-    c2.metric("Previsto para 2026", formar_real(tot_prev_2026))
-    c3.metric("Aplicação em Pessoal (70%)", f"{perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
+    m1, m2, m3 = st.columns(3)
+    with m1: st.metric("Total Arrecadado (Ano)", formar_real(tot_rec_ano))
+    with m2: st.metric("Previsão Orçamentária 2026", formar_real(tot_prev_2026))
+    with m3: st.metric("Aplicação em Pessoal (70%)", f"{perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
 
     st.markdown("---")
 
     # --- SEÇÃO 1: RECEITAS ---
-    st.subheader("🔹 1. Análise de Receitas FUNDEB")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("<p style='text-align: center;'><b>Arrecadação por Categoria</b></p>", unsafe_allow_html=True)
-        fig_pie_r = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
-                          color_discrete_sequence=px.colors.qualitative.Pastel)
-        st.plotly_chart(fig_pie_r, use_container_width=True, config=CONFIG_PT)
-        
-    with col2:
-        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal (Receitas)</b></p>", unsafe_allow_html=True)
-        rec_mensal = []
+    st.subheader("🔹 1. Receitas FUNDEB")
+    c1, c2 = st.columns(2)
+
+    with c1:
+        st.markdown("<p style='text-align: center;'><b>Distribuição por Categoria</b></p>", unsafe_allow_html=True)
+        fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
+                           color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
+        fig_r_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
+        st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
+
+    with c2:
+        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Empilhada</b></p>", unsafe_allow_html=True)
+        meses = ['Janeiro', 'Fevereiro', 'Março']
+        dados_m_r = []
         for m in meses:
-            for sub in df_r_fundeb['Subcategoria'].unique():
-                val = df_r_fundeb[df_r_fundeb['Subcategoria'] == sub][m].sum()
-                rec_mensal.append({"Mês": m, "Categoria": sub, "Valor": val})
-        fig_bar_r = px.bar(pd.DataFrame(rec_mensal), x='Mês', y='Valor', color='Categoria', barmode='stack')
-        st.plotly_chart(fig_bar_r, use_container_width=True, config=CONFIG_PT)
+            for cat in df_r_fundeb['Subcategoria'].unique():
+                val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
+                dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
+        fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='stack',
+                           color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
+        fig_r_bar.update_layout(separators=",.", yaxis_title="R$")
+        st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
     # --- SEÇÃO 2: DESPESAS ---
-    st.subheader("🔹 2. Análise de Despesas FUNDEB")
-    col3, col4 = st.columns(2)
+    st.subheader("🔹 2. Despesas FUNDEB")
+    c3, c4 = st.columns(2)
 
-    with col3:
+    with c3:
         st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte</b></p>", unsafe_allow_html=True)
-        desp_por_fonte = df_f_fundeb.groupby('Fonte_Agrupada')['Orçado'].sum().reset_index()
-        fig_pie_f = px.pie(desp_por_fonte, values='Orçado', names='Fonte_Agrupada', hole=.4,
-                          color_discrete_sequence=px.colors.qualitative.Safe)
-        st.plotly_chart(fig_pie_f, use_container_width=True, config=CONFIG_PT)
+        fig_f_pie = px.pie(df_f_fundeb, values='Orçado', names='Fonte_Agrupada', hole=.4)
+        fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
+        st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
-    with col4:
-        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal (Despesas)</b></p>", unsafe_allow_html=True)
-        desp_mensal = []
+    with c4:
+        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Empilhada</b></p>", unsafe_allow_html=True)
+        dados_m_f = []
         for m in meses:
-            col_liq = f"{m}_Liquidado"
-            if col_liq in df_f_fundeb.columns:
+            c_liq = f"{m}_Liquidado"
+            if c_liq in df_f_fundeb.columns:
                 for fonte in df_f_fundeb['Fonte_Agrupada'].unique():
-                    val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][col_liq].sum()
-                    desp_mensal.append({"Mês": m, "Fonte": fonte, "Valor": val})
-        if desp_mensal:
-            fig_bar_f = px.bar(pd.DataFrame(desp_mensal), x='Mês', y='Valor', color='Fonte', barmode='stack')
-            st.plotly_chart(fig_bar_f, use_container_width=True, config=CONFIG_PT)
+                    val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum()
+                    dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
+        if dados_m_f:
+            fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='stack')
+            fig_f_bar.update_layout(separators=",.", yaxis_title="R$")
+            st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
-    # --- SEÇÃO 3: COMPARAÇÃO GERAL ---
-    st.subheader("🔹 3. Análise Comparativa Final")
+    # --- SEÇÃO 3: ANÁLISES E COMPARAÇÃO ---
+    st.subheader("🔹 3. Análises e Equilíbrio")
     
-    comp_data = [
-        {"Tipo": "Total Receitas", "Valor": tot_rec_ano},
-        {"Tipo": "Total Despesas (Liq.)", "Valor": df_f_fundeb[[c for c in df_f.columns if 'Liquidado' in c]].sum().sum()}
-    ]
-    fig_comp = px.bar(pd.DataFrame(comp_data), x='Tipo', y='Valor', color='Tipo', text_auto='.2s')
-    st.plotly_chart(fig_comp, use_container_width=True)
+    # Gráfico Comparativo Receita x Despesa
+    total_desp_liq = df_f_fundeb[col_liq_total].sum().sum()
+    df_comp = pd.DataFrame({
+        "Tipo": ["Total Receitas", "Total Despesas (Liq.)"],
+        "Valor": [tot_rec_ano, total_desp_liq]
+    })
+    fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto=True,
+                      color_discrete_map={"Total Receitas": "#636EFA", "Total Despesas (Liq.)": "#EF553B"})
+    fig_comp.update_traces(texttemplate='R$ %{y:,.2s}', textposition='outside', hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
+    st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
-    # Tabela de conferência rápida
-    with st.expander("Ver Detalhamento das Fichas FUNDEB"):
-        st.dataframe(df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo']], use_container_width=True)
+    # Tabela de Conferência (Relatório de Fichas)
+    st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
+    df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo']].copy()
+    for col in ['Orçado', 'Saldo']: df_f_final[col] = df_f_final[col].apply(formar_real)
+    st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro ao carregar as bases de Alpinópolis.")
+    st.error("Erro ao carregar as bases de dados de Alpinópolis.")
