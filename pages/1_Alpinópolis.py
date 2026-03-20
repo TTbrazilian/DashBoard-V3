@@ -8,11 +8,9 @@ import os
 st.set_page_config(page_title="Alpinópolis - FUNDEB", layout="wide")
 
 # --- FILTRO DO MENU LATERAL (OCULTA ITENS DE OUTROS SETORES) ---
-# Aqui garantimos que apenas municípios do setor de EDUCAÇÃO apareçam
 st.markdown(
     """
     <style>
-        /* Esconde especificamente municípios que NÃO são do setor atual (Educação) */
         [data-testid="stSidebarNav"] ul li div:has(span:contains("Bom Jesus")),
         [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")),
         [data-testid="stSidebarNav"] ul li:has(span:contains("Penha")),
@@ -89,7 +87,7 @@ if df_f_raw is not None and df_r is not None:
     # --- TÍTULO ---
     st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
 
-    # --- CATEGORIZAÇÃO (REGRAS DA EMPRESA) ---
+    # --- CATEGORIZAÇÃO ---
     def cat_receita(desc):
         desc = desc.upper()
         if 'VAAR' in desc: return 'VAAR'
@@ -109,7 +107,7 @@ if df_f_raw is not None and df_r is not None:
     df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
     df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(cat_fonte_desp)
 
-    # --- INDICADORES (CARDS) ---
+    # --- INDICADORES ---
     tot_rec_ano = df_r_fundeb['Total'].sum()
     tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
     rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
@@ -126,57 +124,55 @@ if df_f_raw is not None and df_r is not None:
 
     # --- SEÇÃO 1: RECEITAS ---
     st.subheader("🔹 1. Receitas FUNDEB")
-    c1, c2 = st.columns(2)
+    
+    # Gráfico de Pizza centralizado
+    st.markdown("<p style='text-align: center;'><b>Distribuição por Categoria</b></p>", unsafe_allow_html=True)
+    fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
+                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
+    fig_r_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
+    fig_r_pie.update_layout(separators=",.")
+    st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
 
-    with c1:
-        st.markdown("<p style='text-align: center;'><b>Distribuição por Categoria</b></p>", unsafe_allow_html=True)
-        fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
-                           color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
-        fig_r_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
-        fig_r_pie.update_layout(separators=",.")
-        st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
-
-    with c2:
-        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Agrupada</b></p>", unsafe_allow_html=True)
-        meses = ['Janeiro', 'Fevereiro', 'Março']
-        dados_m_r = []
-        for m in meses:
-            for cat in df_r_fundeb['Subcategoria'].unique():
-                val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
-                dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
-        fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='group',
-                           color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
-        fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig_r_bar.update_layout(separators=",.", yaxis_title="R$")
-        st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
+    # Gráfico de Barras centralizado (abaixo da pizza)
+    st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Agrupada</b></p>", unsafe_allow_html=True)
+    meses = ['Janeiro', 'Fevereiro', 'Março']
+    dados_m_r = []
+    for m in meses:
+        for cat in df_r_fundeb['Subcategoria'].unique():
+            val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
+            dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
+    fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='group',
+                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
+    fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
+    fig_r_bar.update_layout(separators=",.", yaxis_title="R$")
+    st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
     # --- SEÇÃO 2: DESPESAS ---
     st.subheader("🔹 2. Despesas FUNDEB")
-    c3, c4 = st.columns(2)
 
-    with c3:
-        st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte</b></p>", unsafe_allow_html=True)
-        fig_f_pie = px.pie(df_f_fundeb, values='Orçado', names='Fonte_Agrupada', hole=.4)
-        fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
-        fig_f_pie.update_layout(separators=",.")
-        st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
+    # Gráfico de Pizza centralizado
+    st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte</b></p>", unsafe_allow_html=True)
+    fig_f_pie = px.pie(df_f_fundeb, values='Orçado', names='Fonte_Agrupada', hole=.4)
+    fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
+    fig_f_pie.update_layout(separators=",.")
+    st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
-    with c4:
-        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Agrupada</b></p>", unsafe_allow_html=True)
-        dados_m_f = []
-        for m in meses:
-            c_liq = f"{m}_Liquidado"
-            if c_liq in df_f_fundeb.columns:
-                for fonte in df_f_fundeb['Fonte_Agrupada'].unique():
-                    val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum()
-                    dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
-        if dados_m_f:
-            fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
-            fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
-            fig_f_bar.update_layout(separators=",.", yaxis_title="R$")
-            st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
+    # Gráfico de Barras centralizado (abaixo da pizza)
+    st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Agrupada</b></p>", unsafe_allow_html=True)
+    dados_m_f = []
+    for m in meses:
+        c_liq = f"{m}_Liquidado"
+        if c_liq in df_f_fundeb.columns:
+            for fonte in df_f_fundeb['Fonte_Agrupada'].unique():
+                val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum()
+                dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
+    if dados_m_f:
+        fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
+        fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
+        fig_f_bar.update_layout(separators=",.", yaxis_title="R$")
+        st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
