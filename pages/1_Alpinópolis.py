@@ -104,8 +104,8 @@ if df_f_raw is not None and df_r is not None:
     df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
     df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
     
-    # AJUSTE: Filtro expandido para incluir as fontes 1546 e 2540
-    df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546|2540', na=False)].copy()
+    # Filtro permitindo as fontes solicitadas
+    df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
     df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(cat_fonte_desp)
 
     # --- INDICADORES ---
@@ -151,8 +151,19 @@ if df_f_raw is not None and df_r is not None:
     # --- SEÇÃO 2: DESPESAS ---
     st.subheader("🔹 2. Despesas FUNDEB")
 
+    # Garantir que as legendas apareçam mesmo zeradas
+    fontes_obrigatorias = ['15407 (70%)', '15403 (30%)', '1546 (ETI)', '2540 (Superávit)']
+    
     st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte</b></p>", unsafe_allow_html=True)
-    fig_f_pie = px.pie(df_f_fundeb, values='Orçado', names='Fonte_Agrupada', hole=.4)
+    
+    # Criamos um DataFrame de plotagem que contém as fontes obrigatórias com valor 0 se não existirem
+    df_plot_f = df_f_fundeb.groupby('Fonte_Agrupada')['Orçado'].sum().reset_index()
+    for f in fontes_obrigatorias:
+        if f not in df_plot_f['Fonte_Agrupada'].values:
+            df_plot_f = pd.concat([df_plot_f, pd.DataFrame({'Fonte_Agrupada': [f], 'Orçado': [0.0]})])
+
+    fig_f_pie = px.pie(df_plot_f, values='Orçado', names='Fonte_Agrupada', hole=.4,
+                       category_orders={"Fonte_Agrupada": fontes_obrigatorias})
     fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
     fig_f_pie.update_layout(separators=",.")
     st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
@@ -161,12 +172,15 @@ if df_f_raw is not None and df_r is not None:
     dados_m_f = []
     for m in meses:
         c_liq = f"{m}_Liquidado"
-        if c_liq in df_f_fundeb.columns:
-            for fonte in df_f_fundeb['Fonte_Agrupada'].unique():
+        for fonte in fontes_obrigatorias:
+            val = 0.0
+            if c_liq in df_f_fundeb.columns:
                 val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum()
-                dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
+            dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
+            
     if dados_m_f:
-        fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
+        fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group',
+                           category_orders={"Fonte": fontes_obrigatorias})
         fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_f_bar.update_layout(separators=",.", yaxis_title="R$")
         st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
@@ -193,6 +207,7 @@ if df_f_raw is not None and df_r is not None:
     fig_comp.update_layout(separators=",.", yaxis_title="R$")
     st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
+    # Tabela de Conferência
     st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
     df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo']].copy()
     for col in ['Orçado', 'Saldo']: df_f_final[col] = df_f_final[col].apply(formar_real)
