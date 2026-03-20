@@ -78,7 +78,7 @@ df_f_raw, df_r = load_all_data()
 if df_f_raw is not None and df_r is not None:
     # --- FILTROS LATERAIS ---
     st.sidebar.title("🔍 Filtros de Análise")
-    search_term = st.sidebar.text_input("Pesquisar na Planilha:", "")
+    search_term = st.sidebar.text_input("Filtrar:", "")
     df_f = df_f_raw.copy()
     if search_term:
         mask = (df_f['Atividade'].str.contains(search_term, case=False, na=False) |
@@ -87,7 +87,7 @@ if df_f_raw is not None and df_r is not None:
         df_f = df_f[mask]
 
     # --- TÍTULO ---
-    st.markdown("<h1 style='text-align: left;'>📘 Painel Especial: FUNDEB</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
 
     # --- CATEGORIZAÇÃO (REGRAS DA EMPRESA) ---
     def cat_receita(desc):
