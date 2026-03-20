@@ -5,15 +5,12 @@ import plotly.io as pio
 import os
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Alpinópolis - Educação", layout="wide")
+st.set_page_config(page_title="Alpinópolis - FUNDEB", layout="wide")
 
-# --- FILTRO DO MENU LATERAL (APENAS OCULTA OS ITENS) ---
-# Alpinópolis é Educação. O código abaixo esconde "Bom Jesus" da barra lateral.
-# --- FILTRO DO MENU LATERAL (OCULTA ITENS DE OUTROS SETORES) ---
+# --- FILTRO DO MENU LATERAL (CSS) ---
 st.markdown(
     """
     <style>
-        /* Tenta esconder pelo texto exato que aparece na sua imagem */
         [data-testid="stSidebarNav"] ul li div:has(span:contains("Bom Jesus")),
         [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")),
         [data-testid="stSidebarNav"] ul li:has(span:contains("Penha")) {
@@ -49,14 +46,9 @@ def buscar_arquivo(nome):
 def load_all_data():
     arquivo_f = "Alpinópolis.csv"
     arquivo_r = "Alpinópolis_R.csv"
+    path_f, path_r = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r)
+    if not path_f or not path_r: return None, None
     
-    path_f = buscar_arquivo(arquivo_f)
-    path_r = buscar_arquivo(arquivo_r)
-    
-    if not path_f or not path_r:
-        return None, None
-    
-    # 1. Despesas (Fichas)
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
@@ -64,11 +56,9 @@ def load_all_data():
         else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
 
-    # 2. Receitas
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
     
-    # Limpeza de valores
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado']):
             df_f[col] = df_f[col].apply(limpar_valor)
@@ -77,19 +67,14 @@ def load_all_data():
             df_r[col] = df_r[col].apply(limpar_valor)
             
     df_f['Fonte'] = df_f['Fonte'].astype(str)
-    df_f['Elemento'] = df_f['Elemento'].astype(str)
-    df_f['Atividade'] = df_f['Atividade'].astype(str)
-    
     return df_f, df_r
 
-# --- CARREGAMENTO ---
 df_f_raw, df_r = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
     # --- BARRA LATERAL ---
     st.sidebar.title("🔍 Filtros de Análise")
-    search_term = st.sidebar.text_input("Pesquisar (Atividade, Elemento ou Ficha):", "")
-    
+    search_term = st.sidebar.text_input("Pesquisar na Planilha:", "")
     df_f = df_f_raw.copy()
     if search_term:
         mask = (df_f['Atividade'].str.contains(search_term, case=False, na=False) |
@@ -97,103 +82,109 @@ if df_f_raw is not None and df_r is not None:
                 df_f['Ficha'].astype(str).str.contains(search_term, case=False, na=False))
         df_f = df_f[mask]
 
-    # --- TÍTULO PRINCIPAL ---
-    st.markdown("<h1 style='text-align: left;'>🎓 Alpinópolis - Educação</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: left;'>📘 Painel FUNDEB - Alpinópolis</h1>", unsafe_allow_html=True)
+
+    # --- LÓGICA DE FILTRAGEM FUNDEB (RECEITAS) ---
+    df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
+    # Mapeamento sugerido: Principal, VAAR, ETI (Baseado na Descrição)
+    def categorizar_receita(desc):
+        desc = desc.upper()
+        if 'VAAR' in desc: return 'VAAR'
+        if 'ETI' in desc or 'TEMPO INTEGRAL' in desc: return 'ETI'
+        return 'Principal'
     
-    # --- MÉTRICAS ---
-    cols_liq = [c for c in df_f.columns if 'Liquidado' in c]
-    receita_fundeb = df_r[df_r['Categoria'] == 'FUNDEB']['Total'].sum()
+    df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(categorizar_receita)
+    meses = ['Janeiro', 'Fevereiro', 'Março']
+
+    # --- LÓGICA DE FILTRAGEM FUNDEB (DESPESAS) ---
+    # Fontes sugeridas: 1540 (70%), 15403 (30%), 1546 (ETI), 2540 (Superávit)
+    def categorizar_despesa(fonte):
+        if '1540' in fonte and '7' in fonte: return '15407 (70%)'
+        if '1540' in fonte and '3' in fonte: return '15403 (30%)'
+        if '1546' in fonte: return '1546 (ETI)'
+        if '2540' in fonte: return '2540 (Superávit)'
+        return 'Outras Fontes FUNDEB'
+
+    df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
+    df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(categorizar_despesa)
+
+    # --- INDICADORES (CARDS) ---
+    tot_rec_ano = df_r_fundeb['Total'].sum()
+    tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
     
-    df_f_70 = df_f[(df_f['Fonte'].str.contains('1540|1500', na=False)) & (df_f['Elemento'].str.contains('3.1.90', na=False))]
-    despesa_70 = df_f_70[cols_liq].sum().sum()
-    perc_70 = (despesa_70 / receita_fundeb * 100) if receita_fundeb > 0 else 0
+    # Cálculo Regra dos 70% (Receita acumulada exceto VAAR vs Despesa 15407)
+    rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
+    desp_70_total = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == '15407 (70%)'][[c for c in df_f.columns if 'Liquidado' in c]].sum().sum()
+    perc_70 = (desp_70_total / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
-    receita_base_25 = df_r[df_r['Categoria'].isin(['Impostos', 'Transferências'])]['Total'].sum()
-    df_f_25 = df_f[df_f['Fonte'].str.contains('1500', na=False)]
-    despesa_25 = df_f_25[cols_liq].sum().sum()
-    perc_25 = (despesa_25 / receita_base_25 * 100) if receita_base_25 > 0 else 0
-
-    m1, m2, m3 = st.columns(3)
-    with m1: st.metric("Aplicação FUNDEB 70%", f"{perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
-    with m2: st.metric("Mínimo Educação (25%)", f"{perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
-    with m3: st.metric("Receita FUNDEB Total", formar_real(receita_fundeb))
-    
-    st.markdown("---")
-
-    # --- GRÁFICO 1 ---
-    st.markdown("<h3 style='text-align: center;'>FUNDEB: Receita Realizada vs Despesa de Pessoal (70%)</h3>", unsafe_allow_html=True)
-    meses = ['Janeiro', 'Fevereiro', 'Março'] 
-    evol_data = []
-    for m in meses:
-        if m in df_r.columns:
-            rec_m = df_r[df_r['Categoria'] == 'FUNDEB'][m].sum()
-            desp_m = df_f_70[f"{m}_Liquidado"].sum() if f"{m}_Liquidado" in df_f_70.columns else 0
-            evol_data.append({"Mês": m, "Tipo": "Receita Realizada", "Valor": rec_m})
-            evol_data.append({"Mês": m, "Tipo": "Despesa 70%", "Valor": desp_m})
-    
-    if evol_data:
-        fig1 = px.bar(pd.DataFrame(evol_data), x='Mês', y='Valor', color='Tipo', barmode='group',
-                      color_discrete_map={"Receita Realizada": "#636EFA", "Despesa 70%": "#00CC96"})
-        fig1.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig1.update_layout(separators=",.", legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
-        st.plotly_chart(fig1, use_container_width=True, config=CONFIG_PT)
-
-    st.markdown("---")
-
-    # --- GRÁFICO 2 ---
-    st.markdown("<h3 style='text-align: center;'>Natureza da Despesa (Custeio x Capital)</h3>", unsafe_allow_html=True)
-    df_f['Natureza'] = df_f['Elemento'].apply(lambda x: 'Capital (Invest.)' if str(x).startswith('4.') else 'Custeio (Manut.)')
-    res_nat = df_f.groupby('Natureza')['Orçado'].sum().reset_index()
-    fig2 = px.pie(res_nat, values='Orçado', names='Natureza', hole=.4,
-                  color_discrete_map={'Custeio (Manut.)':'#00CC96', 'Capital (Invest.)':'#EF553B'})
-    fig2.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
-    fig2.update_layout(separators=",.", legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02))
-    st.plotly_chart(fig2, use_container_width=True, config=CONFIG_PT)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Arrecadado (Ano)", formar_real(tot_rec_ano))
+    c2.metric("Previsto para 2026", formar_real(tot_prev_2026))
+    c3.metric("Aplicação em Pessoal (70%)", f"{perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
 
     st.markdown("---")
 
-    # --- GRÁFICO 3 ---
-    st.markdown("<h3 style='text-align: center;'>Maiores Investimentos por Atividade</h3>", unsafe_allow_html=True)
-    res_atv = df_f.groupby('Atividade')['Orçado'].sum().sort_values(ascending=False).head(5).reset_index()
-    fig3 = px.bar(res_atv, x='Orçado', y='Atividade', orientation='h', color_discrete_sequence=['#636EFA'])
-    fig3.update_traces(hovertemplate="<b>%{y}</b><br>Total: R$ %{x:,.2f}<extra></extra>")
-    fig3.update_layout(separators=",.", yaxis={'categoryorder':'total ascending'})
-    st.plotly_chart(fig3, use_container_width=True, config=CONFIG_PT)
+    # --- SEÇÃO 1: RECEITAS ---
+    st.subheader("🔹 1. Análise de Receitas FUNDEB")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("<p style='text-align: center;'><b>Arrecadação por Categoria</b></p>", unsafe_allow_html=True)
+        fig_pie_r = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
+                          color_discrete_sequence=px.colors.qualitative.Pastel)
+        st.plotly_chart(fig_pie_r, use_container_width=True, config=CONFIG_PT)
+        
+    with col2:
+        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal (Receitas)</b></p>", unsafe_allow_html=True)
+        rec_mensal = []
+        for m in meses:
+            for sub in df_r_fundeb['Subcategoria'].unique():
+                val = df_r_fundeb[df_r_fundeb['Subcategoria'] == sub][m].sum()
+                rec_mensal.append({"Mês": m, "Categoria": sub, "Valor": val})
+        fig_bar_r = px.bar(pd.DataFrame(rec_mensal), x='Mês', y='Valor', color='Categoria', barmode='stack')
+        st.plotly_chart(fig_bar_r, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
 
-    # --- TABELAS ---
-    st.subheader("📋 Relatório Geral de Fichas")
-    df_rel = df_f[['Atividade', 'Ficha', 'Elemento', 'Fonte', 'Orçado', 'Saldo']].copy()
-    for c in ['Orçado', 'Saldo']: df_rel[c] = df_rel[c].apply(formar_real)
-    st.dataframe(df_rel, use_container_width=True, hide_index=True)
+    # --- SEÇÃO 2: DESPESAS ---
+    st.subheader("🔹 2. Análise de Despesas FUNDEB")
+    col3, col4 = st.columns(2)
+
+    with col3:
+        st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte</b></p>", unsafe_allow_html=True)
+        desp_por_fonte = df_f_fundeb.groupby('Fonte_Agrupada')['Orçado'].sum().reset_index()
+        fig_pie_f = px.pie(desp_por_fonte, values='Orçado', names='Fonte_Agrupada', hole=.4,
+                          color_discrete_sequence=px.colors.qualitative.Safe)
+        st.plotly_chart(fig_pie_f, use_container_width=True, config=CONFIG_PT)
+
+    with col4:
+        st.markdown("<p style='text-align: center;'><b>Movimentação Mensal (Despesas)</b></p>", unsafe_allow_html=True)
+        desp_mensal = []
+        for m in meses:
+            col_liq = f"{m}_Liquidado"
+            if col_liq in df_f_fundeb.columns:
+                for fonte in df_f_fundeb['Fonte_Agrupada'].unique():
+                    val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][col_liq].sum()
+                    desp_mensal.append({"Mês": m, "Fonte": fonte, "Valor": val})
+        if desp_mensal:
+            fig_bar_f = px.bar(pd.DataFrame(desp_mensal), x='Mês', y='Valor', color='Fonte', barmode='stack')
+            st.plotly_chart(fig_bar_f, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
-    st.subheader("📊 Relatório Geral das Receitas")
-    df_r_rel = df_r[['Código', 'Categoria', 'Descrição da Receita', 'Total', 'Orçado Receitas']].copy()
-    for c in ['Total', 'Orçado Receitas']: df_r_rel[c] = df_r_rel[c].apply(formar_real)
-    st.dataframe(df_r_rel, use_container_width=True, hide_index=True)
 
-    # --- SEÇÃO DINÂMICA DE RECEITAS ---
-    st.markdown("---")
-    st.markdown("<h3 style='text-align: center;'>Análise Mensal por Receita Específica</h3>", unsafe_allow_html=True)
+    # --- SEÇÃO 3: COMPARAÇÃO GERAL ---
+    st.subheader("🔹 3. Análise Comparativa Final")
     
-    c_cat, c_desc = st.columns([1, 1])
-    with c_cat:
-        categorias_disp = sorted(df_r['Categoria'].unique())
-        cat_selecionada = st.radio("Selecione a Categoria:", categorias_disp, horizontal=True)
-    with c_desc:
-        desc_disp = sorted(df_r[df_r['Categoria'] == cat_selecionada]['Descrição da Receita'].unique())
-        receita_especifica = st.selectbox("Selecione a Descrição da Receita:", desc_disp)
-    
-    df_rec_sel = df_r[(df_r['Categoria'] == cat_selecionada) & (df_r['Descrição da Receita'] == receita_especifica)]
-    evol_rec = [{"Mês": m, "Valor": df_rec_sel[m].sum()} for m in meses if m in df_rec_sel.columns]
-    
-    if evol_rec:
-        fig_rec = px.bar(pd.DataFrame(evol_rec), x='Mês', y='Valor', color_discrete_sequence=['#636EFA'])
-        fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>Receita: " + receita_especifica + "<br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig_rec.update_layout(separators=",.", yaxis_title="Valor (R$)", xaxis_title="Mês")
-        st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
+    comp_data = [
+        {"Tipo": "Total Receitas", "Valor": tot_rec_ano},
+        {"Tipo": "Total Despesas (Liq.)", "Valor": df_f_fundeb[[c for c in df_f.columns if 'Liquidado' in c]].sum().sum()}
+    ]
+    fig_comp = px.bar(pd.DataFrame(comp_data), x='Tipo', y='Valor', color='Tipo', text_auto='.2s')
+    st.plotly_chart(fig_comp, use_container_width=True)
+
+    # Tabela de conferência rápida
+    with st.expander("Ver Detalhamento das Fichas FUNDEB"):
+        st.dataframe(df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo']], use_container_width=True)
 
 else:
-    st.error("Erro ao localizar as bases de dados.")
+    st.error("Erro ao carregar as bases de Alpinópolis.")
