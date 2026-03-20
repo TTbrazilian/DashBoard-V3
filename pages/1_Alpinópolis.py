@@ -92,7 +92,6 @@ if df_f_raw is not None and df_r is not None:
         desc = desc.upper()
         if 'VAAR' in desc: return 'VAAR'
         if 'ETI' in desc or 'TEMPO INTEGRAL' in desc: return 'ETI'
-        if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
         return 'Principal'
 
     def cat_fonte_desp(fonte):
@@ -128,7 +127,7 @@ if df_f_raw is not None and df_r is not None:
     
     st.markdown("<p style='text-align: center;'><b>Distribuição por Categoria</b></p>", unsafe_allow_html=True)
     fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
-                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
+                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
     fig_r_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
     fig_r_pie.update_layout(separators=",.")
     st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
@@ -141,7 +140,7 @@ if df_f_raw is not None and df_r is not None:
             val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
             dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
     fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='group',
-                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
+                       color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
     fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
     fig_r_bar.update_layout(separators=",.", yaxis_title="R$")
     st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
@@ -151,51 +150,34 @@ if df_f_raw is not None and df_r is not None:
     # --- SEÇÃO 2: DESPESAS ---
     st.subheader("🔹 2. Despesas FUNDEB")
 
+    # Garantir que as legendas apareçam mesmo zeradas com os novos nomes
     fontes_obrigatorias = ['Fundeb 70%', 'Fundeb 30%', 'Fundeb ETI', 'Fundeb Superávit']
     
-    # Preparação de dados Orçado vs Liquidado
-    df_f_fundeb['Total_Liquidado'] = df_f_fundeb[col_liq_total].sum(axis=1)
-    df_grouped = df_f_fundeb.groupby('Fonte_Agrupada').agg({'Orçado': 'sum', 'Total_Liquidado': 'sum'}).reset_index()
+    st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte</b></p>", unsafe_allow_html=True)
     
-    # Garantir legendas mesmo zeradas
+    df_plot_f = df_f_fundeb.groupby('Fonte_Agrupada')['Orçado'].sum().reset_index()
     for f in fontes_obrigatorias:
-        if f not in df_grouped['Fonte_Agrupada'].values:
-            df_grouped = pd.concat([df_grouped, pd.DataFrame({'Fonte_Agrupada': [f], 'Orçado': [0.0], 'Total_Liquidado': [0.0]})])
+        if f not in df_plot_f['Fonte_Agrupada'].values:
+            df_plot_f = pd.concat([df_plot_f, pd.DataFrame({'Fonte_Agrupada': [f], 'Orçado': [0.0]})])
 
-    # Gráficos Lado a Lado para Comparação Orçado vs Liquidado
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte (Orçado)</b></p>", unsafe_allow_html=True)
-        fig_f_pie_orc = px.pie(df_grouped, values='Orçado', names='Fonte_Agrupada', hole=.4,
-                               category_orders={"Fonte_Agrupada": fontes_obrigatorias})
-        fig_f_pie_orc.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
-        fig_f_pie_orc.update_layout(separators=",.", showlegend=False)
-        st.plotly_chart(fig_f_pie_orc, use_container_width=True, config=CONFIG_PT)
+    fig_f_pie = px.pie(df_plot_f, values='Orçado', names='Fonte_Agrupada', hole=.4,
+                       category_orders={"Fonte_Agrupada": fontes_obrigatorias})
+    fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
+    fig_f_pie.update_layout(separators=",.")
+    st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
-    with col_p2:
-        st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte (Liquidado)</b></p>", unsafe_allow_html=True)
-        fig_f_pie_liq = px.pie(df_grouped, values='Total_Liquidado', names='Fonte_Agrupada', hole=.4,
-                               category_orders={"Fonte_Agrupada": fontes_obrigatorias})
-        fig_f_pie_liq.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Liquidado: R$ %{value:,.2f}<extra></extra>")
-        fig_f_pie_liq.update_layout(separators=",.")
-        st.plotly_chart(fig_f_pie_liq, use_container_width=True, config=CONFIG_PT)
-
-    st.markdown("<p style='text-align: center;'><b>Movimentação Mensal (Orçado vs Liquidado)</b></p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Agrupada</b></p>", unsafe_allow_html=True)
     dados_m_f = []
     for m in meses:
         c_liq = f"{m}_Liquidado"
-        c_orc = f"{m}_Orçado" # Assumindo que o arquivo segue o padrão de colunas
         for fonte in fontes_obrigatorias:
-            val_liq = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum() if c_liq in df_f_fundeb.columns else 0.0
-            val_orc = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte]['Orçado'].sum() / 12 # Proporção mensal estimada ou use coluna específica se houver
+            val = 0.0
+            if c_liq in df_f_fundeb.columns:
+                val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum()
+            dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
             
-            dados_m_f.append({"Mês": m, "Fonte": fonte, "Tipo": "Liquidado", "Valor": val_liq})
-            # Se houver coluna de orçado mensal, ajuste aqui. Caso contrário, mantemos o foco no Liquidado mensal comparado ao Orçado total na pizza acima.
-
-    # Gráfico de barras mantendo o foco solicitado (Liquidado por mês)
     if dados_m_f:
-        df_bar_f = pd.DataFrame(dados_m_f)
-        fig_f_bar = px.bar(df_bar_f, x='Mês', y='Valor', color='Fonte', barmode='group',
+        fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group',
                            category_orders={"Fonte": fontes_obrigatorias})
         fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_f_bar.update_layout(separators=",.", yaxis_title="R$")
@@ -207,15 +189,13 @@ if df_f_raw is not None and df_r is not None:
     st.subheader("🔹 3. Análises e Equilíbrio")
     
     total_desp_liq = df_f_fundeb[col_liq_total].sum().sum()
-    total_desp_orc = df_f_fundeb['Orçado'].sum()
-    
     df_comp = pd.DataFrame({
-        "Tipo": ["Receitas", "Despesas (Orçado)", "Despesas (Liq.)"],
-        "Valor": [tot_rec_ano, total_desp_orc, total_desp_liq]
+        "Tipo": ["Total Receitas", "Total Despesas (Liq.)"],
+        "Valor": [tot_rec_ano, total_desp_liq]
     })
     
     fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', barmode='group',
-                      color_discrete_map={"Receitas": "#636EFA", "Despesas (Orçado)": "#FECB52", "Despesas (Liq.)": "#EF553B"})
+                      color_discrete_map={"Total Receitas": "#636EFA", "Total Despesas (Liq.)": "#EF553B"})
     
     fig_comp.update_traces(
         texttemplate='R$ %{y:,.2f}', 
@@ -227,8 +207,8 @@ if df_f_raw is not None and df_r is not None:
 
     # Tabela de Conferência
     st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
-    df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Total_Liquidado', 'Saldo']].copy()
-    for col in ['Orçado', 'Total_Liquidado', 'Saldo']: df_f_final[col] = df_f_final[col].apply(formar_real)
+    df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo']].copy()
+    for col in ['Orçado', 'Saldo']: df_f_final[col] = df_f_final[col].apply(formar_real)
     st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
 else:
