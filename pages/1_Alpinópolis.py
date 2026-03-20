@@ -104,7 +104,8 @@ if df_f_raw is not None and df_r is not None:
     df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
     df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
     
-    df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
+    # AJUSTE: Filtro expandido para incluir as fontes 1546 e 2540
+    df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546|2540', na=False)].copy()
     df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(cat_fonte_desp)
 
     # --- INDICADORES ---
@@ -125,7 +126,6 @@ if df_f_raw is not None and df_r is not None:
     # --- SEÇÃO 1: RECEITAS ---
     st.subheader("🔹 1. Receitas FUNDEB")
     
-    # Gráfico de Pizza centralizado
     st.markdown("<p style='text-align: center;'><b>Distribuição por Categoria</b></p>", unsafe_allow_html=True)
     fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
                        color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
@@ -133,7 +133,6 @@ if df_f_raw is not None and df_r is not None:
     fig_r_pie.update_layout(separators=",.")
     st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
 
-    # Gráfico de Barras centralizado (abaixo da pizza)
     st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Agrupada</b></p>", unsafe_allow_html=True)
     meses = ['Janeiro', 'Fevereiro', 'Março']
     dados_m_r = []
@@ -152,14 +151,12 @@ if df_f_raw is not None and df_r is not None:
     # --- SEÇÃO 2: DESPESAS ---
     st.subheader("🔹 2. Despesas FUNDEB")
 
-    # Gráfico de Pizza centralizado
     st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte</b></p>", unsafe_allow_html=True)
     fig_f_pie = px.pie(df_f_fundeb, values='Orçado', names='Fonte_Agrupada', hole=.4)
     fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
     fig_f_pie.update_layout(separators=",.")
     st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
-    # Gráfico de Barras centralizado (abaixo da pizza)
     st.markdown("<p style='text-align: center;'><b>Movimentação Mensal Agrupada</b></p>", unsafe_allow_html=True)
     dados_m_f = []
     for m in meses:
@@ -196,7 +193,6 @@ if df_f_raw is not None and df_r is not None:
     fig_comp.update_layout(separators=",.", yaxis_title="R$")
     st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
-    # Tabela de Conferência
     st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
     df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo']].copy()
     for col in ['Orçado', 'Saldo']: df_f_final[col] = df_f_final[col].apply(formar_real)
