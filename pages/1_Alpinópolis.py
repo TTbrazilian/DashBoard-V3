@@ -86,7 +86,7 @@ if df_f_raw is not None and df_r is not None:
     # --- TÍTULO ---
     st.markdown("<h1 style='text-align: left;'>📘 Painel Especial: FUNDEB</h1>", unsafe_allow_html=True)
 
-    # --- CATEGORIZAÇÃO (PEDIDO DA VÉIA) ---
+    # --- CATEGORIZAÇÃO ---
     def cat_receita(desc):
         desc = desc.upper()
         if 'VAAR' in desc: return 'VAAR'
@@ -106,11 +106,9 @@ if df_f_raw is not None and df_r is not None:
     df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
     df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(cat_fonte_desp)
 
-    # --- INDICADORES (CARDS) ---
+    # --- INDICADORES ---
     tot_rec_ano = df_r_fundeb['Total'].sum()
     tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
-    
-    # Regra dos 70%: (Despesa 15407) / (Receita total - VAAR)
     rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
     col_liq_total = [c for c in df_f.columns if 'Liquidado' in c]
     desp_70_val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == '15407 (70%)'][col_liq_total].sum().sum()
@@ -144,6 +142,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
         fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='stack',
                            color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
+        fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_r_bar.update_layout(separators=",.", yaxis_title="R$")
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
@@ -170,6 +169,7 @@ if df_f_raw is not None and df_r is not None:
                     dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         if dados_m_f:
             fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='stack')
+            fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
             fig_f_bar.update_layout(separators=",.", yaxis_title="R$")
             st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
 
@@ -178,18 +178,25 @@ if df_f_raw is not None and df_r is not None:
     # --- SEÇÃO 3: ANÁLISES E COMPARAÇÃO ---
     st.subheader("🔹 3. Análises e Equilíbrio")
     
-    # Gráfico Comparativo Receita x Despesa
     total_desp_liq = df_f_fundeb[col_liq_total].sum().sum()
     df_comp = pd.DataFrame({
         "Tipo": ["Total Receitas", "Total Despesas (Liq.)"],
         "Valor": [tot_rec_ano, total_desp_liq]
     })
-    fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto=True,
+    # AJUSTE: barmode='group' para ficar lado a lado
+    fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto=False, barmode='group',
                       color_discrete_map={"Total Receitas": "#636EFA", "Total Despesas (Liq.)": "#EF553B"})
-    fig_comp.update_traces(texttemplate='R$ %{y:,.2s}', textposition='outside', hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
+    
+    # AJUSTE: Hover padrão BR
+    fig_comp.update_traces(
+        texttemplate='R$ %{y:,.2f}', 
+        textposition='outside', 
+        hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>"
+    )
+    fig_comp.update_layout(separators=",.", yaxis_title="R$")
     st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
-    # Tabela de Conferência (Relatório de Fichas)
+    # Tabela de Conferência
     st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
     df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo']].copy()
     for col in ['Orçado', 'Saldo']: df_f_final[col] = df_f_final[col].apply(formar_real)
