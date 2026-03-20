@@ -130,6 +130,7 @@ if df_f_raw is not None and df_r is not None:
         fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
                            color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B'})
         fig_r_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
+        fig_r_pie.update_layout(separators=",.")
         st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
 
     with c2:
@@ -156,6 +157,7 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte</b></p>", unsafe_allow_html=True)
         fig_f_pie = px.pie(df_f_fundeb, values='Orçado', names='Fonte_Agrupada', hole=.4)
         fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
+        fig_f_pie.update_layout(separators=",.")
         st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
     with c4:
