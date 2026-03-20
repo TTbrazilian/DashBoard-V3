@@ -8,12 +8,15 @@ import os
 st.set_page_config(page_title="Alpinópolis - FUNDEB", layout="wide")
 
 # --- FILTRO DO MENU LATERAL (OCULTA ITENS DE OUTROS SETORES) ---
+# Aqui garantimos que apenas municípios do setor de EDUCAÇÃO apareçam
 st.markdown(
     """
     <style>
+        /* Esconde especificamente municípios que NÃO são do setor atual (Educação) */
         [data-testid="stSidebarNav"] ul li div:has(span:contains("Bom Jesus")),
         [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")),
-        [data-testid="stSidebarNav"] ul li:has(span:contains("Penha")) {
+        [data-testid="stSidebarNav"] ul li:has(span:contains("Penha")),
+        [data-testid="stSidebarNav"] ul li:has(span:contains("São José da Barra")) {
             display: none !important;
         }
     </style>
