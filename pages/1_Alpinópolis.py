@@ -95,16 +95,15 @@ if df_f_raw is not None and df_r is not None:
         return 'Principal'
 
     def cat_fonte_desp(fonte):
-        if '15407' in fonte or ('1540' in fonte and fonte.endswith('7')): return '15407 (70%)'
-        if '15403' in fonte or ('1540' in fonte and fonte.endswith('3')): return '15403 (30%)'
-        if '1546' in fonte: return '1546 (ETI)'
-        if '2540' in fonte: return '2540 (Superávit)'
+        if '15407' in fonte or ('1540' in fonte and fonte.endswith('7')): return 'Fundeb 70%'
+        if '15403' in fonte or ('1540' in fonte and fonte.endswith('3')): return 'Fundeb 30%'
+        if '1546' in fonte: return 'Fundeb ETI'
+        if '2540' in fonte: return 'Fundeb Superávit'
         return 'Outras Fontes'
 
     df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
     df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
     
-    # Filtro permitindo as fontes solicitadas
     df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
     df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(cat_fonte_desp)
 
@@ -113,12 +112,12 @@ if df_f_raw is not None and df_r is not None:
     tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
     rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
     col_liq_total = [c for c in df_f.columns if 'Liquidado' in c]
-    desp_70_val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == '15407 (70%)'][col_liq_total].sum().sum()
+    desp_70_val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == 'Fundeb 70%'][col_liq_total].sum().sum()
     perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
     m1, m2, m3 = st.columns(3)
-    with m1: st.metric("Total Arrecadado (Ano)", formar_real(tot_rec_ano))
-    with m2: st.metric("Previsão Orçamentária 2026", formar_real(tot_prev_2026))
+    with m1: st.metric("Previsão Orçamentária 2026", formar_real(tot_prev_2026))
+    with m2: st.metric("Total Arrecadado (Jan - Mar)", formar_real(tot_rec_ano))
     with m3: st.metric("Aplicação em Pessoal (70%)", f"{perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
 
     st.markdown("---")
@@ -151,12 +150,11 @@ if df_f_raw is not None and df_r is not None:
     # --- SEÇÃO 2: DESPESAS ---
     st.subheader("🔹 2. Despesas FUNDEB")
 
-    # Garantir que as legendas apareçam mesmo zeradas
-    fontes_obrigatorias = ['15407 (70%)', '15403 (30%)', '1546 (ETI)', '2540 (Superávit)']
+    # Garantir que as legendas apareçam mesmo zeradas com os novos nomes
+    fontes_obrigatorias = ['Fundeb 70%', 'Fundeb 30%', 'Fundeb ETI', 'Fundeb Superávit']
     
     st.markdown("<p style='text-align: center;'><b>Distribuição por Fonte</b></p>", unsafe_allow_html=True)
     
-    # Criamos um DataFrame de plotagem que contém as fontes obrigatórias com valor 0 se não existirem
     df_plot_f = df_f_fundeb.groupby('Fonte_Agrupada')['Orçado'].sum().reset_index()
     for f in fontes_obrigatorias:
         if f not in df_plot_f['Fonte_Agrupada'].values:
