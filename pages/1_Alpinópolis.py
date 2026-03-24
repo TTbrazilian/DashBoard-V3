@@ -68,7 +68,7 @@ def load_all_data():
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
 
-    # Base de Despesa por Fonte (CONSOLIDADO) - Ajustado para nova estrutura com coluna 'Tipo'
+    # Base de Despesa por Fonte (CONSOLIDADO)
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
 
@@ -121,10 +121,8 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # LOCALIZAÇÃO SEGURA NO ARQUIVO DF
         col_fonte_df = 'Fonte'
         
-        # Filtrar o consolidado FUNDEB
         df_df_fundeb = df_df_raw[df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False)].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb[col_fonte_df].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
 
@@ -158,7 +156,8 @@ if df_f_raw is not None and df_r is not None:
         st.subheader("🔹 1. Receitas FUNDEB")
         fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
                            color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
-        fig_r_pie.update_traces(hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
+        # AJUSTE SOLICITADO: Nomes e porcentagens visíveis
+        fig_r_pie.update_traces(textinfo='label+percent', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
         fig_r_pie.update_layout(separators=',.')
         st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
 
@@ -199,11 +198,10 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 3. Análises e Equilíbrio")
         total_desp_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado']['Total'].sum() 
-        # ALTERAÇÃO SOLICITADA: Nomes iguais para barra e legenda
-        df_comp = pd.DataFrame({"Legenda": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
-        fig_comp = px.bar(df_comp, x='Legenda', y='Valor', color='Legenda')
+        df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
+        fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo')
         fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig_comp.update_layout(separators=',.', xaxis_title=None)
+        fig_comp.update_layout(separators=',.')
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
