@@ -144,7 +144,6 @@ if df_f_raw is not None and df_r is not None:
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
         
-        # CORREÇÃO: Pegar soma da coluna 'Total' apenas onde o 'Tipo' é 'Liquidado'
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & 
                                    (df_df_fundeb['Tipo'] == 'Liquidado')]['Total'].sum()
         
@@ -177,7 +176,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada)")
         
-        # CORREÇÃO: Filtrar apenas liquidados para o gráfico de pizza
         df_plot_f = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'].groupby('Fonte_Nome')['Total'].sum().reset_index()
         
         fig_f_pie = px.pie(df_plot_f, values='Total', names='Fonte_Nome', hole=.4,
@@ -189,7 +187,6 @@ if df_f_raw is not None and df_r is not None:
         dados_m_f = []
         for m in meses:
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
-                # CORREÇÃO: Buscar o valor do mês 'm' onde o Tipo é Liquidado
                 val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & 
                                    (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
@@ -201,12 +198,12 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 3. Análises e Equilíbrio")
-        # CORREÇÃO: Soma apenas do Tipo Liquidado
         total_desp_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado']['Total'].sum() 
-        df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
-        fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo')
+        # ALTERAÇÃO SOLICITADA: Nomes iguais para barra e legenda
+        df_comp = pd.DataFrame({"Legenda": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
+        fig_comp = px.bar(df_comp, x='Legenda', y='Valor', color='Legenda')
         fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig_comp.update_layout(separators=',.')
+        fig_comp.update_layout(separators=',.', xaxis_title=None)
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
