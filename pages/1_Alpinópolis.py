@@ -51,9 +51,12 @@ def buscar_arquivo(nome):
 def load_all_data():
     arquivo_f = "Alpinópolis.csv"
     arquivo_r = "Alpinópolis_R.csv"
-    path_f, path_r = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r)
-    if not path_f or not path_r: return None, None
+    arquivo_df = "Alpinópolis_DF.csv" # Novo arquivo de Despesa por Fonte
     
+    path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
+    if not path_f or not path_r or not path_df: return None, None, None
+    
+    # Base de Fichas
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
@@ -61,21 +64,30 @@ def load_all_data():
         else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
 
+    # Base de Receitas
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
+
+    # Base de Despesa por Fonte (CONSOLIDADO)
+    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=1)
+    df_df.columns = [str(c).strip() for c in df_df.columns]
     
+    # Limpeza de valores
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
             df_f[col] = df_f[col].apply(limpar_valor)
     for col in df_r.columns:
         if any(k in col for k in ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Dedução']):
             df_r[col] = df_r[col].apply(limpar_valor)
+    for col in df_df.columns:
+        if any(k in col for k in ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Liquidado', 'Empenhado', 'Pago']):
+            df_df[col] = df_df[col].apply(limpar_valor)
             
     df_f['Fonte'] = df_f['Fonte'].astype(str)
-    return df_f, df_r
+    return df_f, df_r, df_df
 
 # --- PROCESSAMENTO INICIAL ---
-df_f_raw, df_r = load_all_data()
+df_f_raw, df_r, df_df_raw = load_all_data()
 
 if df_f_raw is not None and df_r is not None:
     # --- SIDEBAR E BOTÕES DE NAVEGAÇÃO ---
@@ -108,26 +120,29 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
+        # Usando a base consolidada para as métricas e gráficos de despesa
+        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].astype(str).str.contains('15407|15403', na=False)].copy()
+        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
+
+        df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
+        df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
+        
+        # Manter df_f_fundeb para o relatório detalhado (fichas)
+        df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
         def cat_fonte_desp(fonte):
             if '15407' in fonte: return 'FUNDEB 70%'
             if '15403' in fonte: return 'FUNDEB 30%'
             if '1546' in fonte: return 'FUNDEB ETI'
             if '2540' in fonte: return 'FUNDEB Superávit'
             return 'Outras Fontes'
-
-        df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
-        df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
-        df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
         df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(cat_fonte_desp)
 
         tot_rec_ano = df_r_fundeb['Total'].sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
-        col_liq_total = [c for c in df_f.columns if 'Liquidado' in c]
         
-        # --- CÁLCULO DO VALOR LIQUIDADO POR FONTE ---
-        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_total].sum(axis=1)
-        desp_70_val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == 'FUNDEB 70%']['Soma_Liquidado'].sum()
+        # --- CÁLCULO DO VALOR LIQUIDADO PUXANDO DA NOVA BASE (DF) ---
+        desp_70_val = df_df_fundeb[df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%']['Liquidado'].sum()
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
         m1, m2, m3 = st.columns(3)
@@ -157,22 +172,22 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada)")
         
-        # --- FILTRO PARA O GRÁFICO MOSTRAR APENAS 70% E 30% CONFORME SOLICITADO ---
-        df_plot_f = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'].isin(['FUNDEB 70%', 'FUNDEB 30%'])]
-        df_plot_f = df_plot_f.groupby('Fonte_Agrupada')['Soma_Liquidado'].sum().reset_index()
+        # --- GRÁFICO CORRIGIDO PARA PUXAR DA ABA DESPESA POR FONTE ---
+        df_plot_f = df_df_fundeb.groupby('Fonte_Nome')['Liquidado'].sum().reset_index()
         
-        fig_f_pie = px.pie(df_plot_f, values='Soma_Liquidado', names='Fonte_Agrupada', hole=.4,
+        fig_f_pie = px.pie(df_plot_f, values='Liquidado', names='Fonte_Nome', hole=.4,
                            color_discrete_map={'FUNDEB 70%':'#4169E1', 'FUNDEB 30%':'#FF4500'})
-        fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Liquidado: R$ %{value:,.2f}<extra></extra>")
+        fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Total Liquidado: R$ %{value:,.2f}<extra></extra>")
         fig_f_pie.update_layout(separators=',.')
         st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
         dados_m_f = []
         for m in meses:
-            c_liq = f"{m}_Liquidado"
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
-                val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum() if c_liq in df_f_fundeb.columns else 0.0
+                # Puxa o valor liquidado mensal do arquivo consolidado
+                val = df_df_fundeb[df_df_fundeb['Fonte_Nome'] == fonte][f"{m} Liquidado"].sum() if f"{m} Liquidado" in df_df_fundeb.columns else 0.0
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
+        
         fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
         fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_f_bar.update_layout(separators=',.')
@@ -180,7 +195,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 3. Análises e Equilíbrio")
-        total_desp_liq = df_f_fundeb['Soma_Liquidado'].sum()
+        total_desp_liq = df_df_fundeb['Liquidado'].sum() # Valor total liquidado do consolidado
         df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
         fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo')
         fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
@@ -188,6 +203,9 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
+        # Este relatório continua vindo das fichas para permitir auditoria item por item
+        col_liq_fichas = [c for c in df_f.columns if 'Liquidado' in c]
+        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo', 'Soma_Liquidado']].copy()
         for col in ['Orçado', 'Saldo', 'Soma_Liquidado']: df_f_final[col] = df_f_final[col].apply(formar_real)
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
@@ -212,6 +230,7 @@ if df_f_raw is not None and df_r is not None:
         with m2: st.metric("Despesas 15001 (Liq.)", formar_real(tot_desp_15001))
         with m3: st.metric("Percentual dos 25%", f"{perc_atual:.2f}%", delta=f"{perc_atual-25:.2f}%")
 
+        # ... (Resto do código de Recursos Próprios permanece inalterado)
         st.markdown("---")
         st.subheader("🔹 1. Análise de Receitas e Impostos")
         meses = ['Janeiro', 'Fevereiro', 'Março']
