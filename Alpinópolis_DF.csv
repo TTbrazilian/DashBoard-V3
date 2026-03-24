@@ -1,4 +1,4 @@
-Empenhado,Nomenclatura,nº,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,Total,,,,,,,,,
+Empenhado,Nomenclatura,Fonte,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,Total,,,,,,,,,
 ,Próprio ,1500,"R$ 218.159,69","R$ 37.261,05","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 255.420,74",,,,,,,,,"R$ 0,00"
 ,Próprio Educação,15001,"R$ 627.706,54","R$ 973.707,76","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 1.601.414,30",,,,,,,,,
 ,FUNDEB 70%,15407,"R$ 790.949,68","R$ 989.045,58","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 1.779.995,26",,,,,,,,,
@@ -15,7 +15,7 @@ Empenhado,Nomenclatura,nº,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agos
 ,Trans. Vinculadas,2751,"R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00",,,,,,,,,
 ,PDDE,1551,"R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00",,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,
-Liquidado,Nomenclatura,nº,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,Total,,,,,,,,,
+Liquidado,Nomenclatura,Fonte,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,Total,,,,,,,,,
 ,Próprio ,1500,"R$ 12.174,73","R$ 37.009,05","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 49.183,78",,,,,,,,,
 ,Próprio Educação,15001,"R$ 157.414,21","R$ 337.247,24","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 494.661,45",,,,,,,,,
 ,FUNDEB 70%,15407,"R$ 790.949,68","R$ 989.045,58","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 1.779.995,26",,,,,,,,,
@@ -32,7 +32,7 @@ Liquidado,Nomenclatura,nº,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agos
 ,Trans. Vinculadas,2751,"R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00",,,,,,,,,
 ,PDDE,1551,"R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00",,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,
-Pago,Nomenclatura,nº,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,Total,,,,,,,,,
+Pago,Nomenclatura,Fonte,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,Total,,,,,,,,,
 ,Próprio ,1500,"R$ 7.648,89","R$ 40.937,16","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 48.586,05",,,,,,,,,
 ,Próprio Educação,15001,"R$ 133.604,43","R$ 283.433,06","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 417.037,49",,,,,,,,,
 ,FUNDEB 70%,15407,"R$ 676.544,54","R$ 957.767,97","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 0,00","R$ 1.634.312,51",,,,,,,,,
