@@ -85,13 +85,11 @@ if df_f_raw is not None and df_r is not None:
     st.sidebar.markdown("---")
     st.sidebar.subheader("Setores")
     
-    # Botões empilhados
     if st.sidebar.button("FUNDEB", use_container_width=True):
         st.session_state.setor = 'FUNDEB'
     if st.sidebar.button("Recursos Próprios", use_container_width=True):
         st.session_state.setor = 'Recursos Próprios'
 
-    # --- LÓGICA DE FILTRAGEM ---
     df_f = df_f_raw.copy()
     if search_term:
         mask = (df_f['Atividade'].str.contains(search_term, case=False, na=False) |
@@ -126,7 +124,10 @@ if df_f_raw is not None and df_r is not None:
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
         col_liq_total = [c for c in df_f.columns if 'Liquidado' in c]
-        desp_70_val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == 'Fundeb 70%'][col_liq_total].sum().sum()
+        
+        # --- CÁLCULO DO VALOR LIQUIDADO POR FONTE ---
+        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_total].sum(axis=1)
+        desp_70_val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == 'Fundeb 70%']['Soma_Liquidado'].sum()
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
         m1, m2, m3 = st.columns(3)
@@ -154,14 +155,13 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        st.subheader("🔹 2. Despesas FUNDEB")
+        st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada)")
         
-        # --- CORREÇÃO SOLICITADA: Soma das parcelas liquidadas para o gráfico de rosca ---
-        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_total].sum(axis=1)
+        # --- CORREÇÃO FINAL DO GRÁFICO DE ROSCA (VALUES AGORA É LIQUIDADO) ---
         df_plot_f = df_f_fundeb.groupby('Fonte_Agrupada')['Soma_Liquidado'].sum().reset_index()
         
         fig_f_pie = px.pie(df_plot_f, values='Soma_Liquidado', names='Fonte_Agrupada', hole=.4)
-        fig_f_pie.update_traces(hovertemplate="<b>%{label}</b><br>Liquidado: R$ %{value:,.2f}<extra></extra>")
+        fig_f_pie.update_traces(hovertemplate="<b>%{label}</b><br>Total Liquidado: R$ %{value:,.2f}<extra></extra>")
         fig_f_pie.update_layout(separators=',.')
         st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
@@ -178,7 +178,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 3. Análises e Equilíbrio")
-        total_desp_liq = df_f_fundeb[col_liq_total].sum().sum()
+        total_desp_liq = df_f_fundeb['Soma_Liquidado'].sum()
         df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
         fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo')
         fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
@@ -186,8 +186,8 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
-        df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo']].copy()
-        for col in ['Orçado', 'Saldo']: df_f_final[col] = df_f_final[col].apply(formar_real)
+        df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo', 'Soma_Liquidado']].copy()
+        for col in ['Orçado', 'Saldo', 'Soma_Liquidado']: df_f_final[col] = df_f_final[col].apply(formar_real)
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
     # --- PÁGINA: RECURSOS PRÓPRIOS ---
@@ -250,7 +250,6 @@ if df_f_raw is not None and df_r is not None:
         fig_25.update_layout(separators=',.')
         st.plotly_chart(fig_25, use_container_width=True, config=CONFIG_PT)
 
-        # Relatório detalhado RP
         st.markdown("### 📋 Relatório de Fichas Recursos Próprios (Detalhamento)")
         df_f_final_rp = df_f_15001[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
         for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
