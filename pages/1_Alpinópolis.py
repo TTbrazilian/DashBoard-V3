@@ -68,7 +68,7 @@ def load_all_data():
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
 
-    # Base de Despesa por Fonte (CONSOLIDADO) - Ajustado para nova estrutura com coluna 'Tipo'
+    # Base de Despesa por Fonte (CONSOLIDADO)
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
 
@@ -121,10 +121,8 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # LOCALIZAÇÃO SEGURA NO ARQUIVO DF
         col_fonte_df = 'Fonte'
         
-        # Filtrar o consolidado FUNDEB
         df_df_fundeb = df_df_raw[df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False)].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb[col_fonte_df].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
 
@@ -167,10 +165,14 @@ if df_f_raw is not None and df_r is not None:
         for m in meses:
             for cat in df_r_fundeb['Subcategoria'].unique():
                 val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
+                # ALTERAÇÃO: 'Categoria' agora é usada tanto para legenda quanto para o eixo X
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
-        fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='group')
-        fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig_r_bar.update_layout(separators=',.')
+        
+        # Ajuste no gráfico de barras para comparação direta
+        fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Categoria', y='Valor', color='Categoria', 
+                           facet_col='Mês', barmode='group')
+        fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
+        fig_r_bar.update_layout(separators=',.', xaxis_title=None)
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -199,11 +201,10 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 3. Análises e Equilíbrio")
         total_desp_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado']['Total'].sum() 
-        # ALTERAÇÃO SOLICITADA: Nomes iguais para barra e legenda
-        df_comp = pd.DataFrame({"Legenda": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
-        fig_comp = px.bar(df_comp, x='Legenda', y='Valor', color='Legenda')
+        df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
+        fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo')
         fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
-        fig_comp.update_layout(separators=',.', xaxis_title=None)
+        fig_comp.update_layout(separators=',.')
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
