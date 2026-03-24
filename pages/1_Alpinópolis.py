@@ -84,10 +84,11 @@ if df_f_raw is not None and df_r is not None:
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("Setores")
-    col_btn1, col_btn2 = st.sidebar.columns(2)
-    if col_btn1.button("FUNDEB", use_container_width=True):
+    
+    # Botões empilhados (um acima do outro)
+    if st.sidebar.button("FUNDEB", use_container_width=True):
         st.session_state.setor = 'FUNDEB'
-    if col_btn2.button("Recursos Próprios", use_container_width=True):
+    if st.sidebar.button("Recursos Próprios", use_container_width=True):
         st.session_state.setor = 'Recursos Próprios'
 
     # --- LÓGICA DE FILTRAGEM ---
@@ -137,6 +138,7 @@ if df_f_raw is not None and df_r is not None:
         st.subheader("🔹 1. Receitas FUNDEB")
         fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
                            color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
+        fig_r_pie.update_traces(hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
         st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
 
         meses = ['Janeiro', 'Fevereiro', 'Março']
@@ -146,12 +148,14 @@ if df_f_raw is not None and df_r is not None:
                 val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
         fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='group')
+        fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB")
         df_plot_f = df_f_fundeb.groupby('Fonte_Agrupada')['Orçado'].sum().reset_index()
         fig_f_pie = px.pie(df_plot_f, values='Orçado', names='Fonte_Agrupada', hole=.4)
+        fig_f_pie.update_traces(hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
         st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
         dados_m_f = []
@@ -160,13 +164,17 @@ if df_f_raw is not None and df_r is not None:
             for fonte in df_f_fundeb['Fonte_Agrupada'].unique():
                 val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum() if c_liq in df_f_fundeb.columns else 0.0
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
-        st.plotly_chart(px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group'), use_container_width=True)
+        fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
+        fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
+        st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
         st.subheader("🔹 3. Análises e Equilíbrio")
         total_desp_liq = df_f_fundeb[col_liq_total].sum().sum()
         df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
-        st.plotly_chart(px.bar(df_comp, x='Tipo', y='Valor', color='Tipo'), use_container_width=True)
+        fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo')
+        fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
+        st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
         df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo']].copy()
@@ -207,13 +215,14 @@ if df_f_raw is not None and df_r is not None:
         dados_rec_mensal = []
         for m in meses:
             val_r = df_r_imp[m].sum()
-            # Tenta encontrar coluna de dedução específica do mês (Ex: Janeiro_Dedução)
             col_ded_m = [c for c in df_r_imp.columns if m in c and ('Dedução' in c or 'DEDUÇÃO' in c.upper())]
             val_d = df_r_imp[col_ded_m[0]].sum() if col_ded_m else 0.0
             dados_rec_mensal.append({"Mês": m, "Tipo": "Receita Impostos", "Valor": val_r})
             dados_rec_mensal.append({"Mês": m, "Tipo": "Deduções", "Valor": val_d})
         
-        st.plotly_chart(px.bar(pd.DataFrame(dados_rec_mensal), x='Mês', y='Valor', color='Tipo', barmode='group', title="Receitas vs Deduções Mensais"), use_container_width=True)
+        fig_rec = px.bar(pd.DataFrame(dados_rec_mensal), x='Mês', y='Valor', color='Tipo', barmode='group', title="Receitas vs Deduções Mensais")
+        fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
+        st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
         # Despesas
         st.subheader("🔹 2. Despesas Fonte 15001 (Mensal)")
@@ -224,7 +233,9 @@ if df_f_raw is not None and df_r is not None:
                 val = df_f_15001[col].sum() if col in df_f_15001.columns else 0.0
                 dados_desp_15001.append({"Mês": m, "Tipo": tipo, "Valor": val})
         
-        st.plotly_chart(px.bar(pd.DataFrame(dados_desp_15001), x='Mês', y='Valor', color='Tipo', barmode='group', title="Movimentação Fonte 15001"), use_container_width=True)
+        fig_desp = px.bar(pd.DataFrame(dados_desp_15001), x='Mês', y='Valor', color='Tipo', barmode='group', title="Movimentação Fonte 15001")
+        fig_desp.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
+        st.plotly_chart(fig_desp, use_container_width=True, config=CONFIG_PT)
 
         # Análise 25%
         st.subheader("🔹 3. Análise do Mínimo Constitucional (25%)")
@@ -233,7 +244,14 @@ if df_f_raw is not None and df_r is not None:
             "Valor": [tot_receita_imp, tot_deducoes, tot_desp_15001]
         })
         fig_25 = px.bar(df_ana_25, x='Descrição', y='Valor', color='Descrição', text_auto='.2s')
-        st.plotly_chart(fig_25, use_container_width=True)
+        fig_25.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
+        st.plotly_chart(fig_25, use_container_width=True, config=CONFIG_PT)
+
+        # Relatório Detalhado de Recursos Próprios (Fichas)
+        st.markdown("### 📋 Relatório de Fichas Recursos Próprios (Detalhamento)")
+        df_f_final_rp = df_f_15001[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
+        for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
+        st.dataframe(df_f_final_rp, use_container_width=True, hide_index=True)
 
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
