@@ -120,14 +120,18 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # Usando a base consolidada para as métricas e gráficos de despesa
-        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].astype(str).str.contains('15407|15403', na=False)].copy()
-        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
+        # CORREÇÃO KEYERROR: Localiza a coluna que contém 'Fonte' no arquivo consolidado (DF)
+        col_fonte_df = next((c for c in df_df_raw.columns if 'Fonte' in str(c)), 'Fonte')
 
+        # Usando a base consolidada (Alpinópolis_DF.csv) para as métricas e gráficos de despesa
+        df_df_fundeb = df_df_raw[df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False)].copy()
+        df_df_fundeb['Fonte_Nome'] = df_df_fundeb[col_fonte_df].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
+
+        # Usando a base de receitas (Alpinópolis_R.csv)
         df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        # Manter df_f_fundeb para o relatório detalhado (fichas)
+        # Manter df_f_fundeb para o relatório detalhado (Alpinópolis.csv)
         df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
         def cat_fonte_desp(fonte):
             if '15407' in fonte: return 'FUNDEB 70%'
@@ -172,7 +176,7 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada)")
         
-        # --- GRÁFICO CORRIGIDO PARA PUXAR DA ABA DESPESA POR FONTE ---
+        # --- GRÁFICO CORRIGIDO PARA PUXAR DA ABA DESPESA POR FONTE (DF) ---
         df_plot_f = df_df_fundeb.groupby('Fonte_Nome')['Liquidado'].sum().reset_index()
         
         fig_f_pie = px.pie(df_plot_f, values='Liquidado', names='Fonte_Nome', hole=.4,
@@ -184,8 +188,8 @@ if df_f_raw is not None and df_r is not None:
         dados_m_f = []
         for m in meses:
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
-                # Puxa o valor liquidado mensal do arquivo consolidado
-                val = df_df_fundeb[df_df_fundeb['Fonte_Nome'] == fonte][f"{m} Liquidado"].sum() if f"{m} Liquidado" in df_df_fundeb.columns else 0.0
+                col_liq_mes = f"{m} Liquidado"
+                val = df_df_fundeb[df_df_fundeb['Fonte_Nome'] == fonte][col_liq_mes].sum() if col_liq_mes in df_df_fundeb.columns else 0.0
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         
         fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
@@ -203,7 +207,7 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
-        # Este relatório continua vindo das fichas para permitir auditoria item por item
+        # Este relatório continua vindo das fichas (Alpinópolis.csv)
         col_liq_fichas = [c for c in df_f.columns if 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo', 'Soma_Liquidado']].copy()
@@ -230,7 +234,6 @@ if df_f_raw is not None and df_r is not None:
         with m2: st.metric("Despesas 15001 (Liq.)", formar_real(tot_desp_15001))
         with m3: st.metric("Percentual dos 25%", f"{perc_atual:.2f}%", delta=f"{perc_atual-25:.2f}%")
 
-        # ... (Resto do código de Recursos Próprios permanece inalterado)
         st.markdown("---")
         st.subheader("🔹 1. Análise de Receitas e Impostos")
         meses = ['Janeiro', 'Fevereiro', 'Março']
