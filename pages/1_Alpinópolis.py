@@ -68,14 +68,9 @@ def load_all_data():
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
 
-    # Base de Despesa por Fonte (CONSOLIDADO) - CORREÇÃO DE LEITURA
-    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=1)
+    # Base de Despesa por Fonte (CONSOLIDADO) - Ajustado para nova estrutura com coluna 'Tipo'
+    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
-    
-    # Se a coluna 'Fonte' não for encontrada, tenta ler sem pular linha (header=0)
-    if 'Fonte' not in df_df.columns:
-        df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
-        df_df.columns = [str(c).strip() for c in df_df.columns]
 
     # Limpeza de valores
     for col in df_f.columns:
@@ -85,7 +80,7 @@ def load_all_data():
         if any(k in col for k in ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Dedução']):
             df_r[col] = df_r[col].apply(limpar_valor)
     for col in df_df.columns:
-        if any(k in col for k in ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Liquidado', 'Empenhado', 'Pago']):
+        if any(k in col for k in ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado']):
             df_df[col] = df_df[col].apply(limpar_valor)
             
     if 'Fonte' in df_f.columns:
@@ -126,9 +121,10 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # LOCALIZAÇÃO SEGURA DA COLUNA FONTE NO ARQUIVO DF
-        col_fonte_df = next((c for c in df_df_raw.columns if 'Fonte' in str(c)), 'Fonte')
-
+        # LOCALIZAÇÃO SEGURA NO ARQUIVO DF
+        col_fonte_df = 'Fonte'
+        
+        # Filtrar o consolidado FUNDEB
         df_df_fundeb = df_df_raw[df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False)].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb[col_fonte_df].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
 
@@ -148,7 +144,10 @@ if df_f_raw is not None and df_r is not None:
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
         
-        desp_70_val = df_df_fundeb[df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%']['Liquidado'].sum()
+        # CORREÇÃO: Pegar soma da coluna 'Total' apenas onde o 'Tipo' é 'Liquidado'
+        desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & 
+                                   (df_df_fundeb['Tipo'] == 'Liquidado')]['Total'].sum()
+        
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
         m1, m2, m3 = st.columns(3)
@@ -178,9 +177,10 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada)")
         
-        df_plot_f = df_df_fundeb.groupby('Fonte_Nome')['Liquidado'].sum().reset_index()
+        # CORREÇÃO: Filtrar apenas liquidados para o gráfico de pizza
+        df_plot_f = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'].groupby('Fonte_Nome')['Total'].sum().reset_index()
         
-        fig_f_pie = px.pie(df_plot_f, values='Liquidado', names='Fonte_Nome', hole=.4,
+        fig_f_pie = px.pie(df_plot_f, values='Total', names='Fonte_Nome', hole=.4,
                            color_discrete_map={'FUNDEB 70%':'#4169E1', 'FUNDEB 30%':'#FF4500'})
         fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Total Liquidado: R$ %{value:,.2f}<extra></extra>")
         fig_f_pie.update_layout(separators=',.')
@@ -189,8 +189,9 @@ if df_f_raw is not None and df_r is not None:
         dados_m_f = []
         for m in meses:
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
-                col_liq_mes = f"{m} Liquidado"
-                val = df_df_fundeb[df_df_fundeb['Fonte_Nome'] == fonte][col_liq_mes].sum() if col_liq_mes in df_df_fundeb.columns else 0.0
+                # CORREÇÃO: Buscar o valor do mês 'm' onde o Tipo é Liquidado
+                val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & 
+                                   (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         
         fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
@@ -200,7 +201,8 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 3. Análises e Equilíbrio")
-        total_desp_liq = df_df_fundeb['Liquidado'].sum() 
+        # CORREÇÃO: Soma apenas do Tipo Liquidado
+        total_desp_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado']['Total'].sum() 
         df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
         fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo')
         fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
