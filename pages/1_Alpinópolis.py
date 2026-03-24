@@ -109,10 +109,10 @@ if df_f_raw is not None and df_r is not None:
             return 'Principal'
 
         def cat_fonte_desp(fonte):
-            if '15407' in fonte or ('1540' in fonte and fonte.endswith('7')): return 'Fundeb 70%'
-            if '15403' in fonte or ('1540' in fonte and fonte.endswith('3')): return 'Fundeb 30%'
-            if '1546' in fonte: return 'Fundeb ETI'
-            if '2540' in fonte: return 'Fundeb Superávit'
+            if '15407' in fonte: return 'FUNDEB 70%'
+            if '15403' in fonte: return 'FUNDEB 30%'
+            if '1546' in fonte: return 'FUNDEB ETI'
+            if '2540' in fonte: return 'FUNDEB Superávit'
             return 'Outras Fontes'
 
         df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
@@ -127,7 +127,7 @@ if df_f_raw is not None and df_r is not None:
         
         # --- CÁLCULO DO VALOR LIQUIDADO POR FONTE ---
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_total].sum(axis=1)
-        desp_70_val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == 'Fundeb 70%']['Soma_Liquidado'].sum()
+        desp_70_val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == 'FUNDEB 70%']['Soma_Liquidado'].sum()
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
         m1, m2, m3 = st.columns(3)
@@ -157,18 +157,20 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada)")
         
-        # --- CORREÇÃO FINAL DO GRÁFICO DE ROSCA (VALUES AGORA É LIQUIDADO) ---
-        df_plot_f = df_f_fundeb.groupby('Fonte_Agrupada')['Soma_Liquidado'].sum().reset_index()
+        # --- FILTRO PARA O GRÁFICO MOSTRAR APENAS 70% E 30% CONFORME SOLICITADO ---
+        df_plot_f = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'].isin(['FUNDEB 70%', 'FUNDEB 30%'])]
+        df_plot_f = df_plot_f.groupby('Fonte_Agrupada')['Soma_Liquidado'].sum().reset_index()
         
-        fig_f_pie = px.pie(df_plot_f, values='Soma_Liquidado', names='Fonte_Agrupada', hole=.4)
-        fig_f_pie.update_traces(hovertemplate="<b>%{label}</b><br>Total Liquidado: R$ %{value:,.2f}<extra></extra>")
+        fig_f_pie = px.pie(df_plot_f, values='Soma_Liquidado', names='Fonte_Agrupada', hole=.4,
+                           color_discrete_map={'FUNDEB 70%':'#4169E1', 'FUNDEB 30%':'#FF4500'})
+        fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Liquidado: R$ %{value:,.2f}<extra></extra>")
         fig_f_pie.update_layout(separators=',.')
         st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
         dados_m_f = []
         for m in meses:
             c_liq = f"{m}_Liquidado"
-            for fonte in df_f_fundeb['Fonte_Agrupada'].unique():
+            for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
                 val = df_f_fundeb[df_f_fundeb['Fonte_Agrupada'] == fonte][c_liq].sum() if c_liq in df_f_fundeb.columns else 0.0
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
