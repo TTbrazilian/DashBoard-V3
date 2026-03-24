@@ -156,7 +156,6 @@ if df_f_raw is not None and df_r is not None:
         st.subheader("🔹 1. Receitas FUNDEB")
         fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4,
                            color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
-        # AJUSTE SOLICITADO: Nomes e porcentagens visíveis
         fig_r_pie.update_traces(textinfo='label+percent', hovertemplate="<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>")
         fig_r_pie.update_layout(separators=',.')
         st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
@@ -215,11 +214,15 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📙 Alpinópolis - Recursos Próprios (Educação)</h1>", unsafe_allow_html=True)
         
+        # Filtra receitas de impostos a partir de df_r (Alpinópolis_R.csv)
         df_r_imp = df_r[df_r['Categoria'] == 'IMPOSTOS'].copy()
         df_f_15001 = df_f[df_f['Fonte'].str.contains('15001', na=False)].copy()
         
         tot_receita_imp = df_r_imp['Total'].sum()
-        tot_deducoes = df_r_imp[[c for c in df_r_imp.columns if 'Dedução' in c or 'DEDUÇÃO' in c.upper()]].sum().sum()
+        # Coleta todas as colunas de dedução presentes no arquivo Alpinópolis_R
+        col_deducoes = [c for c in df_r_imp.columns if 'Dedução' in c or 'DEDUÇÃO' in c.upper()]
+        tot_deducoes = df_r_imp[col_deducoes].sum().sum()
+        
         col_liq_15001 = [c for c in df_f_15001.columns if 'Liquidado' in c]
         tot_desp_15001 = df_f_15001[col_liq_15001].sum().sum()
         
@@ -237,7 +240,8 @@ if df_f_raw is not None and df_r is not None:
         
         dados_rec_mensal = []
         for m in meses:
-            val_r = df_r_imp[m].sum()
+            val_r = df_r_imp[m].sum() if m in df_r_imp.columns else 0.0
+            # Busca a dedução específica do mês
             col_ded_m = [c for c in df_r_imp.columns if m in c and ('Dedução' in c or 'DEDUÇÃO' in c.upper())]
             val_d = df_r_imp[col_ded_m[0]].sum() if col_ded_m else 0.0
             dados_rec_mensal.append({"Mês": m, "Tipo": "Receita Impostos", "Valor": val_r})
