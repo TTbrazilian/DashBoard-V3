@@ -51,7 +51,7 @@ def buscar_arquivo(nome):
 def load_all_data():
     arquivo_f = "Alpinópolis.csv"
     arquivo_r = "Alpinópolis_R.csv"
-    arquivo_df = "Alpinópolis_DF.csv" # Novo arquivo de Despesa por Fonte
+    arquivo_df = "Alpinópolis_DF.csv" 
     
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
@@ -68,10 +68,15 @@ def load_all_data():
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
 
-    # Base de Despesa por Fonte (CONSOLIDADO)
+    # Base de Despesa por Fonte (CONSOLIDADO) - CORREÇÃO DE LEITURA
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=1)
     df_df.columns = [str(c).strip() for c in df_df.columns]
     
+    # Se a coluna 'Fonte' não for encontrada, tenta ler sem pular linha (header=0)
+    if 'Fonte' not in df_df.columns:
+        df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
+        df_df.columns = [str(c).strip() for c in df_df.columns]
+
     # Limpeza de valores
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
@@ -83,7 +88,8 @@ def load_all_data():
         if any(k in col for k in ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Liquidado', 'Empenhado', 'Pago']):
             df_df[col] = df_df[col].apply(limpar_valor)
             
-    df_f['Fonte'] = df_f['Fonte'].astype(str)
+    if 'Fonte' in df_f.columns:
+        df_f['Fonte'] = df_f['Fonte'].astype(str)
     return df_f, df_r, df_df
 
 # --- PROCESSAMENTO INICIAL ---
@@ -120,18 +126,15 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # CORREÇÃO KEYERROR: Localiza a coluna que contém 'Fonte' no arquivo consolidado (DF)
+        # LOCALIZAÇÃO SEGURA DA COLUNA FONTE NO ARQUIVO DF
         col_fonte_df = next((c for c in df_df_raw.columns if 'Fonte' in str(c)), 'Fonte')
 
-        # Usando a base consolidada (Alpinópolis_DF.csv) para as métricas e gráficos de despesa
         df_df_fundeb = df_df_raw[df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False)].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb[col_fonte_df].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
 
-        # Usando a base de receitas (Alpinópolis_R.csv)
         df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        # Manter df_f_fundeb para o relatório detalhado (Alpinópolis.csv)
         df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
         def cat_fonte_desp(fonte):
             if '15407' in fonte: return 'FUNDEB 70%'
@@ -145,7 +148,6 @@ if df_f_raw is not None and df_r is not None:
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
         
-        # --- CÁLCULO DO VALOR LIQUIDADO PUXANDO DA NOVA BASE (DF) ---
         desp_70_val = df_df_fundeb[df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%']['Liquidado'].sum()
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
@@ -176,7 +178,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada)")
         
-        # --- GRÁFICO CORRIGIDO PARA PUXAR DA ABA DESPESA POR FONTE (DF) ---
         df_plot_f = df_df_fundeb.groupby('Fonte_Nome')['Liquidado'].sum().reset_index()
         
         fig_f_pie = px.pie(df_plot_f, values='Liquidado', names='Fonte_Nome', hole=.4,
@@ -199,7 +200,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 3. Análises e Equilíbrio")
-        total_desp_liq = df_df_fundeb['Liquidado'].sum() # Valor total liquidado do consolidado
+        total_desp_liq = df_df_fundeb['Liquidado'].sum() 
         df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
         fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo')
         fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
@@ -207,7 +208,6 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
-        # Este relatório continua vindo das fichas (Alpinópolis.csv)
         col_liq_fichas = [c for c in df_f.columns if 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo', 'Soma_Liquidado']].copy()
