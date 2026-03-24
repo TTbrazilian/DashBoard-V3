@@ -155,9 +155,13 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB")
-        df_plot_f = df_f_fundeb.groupby('Fonte_Agrupada')['Orçado'].sum().reset_index()
-        fig_f_pie = px.pie(df_plot_f, values='Orçado', names='Fonte_Agrupada', hole=.4)
-        fig_f_pie.update_traces(hovertemplate="<b>%{label}</b><br>Orçado: R$ %{value:,.2f}<extra></extra>")
+        
+        # --- CORREÇÃO SOLICITADA: Soma das parcelas liquidadas para o gráfico de rosca ---
+        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_total].sum(axis=1)
+        df_plot_f = df_f_fundeb.groupby('Fonte_Agrupada')['Soma_Liquidado'].sum().reset_index()
+        
+        fig_f_pie = px.pie(df_plot_f, values='Soma_Liquidado', names='Fonte_Agrupada', hole=.4)
+        fig_f_pie.update_traces(hovertemplate="<b>%{label}</b><br>Liquidado: R$ %{value:,.2f}<extra></extra>")
         fig_f_pie.update_layout(separators=',.')
         st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
 
