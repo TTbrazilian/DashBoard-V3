@@ -282,15 +282,24 @@ if df_f_raw is not None and df_r is not None:
         for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
         st.dataframe(df_f_final_rp, use_container_width=True, hide_index=True)
 
-    # --- PÁGINA: RECURSOS VINCULADOS (FILTROS CORRIGIDOS PARA APARECER GRÁFICOS) ---
+    # --- PÁGINA: RECURSOS VINCULADOS (CORREÇÃO PEDIDA: PASSANDO POR TODOS OS ARQUIVOS) ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>🟢 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
-        # Filtro corrigido: Usa regex para capturar PTE, PNATE, PNAE e QESE de forma mais ampla
-        pat = 'PTE|PNATE|PNAE|QESE'
-        df_r_vinc = df_r[df_r['Categoria'].str.contains(pat, case=False, na=False)].copy()
-        df_df_vinc = df_df_raw[df_df_raw['Nomenclatura'].str.contains(pat, case=False, na=False)].copy()
+        # 1. Busca nos programas (Regex para capturar variações nos nomes)
+        pat_vinc = 'PTE|PNATE|PNAE|QESE'
         
+        # Captação no arquivo de RECEITAS (df_r)
+        df_r_vinc = df_r[df_r['Categoria'].str.contains(pat_vinc, case=False, na=False)].copy()
+        
+        # Captação no arquivo CONSOLIDADO DE DESPESAS (df_df_raw)
+        df_df_vinc = df_df_raw[df_df_raw['Nomenclatura'].str.contains(pat_vinc, case=False, na=False)].copy()
+        
+        # Captação no arquivo de FICHAS (df_f) - Usando códigos de fonte vinculados comuns
+        # 1550 (QESE), 1551 (PTE), 1552 (PNAE), 1553 (PNATE), 255x (Superávits)
+        fontes_vinc = '1550|1551|1552|1553|1569|1570|2550|2551|2552|2553'
+        df_f_vinc = df_f[df_f['Fonte'].str.contains(fontes_vinc, na=False)].copy()
+
         tot_rec_vinc = df_r_vinc['Total'].sum()
         tot_desp_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Total'].sum()
         
@@ -319,11 +328,12 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_vinc_bar, use_container_width=True, config=CONFIG_PT)
         
         st.markdown("### 📋 Detalhamento de Fichas (Recursos Vinculados)")
-        # Filtro de fichas mantido por exclusão das fontes FUNDEB/Próprio para garantir que apareçam
-        df_f_vinc = df_f[~df_f['Fonte'].str.contains('540|546|1500', na=False)].copy()
-        df_f_vinc_final = df_f_vinc[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
-        for col in ['Orçado', 'Saldo']: df_f_vinc_final[col] = df_f_vinc_final[col].apply(formar_real)
-        st.dataframe(df_f_vinc_final, use_container_width=True, hide_index=True)
+        if not df_f_vinc.empty:
+            df_f_vinc_final = df_f_vinc[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
+            for col in ['Orçado', 'Saldo']: df_f_vinc_final[col] = df_f_vinc_final[col].apply(formar_real)
+            st.dataframe(df_f_vinc_final, use_container_width=True, hide_index=True)
+        else:
+            st.info("Nenhuma ficha vinculada encontrada com os critérios de fonte.")
 
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
