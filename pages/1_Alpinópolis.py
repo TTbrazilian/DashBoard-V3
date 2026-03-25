@@ -72,7 +72,7 @@ def load_all_data():
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
 
-    # Limpeza de valores - Ajustado para capturar "Março " com espaço conforme o CSV
+    # Limpeza de valores
     meses_limpeza = ['Janeiro', 'Fevereiro', 'Março ', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
     for col in df_f.columns:
@@ -128,23 +128,11 @@ if df_f_raw is not None and df_r is not None:
             return 'Principal'
 
         col_fonte_df = 'Fonte'
-        
-        # AJUSTE: Filtro rígido para FUNDEB (1540x) para não pegar lixo de outras abas
-        df_df_fundeb = df_df_raw[
-            (df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False))
-        ].copy()
-        
+        df_df_fundeb = df_df_raw[(df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False))].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb[col_fonte_df].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
-
-        df_r_fundeb = df_r[
-            (df_r['Categoria'] == 'FUNDEB')
-        ].copy()
-        
+        df_r_fundeb = df_r[(df_r['Categoria'] == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
-        
-        df_f_fundeb = df_f[
-            df_f['Fonte'].str.contains('540|546', na=False)
-        ].copy()
+        df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
 
         def cat_fonte_desp(fonte):
             if '15407' in fonte: return 'FUNDEB 70%'
@@ -157,10 +145,7 @@ if df_f_raw is not None and df_r is not None:
         tot_rec_ano = df_r_fundeb['Total'].sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
-        
-        desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & 
-                                    (df_df_fundeb['Tipo'] == 'Liquidado')]['Total'].sum()
-        
+        desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')]['Total'].sum()
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
         m1, m2, m3 = st.columns(3)
@@ -189,9 +174,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada)")
-        
         df_plot_f = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'].groupby('Fonte_Nome')['Total'].sum().reset_index()
-        
         fig_f_pie = px.pie(df_plot_f, values='Total', names='Fonte_Nome', hole=.4,
                            color_discrete_map={'FUNDEB 70%':'#4169E1', 'FUNDEB 30%':'#FF4500'})
         fig_f_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Total Liquidado: R$ %{value:,.2f}<extra></extra>")
@@ -201,10 +184,8 @@ if df_f_raw is not None and df_r is not None:
         dados_m_f = []
         for m in meses:
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
-                val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & 
-                                    (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum() if m in df_df_fundeb.columns else 0.0
+                val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum() if m in df_df_fundeb.columns else 0.0
                 dados_m_f.append({"Mês": m.strip(), "Fonte": fonte, "Valor": val})
-        
         fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
         fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_f_bar.update_layout(separators=',.')
@@ -228,20 +209,13 @@ if df_f_raw is not None and df_r is not None:
 
     # --- PÁGINA: RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
-        st.markdown("<h1 style='text-align: left;'>📙 Alpinópolis - Recursos Próprios (Educação)</h1>", unsafe_allow_html=True)
-        
-        # AJUSTE: Filtro rígido para Impostos (15001) para não somar FUNDEB ou Vinculados aqui
+        st.markdown("<h1 style='text-align: left;'>刻 Alpinópolis - Recursos Próprios (Educação)</h1>", unsafe_allow_html=True)
         df_r_imp = df_r[(df_r['Categoria'] == 'IMPOSTOS')].copy()
-        df_df_15001 = df_df_raw[
-            (df_df_raw['Fonte'].astype(str) == '15001')
-        ].copy()
-        
+        df_df_15001 = df_df_raw[(df_df_raw['Fonte'].astype(str) == '15001')].copy()
         tot_receita_imp = df_r_imp['Total'].sum()
         col_deducoes = [c for c in df_r_imp.columns if 'Dedução' in c or 'DEDUÇÃO' in c.upper()]
         tot_deducoes = df_r_imp[col_deducoes].sum().sum()
-        
         tot_desp_15001 = df_df_15001[df_df_15001['Tipo'] == 'Liquidado']['Total'].sum()
-        
         base_calculo = tot_receita_imp - tot_deducoes
         perc_atual = (tot_desp_15001 / base_calculo * 100) if base_calculo > 0 else 0
         
@@ -253,7 +227,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 1. Análise de Receitas e Impostos")
         meses = ['Janeiro', 'Fevereiro', 'Março ']
-        
         dados_rec_mensal = []
         for m in meses:
             val_r = df_r_imp[m].sum() if m in df_r_imp.columns else 0.0
@@ -280,10 +253,7 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_desp, use_container_width=True, config=CONFIG_PT)
 
         st.subheader("🔹 3. Análise do Mínimo Constitucional (25%)")
-        df_ana_25 = pd.DataFrame({
-            "Descrição": ["Receitas (Bruto)", "Deduções", "Investimento Educação (15001)"],
-            "Valor": [tot_receita_imp, tot_deducoes, tot_desp_15001]
-        })
+        df_ana_25 = pd.DataFrame({"Descrição": ["Receitas (Bruto)", "Deduções", "Investimento Educação (15001)"], "Valor": [tot_receita_imp, tot_deducoes, tot_desp_15001]})
         fig_25 = px.bar(df_ana_25, x='Descrição', y='Valor', color='Descrição', text_auto='.2s')
         fig_25.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_25.update_layout(separators=',.')
@@ -295,23 +265,25 @@ if df_f_raw is not None and df_r is not None:
         for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
         st.dataframe(df_f_final_rp, use_container_width=True, hide_index=True)
 
-    # --- PÁGINA: RECURSOS VINCULADOS ---
+    # --- PÁGINA: RECURSOS VINCULADOS (MODIFICADA APENAS AQUI) ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>🟢 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
-        # AJUSTE: Filtro rígido para Vinculados para não misturar com as outras abas
-        pat_vinc = 'PTE|PNATE|PNAE|QESE|SALÁRIO EDUCAÇÃO|SALARIO EDUCACAO'
+        # Filtros e Mapeamento
+        programas = ['QESE', 'PTE', 'PNAE', 'PNATE']
         fontes_vinc = '1550|1551|1552|1553|2550|2551|2552|2553|1569|1570'
 
-        df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains(pat_vinc, case=False, na=False)].copy()
-        
-        df_df_vinc = df_df_raw[
-            df_df_raw['Fonte'].astype(str).str.contains(fontes_vinc, na=False)
-        ].copy()
-        
-        df_f_vinc = df_f[
-            df_f['Fonte'].str.contains(fontes_vinc, na=False)
-        ].copy()
+        df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains('|'.join(programas), case=False, na=False)].copy()
+        df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).str.contains(fontes_vinc, na=False)].copy()
+        df_f_vinc = df_f[df_f['Fonte'].str.contains(fontes_vinc, na=False)].copy()
+
+        def extrair_programa(texto):
+            for p in programas:
+                if p in str(texto).upper(): return p
+            return 'OUTROS'
+
+        df_r_vinc['Prog_Ref'] = df_r_vinc['Descrição da Receita'].apply(extrair_programa)
+        df_df_vinc['Prog_Ref'] = df_df_vinc['Nomenclatura'].apply(extrair_programa)
 
         tot_rec_vinc = df_r_vinc['Total'].sum()
         tot_desp_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Total'].sum()
@@ -322,57 +294,54 @@ if df_f_raw is not None and df_r is not None:
         
         st.markdown("---")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("🔹 1. Distribuição de Receitas por Programa")
-            if not df_r_vinc.empty:
-                fig_vinc_pie = px.pie(df_r_vinc, values='Total', names='Descrição da Receita', hole=.4)
-                fig_vinc_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Receita: R$ %{value:,.2f}<extra></extra>")
-                fig_vinc_pie.update_layout(separators=',.')
-                st.plotly_chart(fig_vinc_pie, use_container_width=True, config=CONFIG_PT)
-            else:
-                st.info("Aguardando dados de Receitas Vinculadas...")
+        # Gráfico 1: Receitas (Centralizado e com Legenda)
+        st.subheader("🔹 1. Distribuição de Receitas por Programa")
+        if not df_r_vinc.empty:
+            df_pie_r = df_r_vinc.groupby('Prog_Ref')['Total'].sum().reset_index()
+            fig_vinc_pie = px.pie(df_pie_r, values='Total', names='Prog_Ref', hole=.4,
+                                 color='Prog_Ref', color_discrete_map={'QESE':'#636EFA', 'PTE':'#EF553B', 'PNAE':'#00CC96', 'PNATE':'#AB63FA'})
+            fig_vinc_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Receita: R$ %{value:,.2f}<extra></extra>")
+            fig_vinc_pie.update_layout(separators=',.', showlegend=True)
+            st.plotly_chart(fig_vinc_pie, use_container_width=True, config=CONFIG_PT)
+        else:
+            st.info("Aguardando dados de Receitas Vinculadas...")
 
-        with col2:
-            st.subheader("🔹 2. Distribuição de Despesas Totais por Programa")
-            if not df_df_vinc.empty:
-                df_desp_pie = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'].groupby('Nomenclatura')['Total'].sum().reset_index()
-                fig_desp_pie = px.pie(
-                    df_desp_pie, values='Total', names='Nomenclatura', hole=.4,
-                    color='Nomenclatura',
-                    color_discrete_map={'QESE': '#636EFA', 'PTE': '#EF553B', 'PNAE': '#00CC96', 'PNATE': '#AB63FA'}
-                )
-                fig_desp_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Despesa Tot.: R$ %{value:,.2f}<extra></extra>")
-                fig_desp_pie.update_layout(separators=',.', showlegend=False)
-                st.plotly_chart(fig_desp_pie, use_container_width=True, config=CONFIG_PT)
-            else:
-                st.info("Sem dados de despesas para exibir.")
+        st.markdown("---")
+
+        # Gráfico 2: Despesas (Centralizado, Legenda Ativada e Filtro por arquivo de despesa)
+        st.subheader("🔹 2. Distribuição de Despesas Totais por Programa")
+        if not df_df_vinc.empty:
+            df_desp_pie = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'].groupby('Prog_Ref')['Total'].sum().reset_index()
+            fig_desp_pie = px.pie(df_desp_pie, values='Total', names='Prog_Ref', hole=.4,
+                                 color='Prog_Ref', color_discrete_map={'QESE':'#636EFA', 'PTE':'#EF553B', 'PNAE':'#00CC96', 'PNATE':'#AB63FA'})
+            fig_desp_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Despesa Tot.: R$ %{value:,.2f}<extra></extra>")
+            fig_desp_pie.update_layout(separators=',.', showlegend=True)
+            st.plotly_chart(fig_desp_pie, use_container_width=True, config=CONFIG_PT)
+        else:
+            st.info("Sem dados de despesas para exibir.")
 
         st.markdown("---")
         st.subheader("🔹 3. Acompanhamento Mensal de Arrecadação por Programa")
         meses = ['Janeiro', 'Fevereiro', 'Março ']
         dados_m_r = []
-        for prog in ['QESE', 'PTE', 'PNAE', 'PNATE']:
-            df_prog = df_r_vinc[df_r_vinc['Descrição da Receita'].str.contains(prog, case=False, na=False)]
+        for prog in programas:
+            df_prog = df_r_vinc[df_r_vinc['Prog_Ref'] == prog]
             for m in meses:
                 val = df_prog[m].sum() if m in df_prog.columns else 0.0
                 dados_m_r.append({"Mês": m.strip(), "Programa": prog, "Valor": val})
         
         if any(d['Valor'] > 0 for d in dados_m_r):
-            fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Programa', barmode='group')
+            fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Programa', barmode='group',
+                               color_discrete_map={'QESE':'#636EFA', 'PTE':'#EF553B', 'PNAE':'#00CC96', 'PNATE':'#AB63FA'})
             fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Receita: R$ %{y:,.2f}<extra></extra>")
-            fig_r_bar.update_layout(separators=',.')
+            fig_r_bar.update_layout(separators=',.', showlegend=True)
             st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
-        else:
-            st.info("Sem movimentação mensal detectada nos arquivos.")
-
+        
         st.markdown("### 📋 Detalhamento de Fichas (Recursos Vinculados)")
         if not df_f_vinc.empty:
             df_f_vinc_final = df_f_vinc[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
             for col in ['Orçado', 'Saldo']: df_f_vinc_final[col] = df_f_vinc_final[col].apply(formar_real)
             st.dataframe(df_f_vinc_final, use_container_width=True, hide_index=True)
-        else:
-            st.warning("Nenhuma ficha vinculada encontrada com as fontes mapeadas.")
 
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
