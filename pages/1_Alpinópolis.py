@@ -209,7 +209,7 @@ if df_f_raw is not None and df_r is not None:
 
     # --- PÁGINA: RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
-        st.markdown("<h1 style='text-align: left;'>刻 Alpinópolis - Recursos Próprios (Educação)</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Próprios (Educação)</h1>", unsafe_allow_html=True)
         df_r_imp = df_r[(df_r['Categoria'] == 'IMPOSTOS')].copy()
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'].astype(str) == '15001')].copy()
         tot_receita_imp = df_r_imp['Total'].sum()
@@ -267,7 +267,7 @@ if df_f_raw is not None and df_r is not None:
 
     # --- PÁGINA: RECURSOS VINCULADOS (MODIFICADA APENAS AQUI) ---
     elif st.session_state.setor == 'Recursos Vinculados':
-        st.markdown("<h1 style='text-align: left;'>🟢 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
         # Filtros e Mapeamento
         programas = ['QESE', 'PTE', 'PNAE', 'PNATE']
