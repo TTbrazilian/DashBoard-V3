@@ -129,24 +129,21 @@ if df_f_raw is not None and df_r is not None:
 
         col_fonte_df = 'Fonte'
         
-        # Filtro Global FUNDEB: Busca por códigos 1540 ou nome FUNDEB em todos os arquivos
+        # AJUSTE: Filtro rígido para FUNDEB (1540x) para não pegar lixo de outras abas
         df_df_fundeb = df_df_raw[
-            df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False) |
-            df_df_raw['Nomenclatura'].str.contains('FUNDEB', case=False, na=False)
+            (df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False))
         ].copy()
         
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb[col_fonte_df].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
 
         df_r_fundeb = df_r[
-            (df_r['Categoria'] == 'FUNDEB') | 
-            (df_r['Descrição da Receita'].str.contains('FUNDEB', case=False, na=False))
+            (df_r['Categoria'] == 'FUNDEB')
         ].copy()
         
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
         df_f_fundeb = df_f[
-            df_f['Fonte'].str.contains('540|546', na=False) | 
-            df_f['Atividade'].str.contains('FUNDEB', case=False, na=False)
+            df_f['Fonte'].str.contains('540|546', na=False)
         ].copy()
 
         def cat_fonte_desp(fonte):
@@ -233,11 +230,10 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📙 Alpinópolis - Recursos Próprios (Educação)</h1>", unsafe_allow_html=True)
         
-        # Filtro Global Próprios: Busca por categoria IMPOSTOS ou Fonte 15001 em todos os arquivos
-        df_r_imp = df_r[(df_r['Categoria'] == 'IMPOSTOS') | (df_r['Descrição da Receita'].str.contains('IMPOSTO', case=False, na=False))].copy()
+        # AJUSTE: Filtro rígido para Impostos (15001) para não somar FUNDEB ou Vinculados aqui
+        df_r_imp = df_r[(df_r['Categoria'] == 'IMPOSTOS')].copy()
         df_df_15001 = df_df_raw[
-            (df_df_raw['Fonte'].astype(str) == '15001') | 
-            (df_df_raw['Nomenclatura'].str.contains('PROPRIO', case=False, na=False))
+            (df_df_raw['Fonte'].astype(str) == '15001')
         ].copy()
         
         tot_receita_imp = df_r_imp['Total'].sum()
@@ -303,20 +299,18 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>🟢 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
-        # Filtro Global Vinculados: Busca por nomes de programas ou fontes específicas nos 3 arquivos
+        # AJUSTE: Filtro rígido para Vinculados para não misturar com as outras abas
         pat_vinc = 'PTE|PNATE|PNAE|QESE|SALÁRIO EDUCAÇÃO|SALARIO EDUCACAO'
         fontes_vinc = '1550|1551|1552|1553|2550|2551|2552|2553|1569|1570'
 
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains(pat_vinc, case=False, na=False)].copy()
         
         df_df_vinc = df_df_raw[
-            df_df_raw['Nomenclatura'].str.contains(pat_vinc, case=False, na=False) |
             df_df_raw['Fonte'].astype(str).str.contains(fontes_vinc, na=False)
         ].copy()
         
         df_f_vinc = df_f[
-            df_f['Fonte'].str.contains(fontes_vinc, na=False) |
-            df_f['Atividade'].str.contains(pat_vinc, case=False, na=False)
+            df_f['Fonte'].str.contains(fontes_vinc, na=False)
         ].copy()
 
         tot_rec_vinc = df_r_vinc['Total'].sum()
