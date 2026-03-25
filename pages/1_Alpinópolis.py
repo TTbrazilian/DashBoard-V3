@@ -282,25 +282,17 @@ if df_f_raw is not None and df_r is not None:
         for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
         st.dataframe(df_f_final_rp, use_container_width=True, hide_index=True)
 
-    # --- PÁGINA: RECURSOS VINCULADOS (CORREÇÕES APLICADAS AQUI) ---
+    # --- PÁGINA: RECURSOS VINCULADOS (MODIFICADO POR PROGRAMA) ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>🟢 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
-        # 1. Filtro ajustado para 'Descrição da Receita' conforme imagem da planilha
         pat_vinc = 'PTE|PNATE|PNAE|QESE|SALÁRIO EDUCAÇÃO'
-        
-        # Captação no arquivo de RECEITAS (df_r) - Corrigido para buscar na Descrição
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains(pat_vinc, case=False, na=False)].copy()
-        
-        # Captação no arquivo CONSOLIDADO DE DESPESAS (df_df_raw)
         df_df_vinc = df_df_raw[df_df_raw['Nomenclatura'].str.contains(pat_vinc, case=False, na=False)].copy()
         
-        # Captação no arquivo de FICHAS (df_f)
         fontes_vinc = '1550|1551|1552|1553|1569|1570|2550|2551|2552|2553'
         df_f_vinc = df_f[df_f['Fonte'].str.contains(fontes_vinc, na=False)].copy()
 
-        # Somatórias - Usando o nome correto do mês ("Março ") para evitar erro de dados faltando
-        mes_atual_vinc = "Março "
         tot_rec_vinc = df_r_vinc['Total'].sum()
         tot_desp_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Total'].sum()
         
@@ -311,31 +303,39 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 1. Distribuição de Receitas por Programa")
         if not df_r_vinc.empty:
-            # Usando 'Descrição da Receita' para os nomes no gráfico
             fig_vinc_r = px.pie(df_r_vinc, values='Total', names='Descrição da Receita', hole=.4)
-            fig_vinc_r.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Receita: R$ %{value:,.2f}")
+            fig_vinc_r.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Receita: R$ %{value:,.2f}<extra></extra>")
+            fig_vinc_r.update_layout(separators=',.')
             st.plotly_chart(fig_vinc_r, use_container_width=True, config=CONFIG_PT)
         
-        st.subheader("🔹 2. Acompanhamento Mensal (Receita vs Despesa)")
-        meses_vinc = ['Janeiro', 'Fevereiro', 'Março '] # Mantendo o espaço para bater com o CSV
+        st.subheader("🔹 2. Acompanhamento Mensal por Programa")
+        programas = ['QESE', 'PTE', 'PNAE', 'PNATE']
+        meses_vinc = ['Janeiro', 'Fevereiro', 'Março ']
         dados_vinc_m = []
-        for m in meses_vinc:
-            r_val = df_r_vinc[m].sum() if m in df_r_vinc.columns else 0.0
-            d_val = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][m].sum() if m in df_df_vinc.columns else 0.0
-            dados_vinc_m.append({"Mês": m.strip(), "Tipo": "Receita", "Valor": r_val})
-            dados_vinc_m.append({"Mês": m.strip(), "Tipo": "Despesa (Liq.)", "Valor": d_val})
+        for prog in programas:
+            df_r_prog = df_r_vinc[df_r_vinc['Descrição da Receita'].str.contains(prog, case=False, na=False)]
+            df_d_prog = df_df_vinc[df_df_vinc['Nomenclatura'].str.contains(prog, case=False, na=False)]
+            for m in meses_vinc:
+                r_val = df_r_prog[m].sum() if m in df_r_prog.columns else 0.0
+                d_val = df_d_prog[df_d_prog['Tipo'] == 'Liquidado'][m].sum() if m in df_d_prog.columns else 0.0
+                if r_val > 0 or d_val > 0:
+                    dados_vinc_m.append({"Mês": m.strip(), "Programa": prog, "Tipo": "Receita", "Valor": r_val})
+                    dados_vinc_m.append({"Mês": m.strip(), "Programa": prog, "Tipo": "Despesa (Liq.)", "Valor": d_val})
             
-        fig_vinc_bar = px.bar(pd.DataFrame(dados_vinc_m), x='Mês', y='Valor', color='Tipo', barmode='group')
-        fig_vinc_bar.update_layout(separators=',.')
-        st.plotly_chart(fig_vinc_bar, use_container_width=True, config=CONFIG_PT)
+        df_plot_vinc = pd.DataFrame(dados_vinc_m)
+        if not df_plot_vinc.empty:
+            fig_vinc_bar = px.bar(df_plot_vinc, x='Mês', y='Valor', color='Tipo', facet_col='Programa', barmode='group',
+                                  category_orders={"Mês": ["Janeiro", "Fevereiro", "Março"]})
+            fig_vinc_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
+            fig_vinc_bar.update_layout(separators=',.', yaxis_tickformat=',.2f', hovermode="x unified")
+            fig_vinc_bar.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+            st.plotly_chart(fig_vinc_bar, use_container_width=True, config=CONFIG_PT)
         
         st.markdown("### 📋 Detalhamento de Fichas (Recursos Vinculados)")
         if not df_f_vinc.empty:
             df_f_vinc_final = df_f_vinc[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
             for col in ['Orçado', 'Saldo']: df_f_vinc_final[col] = df_f_vinc_final[col].apply(formar_real)
             st.dataframe(df_f_vinc_final, use_container_width=True, hide_index=True)
-        else:
-            st.info("Nenhuma ficha vinculada encontrada com os critérios de fonte.")
 
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
