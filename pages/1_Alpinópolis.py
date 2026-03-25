@@ -289,10 +289,12 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>🟢 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
-        # Filtra categorias que não são FUNDEB ou IMPOSTOS
-        df_r_vinc = df_r[~df_r['Categoria'].isin(['FUNDEB', 'IMPOSTOS'])].copy()
-        # Filtra despesas que não são FUNDEB (540/546) ou Próprio (1500)
-        df_df_vinc = df_df_raw[~df_df_raw['Fonte'].astype(str).str.contains('1540|1546|2540|1500', na=False)].copy()
+        # Filtra APENAS PTE, PNATE, PNAE e QESE nas Receitas
+        programas_vinc = ['PTE', 'PNATE', 'PNAE', 'QESE']
+        df_r_vinc = df_r[df_r['Categoria'].str.upper().isin(programas_vinc)].copy()
+        
+        # Filtra despesas pelas nomenclaturas exatas no consolidado DF
+        df_df_vinc = df_df_raw[df_df_raw['Nomenclatura'].str.upper().isin(programas_vinc)].copy()
         
         tot_rec_vinc = df_r_vinc['Total'].sum()
         tot_desp_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Total'].sum()
@@ -321,6 +323,7 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_vinc_bar, use_container_width=True, config=CONFIG_PT)
         
         st.markdown("### 📋 Detalhamento de Fichas (Recursos Vinculados)")
+        # Filtra as fichas cujas fontes NÃO sejam FUNDEB ou Próprio, limitando ao que sobrar (Vinc)
         df_f_vinc = df_f[~df_f['Fonte'].str.contains('540|546|1500', na=False)].copy()
         df_f_vinc_final = df_f_vinc[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
         for col in ['Orçado', 'Saldo']: df_f_vinc_final[col] = df_f_vinc_final[col].apply(formar_real)
