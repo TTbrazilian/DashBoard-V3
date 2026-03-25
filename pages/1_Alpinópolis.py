@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as pd
+import pd as pd
 import plotly.express as px
 import plotly.io as pio
 import os
@@ -129,13 +129,26 @@ if df_f_raw is not None and df_r is not None:
 
         col_fonte_df = 'Fonte'
         
-        df_df_fundeb = df_df_raw[df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False)].copy()
+        # Filtro Global FUNDEB: Busca por códigos 1540 ou nome FUNDEB em todos os arquivos
+        df_df_fundeb = df_df_raw[
+            df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False) |
+            df_df_raw['Nomenclatura'].str.contains('FUNDEB', case=False, na=False)
+        ].copy()
+        
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb[col_fonte_df].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
 
-        df_r_fundeb = df_r[df_r['Categoria'] == 'FUNDEB'].copy()
+        df_r_fundeb = df_r[
+            (df_r['Categoria'] == 'FUNDEB') | 
+            (df_r['Descrição da Receita'].str.contains('FUNDEB', case=False, na=False))
+        ].copy()
+        
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
+        df_f_fundeb = df_f[
+            df_f['Fonte'].str.contains('540|546', na=False) | 
+            df_f['Atividade'].str.contains('FUNDEB', case=False, na=False)
+        ].copy()
+
         def cat_fonte_desp(fonte):
             if '15407' in fonte: return 'FUNDEB 70%'
             if '15403' in fonte: return 'FUNDEB 30%'
@@ -149,7 +162,7 @@ if df_f_raw is not None and df_r is not None:
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR']['Total'].sum()
         
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & 
-                                   (df_df_fundeb['Tipo'] == 'Liquidado')]['Total'].sum()
+                                    (df_df_fundeb['Tipo'] == 'Liquidado')]['Total'].sum()
         
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
@@ -192,7 +205,7 @@ if df_f_raw is not None and df_r is not None:
         for m in meses:
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
                 val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & 
-                                   (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum() if m in df_df_fundeb.columns else 0.0
+                                    (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum() if m in df_df_fundeb.columns else 0.0
                 dados_m_f.append({"Mês": m.strip(), "Fonte": fonte, "Valor": val})
         
         fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
@@ -220,8 +233,12 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📙 Alpinópolis - Recursos Próprios (Educação)</h1>", unsafe_allow_html=True)
         
-        df_r_imp = df_r[df_r['Categoria'] == 'IMPOSTOS'].copy()
-        df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
+        # Filtro Global Próprios: Busca por categoria IMPOSTOS ou Fonte 15001 em todos os arquivos
+        df_r_imp = df_r[(df_r['Categoria'] == 'IMPOSTOS') | (df_r['Descrição da Receita'].str.contains('IMPOSTO', case=False, na=False))].copy()
+        df_df_15001 = df_df_raw[
+            (df_df_raw['Fonte'].astype(str) == '15001') | 
+            (df_df_raw['Nomenclatura'].str.contains('PROPRIO', case=False, na=False))
+        ].copy()
         
         tot_receita_imp = df_r_imp['Total'].sum()
         col_deducoes = [c for c in df_r_imp.columns if 'Dedução' in c or 'DEDUÇÃO' in c.upper()]
@@ -282,22 +299,25 @@ if df_f_raw is not None and df_r is not None:
         for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
         st.dataframe(df_f_final_rp, use_container_width=True, hide_index=True)
 
-    # --- PÁGINA: RECURSOS VINCULADOS (FILTROS CORRIGIDOS PARA APARECER GRÁFICOS) ---
+    # --- PÁGINA: RECURSOS VINCULADOS ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>🟢 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
-        # Filtro Universal para Vinculados (captura nos 3 arquivos)
-        pat_vinc = 'PTE|PNATE|PNAE|QESE'
+        # Filtro Global Vinculados: Busca por nomes de programas ou fontes específicas nos 3 arquivos
+        pat_vinc = 'PTE|PNATE|PNAE|QESE|SALÁRIO EDUCAÇÃO|SALARIO EDUCACAO'
         fontes_vinc = '1550|1551|1552|1553|2550|2551|2552|2553|1569|1570'
 
-        # 1. Captura de Receitas (do df_r) - Corrigido para buscar na Descrição
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains(pat_vinc, case=False, na=False)].copy()
         
-        # 2. Captura de Despesas Consolidadas (do df_df_raw)
-        df_df_vinc = df_df_raw[df_df_raw['Nomenclatura'].str.contains(pat_vinc, case=False, na=False)].copy()
+        df_df_vinc = df_df_raw[
+            df_df_raw['Nomenclatura'].str.contains(pat_vinc, case=False, na=False) |
+            df_df_raw['Fonte'].astype(str).str.contains(fontes_vinc, na=False)
+        ].copy()
         
-        # 3. Captura de Fichas (do df_f)
-        df_f_vinc = df_f[df_f['Fonte'].str.contains(fontes_vinc, na=False)].copy()
+        df_f_vinc = df_f[
+            df_f['Fonte'].str.contains(fontes_vinc, na=False) |
+            df_f['Atividade'].str.contains(pat_vinc, case=False, na=False)
+        ].copy()
 
         tot_rec_vinc = df_r_vinc['Total'].sum()
         tot_desp_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Total'].sum()
@@ -320,42 +340,22 @@ if df_f_raw is not None and df_r is not None:
                 st.info("Aguardando dados de Receitas Vinculadas...")
 
         with col2:
-            # NOVO GRÁFICO: DISTRIBUIÇÃO DE DESPESAS TOTAIS (PIZZA)
             st.subheader("🔹 2. Distribuição de Despesas Totais por Programa")
             if not df_df_vinc.empty:
-                # Agrupa despesas totais (jan-mar) por programa para o gráfico
                 df_desp_pie = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'].groupby('Nomenclatura')['Total'].sum().reset_index()
-                
-                # Cria gráfico donut igual ao de receitas
                 fig_desp_pie = px.pie(
-                    df_desp_pie, 
-                    values='Total', 
-                    names='Nomenclatura', 
-                    hole=.4,
-                    # Mantém o padrão de cores QESE/PTE/PNAE da legenda da foto
+                    df_desp_pie, values='Total', names='Nomenclatura', hole=.4,
                     color='Nomenclatura',
-                    color_discrete_map={
-                        'QESE': '#636EFA', 
-                        'PTE': '#EF553B', 
-                        'PNAE': '#00CC96',
-                        'PNATE': '#AB63FA'
-                    }
+                    color_discrete_map={'QESE': '#636EFA', 'PTE': '#EF553B', 'PNAE': '#00CC96', 'PNATE': '#AB63FA'}
                 )
-                
-                # Hover padrão Brasil e formatação
-                fig_desp_pie.update_traces(
-                    textinfo='percent+label', 
-                    hovertemplate="<b>%{label}</b><br>Despesa Tot.: R$ %{value:,.2f}<extra></extra>"
-                )
-                fig_desp_pie.update_layout(separators=',.', showlegend=False) # Sem legenda duplicada
+                fig_desp_pie.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Despesa Tot.: R$ %{value:,.2f}<extra></extra>")
+                fig_desp_pie.update_layout(separators=',.', showlegend=False)
                 st.plotly_chart(fig_desp_pie, use_container_width=True, config=CONFIG_PT)
             else:
                 st.info("Sem dados de despesas para exibir.")
 
-        # GRÁFICO 3: ACOMPANHAMENTO MENSAL (APENAS RECEITAS)
         st.markdown("---")
         st.subheader("🔹 3. Acompanhamento Mensal de Arrecadação por Programa")
-        
         meses = ['Janeiro', 'Fevereiro', 'Março ']
         dados_m_r = []
         for prog in ['QESE', 'PTE', 'PNAE', 'PNATE']:
