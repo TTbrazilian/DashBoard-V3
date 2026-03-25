@@ -72,15 +72,19 @@ def load_all_data():
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
 
-    # Limpeza de valores
+    # Limpeza de valores - Ajustado para capturar "Março " com espaço conforme o CSV
+    meses_limpeza = ['Janeiro', 'Fevereiro', 'Março ', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
+    
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
             df_f[col] = df_f[col].apply(limpar_valor)
+            
     for col in df_r.columns:
-        if any(k in col for k in ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Dedução']):
+        if any(k in col for k in meses_limpeza):
             df_r[col] = df_r[col].apply(limpar_valor)
+            
     for col in df_df.columns:
-        if any(k in col for k in ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado']):
+        if any(k in col for k in meses_limpeza):
             df_df[col] = df_df[col].apply(limpar_valor)
             
     if 'Fonte' in df_f.columns:
@@ -160,12 +164,12 @@ if df_f_raw is not None and df_r is not None:
         fig_r_pie.update_layout(separators=',.')
         st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
 
-        meses = ['Janeiro', 'Fevereiro', 'Março']
+        meses = ['Janeiro', 'Fevereiro', 'Março ']
         dados_m_r = []
         for m in meses:
             for cat in df_r_fundeb['Subcategoria'].unique():
-                val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
-                dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
+                val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum() if m in df_r_fundeb.columns else 0.0
+                dados_m_r.append({"Mês": m.strip(), "Categoria": cat, "Valor": val})
         fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='group')
         fig_r_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_r_bar.update_layout(separators=',.')
@@ -186,8 +190,8 @@ if df_f_raw is not None and df_r is not None:
         for m in meses:
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
                 val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & 
-                                   (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
-                dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
+                                   (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum() if m in df_df_fundeb.columns else 0.0
+                dados_m_f.append({"Mês": m.strip(), "Fonte": fonte, "Valor": val})
         
         fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='group')
         fig_f_bar.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
@@ -216,15 +220,15 @@ if df_f_raw is not None and df_r is not None:
         
         # Filtra receitas de impostos a partir de df_r (Alpinópolis_R.csv)
         df_r_imp = df_r[df_r['Categoria'] == 'IMPOSTOS'].copy()
-        df_f_15001 = df_f[df_f['Fonte'].str.contains('15001', na=False)].copy()
+        # Busca despesas da Fonte 15001 no arquivo consolidado DF
+        df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
         
         tot_receita_imp = df_r_imp['Total'].sum()
-        # Coleta todas as colunas de dedução presentes no arquivo Alpinópolis_R
         col_deducoes = [c for c in df_r_imp.columns if 'Dedução' in c or 'DEDUÇÃO' in c.upper()]
         tot_deducoes = df_r_imp[col_deducoes].sum().sum()
         
-        col_liq_15001 = [c for c in df_f_15001.columns if 'Liquidado' in c]
-        tot_desp_15001 = df_f_15001[col_liq_15001].sum().sum()
+        # Coleta o Liquidado Total do arquivo consolidado DF para a fonte 15001
+        tot_desp_15001 = df_df_15001[df_df_15001['Tipo'] == 'Liquidado']['Total'].sum()
         
         base_calculo = tot_receita_imp - tot_deducoes
         perc_atual = (tot_desp_15001 / base_calculo * 100) if base_calculo > 0 else 0
@@ -236,16 +240,15 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 1. Análise de Receitas e Impostos")
-        meses = ['Janeiro', 'Fevereiro', 'Março']
+        meses = ['Janeiro', 'Fevereiro', 'Março ']
         
         dados_rec_mensal = []
         for m in meses:
             val_r = df_r_imp[m].sum() if m in df_r_imp.columns else 0.0
-            # Busca a dedução específica do mês
-            col_ded_m = [c for c in df_r_imp.columns if m in c and ('Dedução' in c or 'DEDUÇÃO' in c.upper())]
+            col_ded_m = [c for c in df_r_imp.columns if m.strip() in c and ('Dedução' in c or 'DEDUÇÃO' in c.upper())]
             val_d = df_r_imp[col_ded_m[0]].sum() if col_ded_m else 0.0
-            dados_rec_mensal.append({"Mês": m, "Tipo": "Receita Impostos", "Valor": val_r})
-            dados_rec_mensal.append({"Mês": m, "Tipo": "Deduções", "Valor": val_d})
+            dados_rec_mensal.append({"Mês": m.strip(), "Tipo": "Receita Impostos", "Valor": val_r})
+            dados_rec_mensal.append({"Mês": m.strip(), "Tipo": "Deduções", "Valor": val_d})
         
         fig_rec = px.bar(pd.DataFrame(dados_rec_mensal), x='Mês', y='Valor', color='Tipo', barmode='group', title="Receitas vs Deduções Mensais")
         fig_rec.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
@@ -256,9 +259,8 @@ if df_f_raw is not None and df_r is not None:
         dados_desp_15001 = []
         for m in meses:
             for tipo in ['Empenhado', 'Liquidado', 'Pago']:
-                col = f"{m}_{tipo}"
-                val = df_f_15001[col].sum() if col in df_f_15001.columns else 0.0
-                dados_desp_15001.append({"Mês": m, "Tipo": tipo, "Valor": val})
+                val = df_df_15001[df_df_15001['Tipo'] == tipo][m].sum() if m in df_df_15001.columns else 0.0
+                dados_desp_15001.append({"Mês": m.strip(), "Tipo": tipo, "Valor": val})
         
         fig_desp = px.bar(pd.DataFrame(dados_desp_15001), x='Mês', y='Valor', color='Tipo', barmode='group', title="Movimentação Fonte 15001")
         fig_desp.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>")
@@ -276,7 +278,8 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_25, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas Recursos Próprios (Detalhamento)")
-        df_f_final_rp = df_f_15001[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
+        df_f_15001_fichas = df_f[df_f['Fonte'].str.contains('15001', na=False)].copy()
+        df_f_final_rp = df_f_15001_fichas[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
         for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
         st.dataframe(df_f_final_rp, use_container_width=True, hide_index=True)
 
