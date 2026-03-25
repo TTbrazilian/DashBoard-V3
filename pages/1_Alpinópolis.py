@@ -106,6 +106,8 @@ if df_f_raw is not None and df_r is not None:
         st.session_state.setor = 'FUNDEB'
     if st.sidebar.button("Recursos Próprios", use_container_width=True):
         st.session_state.setor = 'Recursos Próprios'
+    if st.sidebar.button("Recursos Vinculados", use_container_width=True):
+        st.session_state.setor = 'Recursos Vinculados'
 
     df_f = df_f_raw.copy()
     if search_term:
@@ -282,6 +284,47 @@ if df_f_raw is not None and df_r is not None:
         df_f_final_rp = df_f_15001_fichas[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
         for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
         st.dataframe(df_f_final_rp, use_container_width=True, hide_index=True)
+
+    # --- PÁGINA: RECURSOS VINCULADOS ---
+    elif st.session_state.setor == 'Recursos Vinculados':
+        st.markdown("<h1 style='text-align: left;'>🟢 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
+        
+        # Filtra categorias que não são FUNDEB ou IMPOSTOS
+        df_r_vinc = df_r[~df_r['Categoria'].isin(['FUNDEB', 'IMPOSTOS'])].copy()
+        # Filtra despesas que não são FUNDEB (540/546) ou Próprio (1500)
+        df_df_vinc = df_df_raw[~df_df_raw['Fonte'].astype(str).str.contains('1540|1546|2540|1500', na=False)].copy()
+        
+        tot_rec_vinc = df_r_vinc['Total'].sum()
+        tot_desp_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Total'].sum()
+        
+        m1, m2 = st.columns(2)
+        with m1: st.metric("Total Receitas Vinculadas", formar_real(tot_rec_vinc))
+        with m2: st.metric("Total Despesas Vinculadas (Liq.)", formar_real(tot_desp_vinc))
+        
+        st.markdown("---")
+        st.subheader("🔹 1. Distribuição de Receitas por Programa")
+        fig_vinc_r = px.pie(df_r_vinc, values='Total', names='Categoria', hole=.4)
+        fig_vinc_r.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Receita: R$ %{value:,.2f}")
+        st.plotly_chart(fig_vinc_r, use_container_width=True, config=CONFIG_PT)
+        
+        st.subheader("🔹 2. Acompanhamento Mensal (Receita vs Despesa)")
+        meses = ['Janeiro', 'Fevereiro', 'Março ']
+        dados_vinc_m = []
+        for m in meses:
+            r_val = df_r_vinc[m].sum() if m in df_r_vinc.columns else 0.0
+            d_val = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][m].sum() if m in df_df_vinc.columns else 0.0
+            dados_vinc_m.append({"Mês": m.strip(), "Tipo": "Receita", "Valor": r_val})
+            dados_vinc_m.append({"Mês": m.strip(), "Tipo": "Despesa (Liq.)", "Valor": d_val})
+            
+        fig_vinc_bar = px.bar(pd.DataFrame(dados_vinc_m), x='Mês', y='Valor', color='Tipo', barmode='group')
+        fig_vinc_bar.update_layout(separators=',.')
+        st.plotly_chart(fig_vinc_bar, use_container_width=True, config=CONFIG_PT)
+        
+        st.markdown("### 📋 Detalhamento de Fichas (Recursos Vinculados)")
+        df_f_vinc = df_f[~df_f['Fonte'].str.contains('540|546|1500', na=False)].copy()
+        df_f_vinc_final = df_f_vinc[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
+        for col in ['Orçado', 'Saldo']: df_f_vinc_final[col] = df_f_vinc_final[col].apply(formar_real)
+        st.dataframe(df_f_vinc_final, use_container_width=True, hide_index=True)
 
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
