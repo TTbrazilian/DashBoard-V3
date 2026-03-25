@@ -220,16 +220,13 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📙 Alpinópolis - Recursos Próprios (Educação)</h1>", unsafe_allow_html=True)
         
-        # Filtra receitas de impostos a partir de df_r (Alpinópolis_R.csv)
         df_r_imp = df_r[df_r['Categoria'] == 'IMPOSTOS'].copy()
-        # Busca despesas da Fonte 15001 no arquivo consolidado DF
         df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
         
         tot_receita_imp = df_r_imp['Total'].sum()
         col_deducoes = [c for c in df_r_imp.columns if 'Dedução' in c or 'DEDUÇÃO' in c.upper()]
         tot_deducoes = df_r_imp[col_deducoes].sum().sum()
         
-        # Coleta o Liquidado Total do arquivo consolidado DF para a fonte 15001
         tot_desp_15001 = df_df_15001[df_df_15001['Tipo'] == 'Liquidado']['Total'].sum()
         
         base_calculo = tot_receita_imp - tot_deducoes
@@ -285,16 +282,14 @@ if df_f_raw is not None and df_r is not None:
         for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
         st.dataframe(df_f_final_rp, use_container_width=True, hide_index=True)
 
-    # --- PÁGINA: RECURSOS VINCULADOS ---
+    # --- PÁGINA: RECURSOS VINCULADOS (FILTROS CORRIGIDOS PARA APARECER GRÁFICOS) ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>🟢 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
-        # Filtra APENAS PTE, PNATE, PNAE e QESE nas Receitas
-        programas_vinc = ['PTE', 'PNATE', 'PNAE', 'QESE']
-        df_r_vinc = df_r[df_r['Categoria'].str.upper().isin(programas_vinc)].copy()
-        
-        # Filtra despesas pelas nomenclaturas exatas no consolidado DF
-        df_df_vinc = df_df_raw[df_df_raw['Nomenclatura'].str.upper().isin(programas_vinc)].copy()
+        # Filtro corrigido: Usa regex para capturar PTE, PNATE, PNAE e QESE de forma mais ampla
+        pat = 'PTE|PNATE|PNAE|QESE'
+        df_r_vinc = df_r[df_r['Categoria'].str.contains(pat, case=False, na=False)].copy()
+        df_df_vinc = df_df_raw[df_df_raw['Nomenclatura'].str.contains(pat, case=False, na=False)].copy()
         
         tot_rec_vinc = df_r_vinc['Total'].sum()
         tot_desp_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Total'].sum()
@@ -305,9 +300,10 @@ if df_f_raw is not None and df_r is not None:
         
         st.markdown("---")
         st.subheader("🔹 1. Distribuição de Receitas por Programa")
-        fig_vinc_r = px.pie(df_r_vinc, values='Total', names='Categoria', hole=.4)
-        fig_vinc_r.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Receita: R$ %{value:,.2f}")
-        st.plotly_chart(fig_vinc_r, use_container_width=True, config=CONFIG_PT)
+        if not df_r_vinc.empty:
+            fig_vinc_r = px.pie(df_r_vinc, values='Total', names='Categoria', hole=.4)
+            fig_vinc_r.update_traces(textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Receita: R$ %{value:,.2f}")
+            st.plotly_chart(fig_vinc_r, use_container_width=True, config=CONFIG_PT)
         
         st.subheader("🔹 2. Acompanhamento Mensal (Receita vs Despesa)")
         meses = ['Janeiro', 'Fevereiro', 'Março ']
@@ -323,7 +319,7 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_vinc_bar, use_container_width=True, config=CONFIG_PT)
         
         st.markdown("### 📋 Detalhamento de Fichas (Recursos Vinculados)")
-        # Filtra as fichas cujas fontes NÃO sejam FUNDEB ou Próprio, limitando ao que sobrar (Vinc)
+        # Filtro de fichas mantido por exclusão das fontes FUNDEB/Próprio para garantir que apareçam
         df_f_vinc = df_f[~df_f['Fonte'].str.contains('540|546|1500', na=False)].copy()
         df_f_vinc_final = df_f_vinc[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
         for col in ['Orçado', 'Saldo']: df_f_vinc_final[col] = df_f_vinc_final[col].apply(formar_real)
