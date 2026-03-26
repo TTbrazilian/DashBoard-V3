@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA DESIGN "NEON LUMINARY" (FIDELIDADE TOTAL AO DESIGN ULTRA CLEAN) ---
+# --- 2. CSS PARA FIDELIDADE TOTAL AO DESIGN "ULTRA CLEAN" ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -63,7 +63,7 @@ st.markdown("""
     /* Hero Section */
     .hero-title {
         font-family: 'Manrope', sans-serif;
-        font-size: 64px;
+        font-size: 72px;
         font-weight: 800;
         color: white;
         line-height: 1.1;
@@ -101,74 +101,70 @@ st.markdown("""
 
     /* --- CARDS DE SETOR (Educação / Saúde) --- */
     div.stButton > button[key^="sector_"] {
-        height: 280px !important;
-        background-color: rgba(255, 255, 255, 0.03) !important;
-        border: 1px solid rgba(164, 253, 76, 0.15) !important;
-        border-radius: 24px !important;
+        height: 320px !important;
+        background-color: rgba(164, 253, 76, 0.02) !important;
+        border: 1px solid rgba(164, 253, 76, 0.1) !important;
+        border-radius: 32px !important;
         color: white !important;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: flex-start !important;
         align-items: flex-start !important;
-        padding: 40px !important;
-        white-space: pre-wrap !important;
+        padding: 48px !important;
         text-align: left !important;
-        font-family: 'Manrope', sans-serif !important;
+        overflow: hidden !important;
     }
 
-    /* Estilização específica para o Título e Subtítulo dentro do botão */
-    div.stButton > button[key^="sector_"] p {
-        margin: 0 !important;
-        line-height: 1.4 !important;
-    }
-
-    /* Adição dos Ícones Estilizados via Pseudo-elementos */
-    button[key="sector_edu"]::before {
-        content: "🎓";
-        display: block;
-        font-size: 24px;
+    /* Ícones dentro dos botões */
+    div.stButton > button[key^="sector_"]::before {
+        font-size: 28px;
         background: rgba(164, 253, 76, 0.1);
-        padding: 12px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-    }
-    button[key="sector_sau"]::before {
-        content: "🛡️";
-        display: block;
-        font-size: 24px;
-        background: rgba(164, 253, 76, 0.1);
-        padding: 12px;
-        border-radius: 12px;
-        margin-bottom: 20px;
+        padding: 16px;
+        border-radius: 16px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
+    button[key="sector_edu"]::before { content: "🎓"; }
+    button[key="sector_sau"]::before { content: "🏥"; }
+
+    /* Hover nos Cards */
     div.stButton > button[key^="sector_"]:hover {
         border-color: #a4fd4c !important;
-        background-color: rgba(164, 253, 76, 0.05) !important;
-        transform: translateY(-8px) !important;
-        box-shadow: 0 20px 40px rgba(164, 253, 76, 0.1) !important;
+        background-color: rgba(164, 253, 76, 0.08) !important;
+        transform: translateY(-12px) !important;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    /* Estilo Selecionado */
+    div.stButton > button[key^="sector_"].selected {
+        border-color: #a4fd4c !important;
+        background-color: rgba(164, 253, 76, 0.1) !important;
     }
 
     /* --- CARDS DE MUNICÍPIO --- */
     div.stButton > button[key^="mun_"] {
         width: 100% !important;
-        background-color: rgba(255, 255, 255, 0.03) !important;
+        background-color: #0c1000 !important;
         color: #a7b076 !important;
-        border: 1px solid rgba(164, 253, 76, 0.08) !important;
-        padding: 16px 20px !important;
-        border-radius: 8px !important;
-        font-weight: 500 !important;
-        font-size: 14px !important;
+        border: 1px solid rgba(164, 253, 76, 0.05) !important;
+        padding: 24px !important;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
         transition: all 0.3s ease !important;
-        text-align: left !important;
-        height: 50px !important;
+        text-align: center !important;
+        height: auto !important;
     }
     
     div.stButton > button[key^="mun_"]:hover {
         color: #a4fd4c !important;
         border-color: #a4fd4c !important;
-        background-color: rgba(164, 253, 76, 0.05) !important;
+        background-color: #1a1f00 !important;
+        transform: scale(1.03);
     }
 
     .results-header {
@@ -176,18 +172,18 @@ st.markdown("""
         font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-top: 64px;
-        margin-bottom: 24px;
+        letter-spacing: 1.5px;
+        margin-top: 80px;
+        margin-bottom: 32px;
         border-bottom: 1px solid rgba(164, 253, 76, 0.1);
-        padding-bottom: 16px;
+        padding-bottom: 20px;
         display: flex;
         justify-content: space-between;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. HEADER (APENAS MARCA) ---
+# --- 3. HEADER (NÃO FIXO) ---
 st.markdown(
     '''
     <div class="brand-header">
@@ -205,7 +201,7 @@ with st.container():
     
     # Hero Section
     st.markdown('''
-        <h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1>
+        <h1 class="hero-title">Inteligência em <br><span class="hero-highlight">Gestão Pública.</span></h1>
         <p class="hero-subtitle">
             Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.
         </p>
@@ -219,13 +215,13 @@ with st.container():
         st.session_state.setor_selecionado = None
 
     with col_edu:
-        # Texto exato da imagem
-        if st.button("Educação\n\nÍndices de alfabetização, infraestrutura escolar e performance acadêmica regional.", key="sector_edu", use_container_width=True):
+        btn_label_edu = "Educação\\n\\nÍndices de alfabetização, infraestrutura escolar e performance acadêmica regional."
+        if st.button(btn_label_edu, key="sector_edu", use_container_width=True):
             st.session_state.setor_selecionado = "Educação"
             
     with col_sau:
-        # Texto exato da imagem
-        if st.button("Saúde\n\nLeitos disponíveis, tempo de espera e cobertura vacinal em tempo real.", key="sector_sau", use_container_width=True):
+        btn_label_sau = "Saúde\\n\\nLeitos disponíveis, tempo de espera e cobertura vacinal em tempo real."
+        if st.button(btn_label_sau, key="sector_sau", use_container_width=True):
             st.session_state.setor_selecionado = "Saúde"
 
     # Lista de Municípios
@@ -239,8 +235,7 @@ with st.container():
             </div>
         ''', unsafe_allow_html=True)
 
-        # Usando 6 colunas para os municípios ficarem menores, conforme imagem
-        cols = st.columns(6)
+        cols = st.columns(4)
         
         if setor == "Saúde":
             municipios = [
@@ -253,13 +248,13 @@ with st.container():
         else: # Educação
             municipios = [
                 ("Alpinópolis", "pages/Alpinópolis_Educação.py"),
-                ("Bom Jesus da Penha", None),
-                ("Cássia", None),
-                ("Delfinópolis", None)
+                ("Município Educação B", None),
+                ("Município Educação C", None),
+                ("Município Educação D", None)
             ]
 
         for i, (nome, path) in enumerate(municipios):
-            with cols[i % 6]:
+            with cols[i % 4]:
                 if st.button(nome, key=f"mun_{nome}_{i}", use_container_width=True):
                     if path:
                         st.switch_page(path)
