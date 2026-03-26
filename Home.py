@@ -133,11 +133,12 @@ if setor:
     """, unsafe_allow_html=True)
 
     if setor == "Saúde":
-        if st.button("Bom Jesus da Penha"):
-            st.switch_page("pages/1_Bom_Jesus_da_Penha_Saúde.py")
-        
+       
         if st.button("Alpinópolis"):
             st.switch_page("pages/Alpinópolis_Saúde.py")
+
+        if st.button("Bom Jesus da Penha"):
+            st.switch_page("pages/1_Bom_Jesus_da_Penha_Saúde.py")
 
         if st.button("Cássia"):
             st.switch_page("pages/Cássia_Saúde.py")
