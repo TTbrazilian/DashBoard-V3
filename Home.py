@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA DESIGN "NEON LUMINARY" (FIDELIDADE TOTAL AO DESIGN) ---
+# --- 2. CSS PARA DESIGN "NEON LUMINARY" (FIDELIDADE TOTAL AO DESIGN SEM BARRA DE TOPO) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -20,17 +20,19 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
+    /* Remove elementos padrão do Streamlit */
     header[data-testid="stHeader"], [data-testid="stSidebar"], .stDeployButton, footer { 
         display: none !important; 
     }
 
-    /* Brand Header (Não fixo para rolar com a página) */
+    /* Brand Header (Não fixo, apenas marca no topo esquerdo) */
     .brand-header {
         width: 100%;
         padding: 40px 48px;
         display: flex;
         align-items: center;
         gap: 12px;
+        background-color: transparent;
     }
     .brand-logo {
         color: #a4fd4c;
@@ -69,7 +71,6 @@ st.markdown("""
     }
     .hero-highlight {
         color: #a4fd4c;
-        font-style: italic;
     }
     .hero-subtitle {
         color: #a7b076; 
@@ -111,8 +112,9 @@ st.markdown("""
         justify-content: center !important;
         align-items: center !important;
         gap: 20px !important;
-        position: relative !important;
-        overflow: hidden !important;
+        font-family: 'Manrope', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 20px !important;
     }
 
     div.stButton > button[key^="sector_"]:hover {
@@ -120,9 +122,10 @@ st.markdown("""
         background-color: #1a1f00 !important;
         transform: translateY(-8px) !important;
         box-shadow: 0 20px 40px rgba(164, 253, 76, 0.15) !important;
+        color: #a4fd4c !important;
     }
 
-    /* Estilo de "Selecionado" para os Setores */
+    /* Estilo de "Selecionado" */
     div.stButton > button[key^="sector_"].selected {
         border-color: #a4fd4c !important;
         background-color: #222900 !important;
@@ -132,7 +135,7 @@ st.markdown("""
     /* --- CARDS DE MUNICÍPIO --- */
     div.stButton > button[key^="mun_"] {
         width: 100% !important;
-        background-color: #0e1200 !important;
+        background-color: #0c1000 !important;
         color: #a7b076 !important;
         border: 1px solid rgba(164, 253, 76, 0.05) !important;
         padding: 30px 20px !important;
@@ -148,6 +151,7 @@ st.markdown("""
         border-color: #a4fd4c !important;
         background-color: #1a1f00 !important;
         transform: scale(1.02);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3) !important;
     }
 
     .results-header {
@@ -166,7 +170,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. HEADER ---
+# --- 3. HEADER (APENAS MARCA) ---
 st.markdown(
     '''
     <div class="brand-header">
@@ -190,14 +194,14 @@ with st.container():
         </p>
     ''', unsafe_allow_html=True)
 
-    # Grid de Setores (Cards Grandes como no design)
+    # Grid de Setores
+    st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
     col_edu, col_sau = st.columns(2)
     
     if 'setor_selecionado' not in st.session_state:
         st.session_state.setor_selecionado = None
 
     with col_edu:
-        # Nota: O ícone e texto são renderizados via HTML dentro do botão ou CSS
         if st.button("🎓\\n\\nEducação", key="sector_edu", use_container_width=True):
             st.session_state.setor_selecionado = "Educação"
             
