@@ -25,7 +25,7 @@ st.markdown("""
         display: none !important; 
     }
 
-    /* Brand Header - AGORA NÃO É FIXO (Scrolla com a página) */
+    /* Brand Header - Não fixo */
     .brand-header {
         width: 100%;
         padding: 40px 48px;
@@ -100,68 +100,68 @@ st.markdown("""
         background-color: #a4fd4c;
     }
 
-    /* Estilização do Selectbox (Searchbox) */
-    div[data-baseweb="select"] {
-        background-color: #111500 !important;
+    /* Estilização dos Botões de Setor (Cards Grandes) */
+    .sector-card-container {
+        margin-bottom: 48px;
+    }
+    
+    /* Custom CSS para os botões de setor do Streamlit agirem como cards */
+    div.stButton > button[key^="sector_"] {
+        height: 240px !important;
+        background-color: #0e1200 !important;
         border: 1px solid rgba(164, 253, 76, 0.1) !important;
-        border-radius: 12px !important;
-        padding: 12px !important;
-        transition: all 0.3s ease;
-    }
-    div[data-baseweb="select"]:hover {
-        border-color: rgba(164, 253, 76, 0.4) !important;
-        background-color: #1a1f00 !important;
-    }
-    div[data-baseweb="select"] * {
+        border-radius: 20px !important;
         color: white !important;
-        cursor: pointer !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 16px !important;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
-    div[data-testid="stSelectbox"] label {
-        display: none !important;
+    
+    div.stButton > button[key^="sector_"]:hover {
+        border-color: #a4fd4c !important;
+        background-color: #1a1f00 !important;
+        transform: translateY(-8px) !important;
+        box-shadow: 0 20px 40px rgba(164, 253, 76, 0.1) !important;
     }
 
-    /* Grid de Municípios (Botões de Card) */
-    .stButton > button {
+    /* Municípios Grid */
+    div.stButton > button[key^="mun_"] {
         width: 100% !important;
-        background-color: #0e1200 !important;
-        color: white !important;
+        background-color: #0c1000 !important;
+        color: #a7b076 !important;
         border: 1px solid rgba(164, 253, 76, 0.05) !important;
-        padding: 32px 24px !important;
+        padding: 24px !important;
         border-radius: 12px !important;
         font-weight: 600 !important;
-        font-size: 16px !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        text-align: center !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
+        transition: all 0.3s ease !important;
     }
-
-    .stButton > button:hover {
-        background-color: #1a1f00 !important;
+    
+    div.stButton > button[key^="mun_"]:hover {
         color: #a4fd4c !important;
         border-color: #a4fd4c !important;
-        transform: translateY(-4px);
-        box-shadow: 0 12px 30px rgba(164, 253, 76, 0.1) !important;
+        background-color: #1a1f00 !important;
     }
 
-    /* Informativo de Resultados */
     .results-header {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
         color: #a7b076;
         font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1px;
-        margin-top: 64px;
+        margin-top: 24px;
         margin-bottom: 24px;
         border-bottom: 1px solid rgba(164, 253, 76, 0.1);
         padding-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. HEADER (NÃO FIXO) ---
+# --- 3. HEADER ---
 st.markdown(
     '''
     <div class="brand-header">
@@ -173,7 +173,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 4. CONTEÚDO PRINCIPAL ---
+# --- 4. CONTEÚDO ---
 with st.container():
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
     
@@ -185,17 +185,24 @@ with st.container():
         </p>
     ''', unsafe_allow_html=True)
 
-    # Seletor de Setor
+    # Seleção de Setor
     st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
     
-    setor = st.selectbox(
-        "Escolha o Setor",
-        ["Saúde", "Educação"],
-        index=None,
-        placeholder="Clique para escolher entre Saúde ou Educação...",
-    )
+    # Grid de Setores (Botões Grandes)
+    col_edu, col_sau = st.columns(2)
+    
+    with col_edu:
+        if st.button("Educação", key="sector_edu", use_container_width=True):
+            st.session_state.setor_selecionado = "Educação"
+            
+    with col_sau:
+        if st.button("Saúde", key="sector_sau", use_container_width=True):
+            st.session_state.setor_selecionado = "Saúde"
 
-    if setor:
+    # Exibição dos Municípios com base no setor
+    if 'setor_selecionado' in st.session_state:
+        setor = st.session_state.setor_selecionado
+        
         st.markdown(f'''
             <div class="results-header">
                 <span>Municípios do Setor: {setor}</span>
@@ -203,7 +210,6 @@ with st.container():
             </div>
         ''', unsafe_allow_html=True)
 
-        # Configuração do Grid de Municípios
         cols = st.columns(4)
         
         if setor == "Saúde":
@@ -220,10 +226,9 @@ with st.container():
                 ("Município Educação B", None)
             ]
 
-        # Renderização dos botões em Grid
         for i, (nome, path) in enumerate(municipios):
             with cols[i % 4]:
-                if st.button(nome, key=f"btn_{nome}_{i}"):
+                if st.button(nome, key=f"mun_{nome}_{i}", use_container_width=True):
                     if path:
                         st.switch_page(path)
 
