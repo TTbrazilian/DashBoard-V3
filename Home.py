@@ -142,6 +142,9 @@ if setor:
         if st.button("🏢 Cássia"):
             st.switch_page("pages/Cássia_Saúde.py")
 
+        if st.button("🏢 Delfinópolis"):
+            st.switch_page("pages/Delfinópolis_Saúde.py")
+
     elif setor == "Educação":
         if st.button("🏙️ Alpinópolis"):
             st.switch_page("pages/1_Alpinópolis_Educação.py")
