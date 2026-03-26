@@ -44,7 +44,7 @@ st.markdown("""
     
     [data-testid="stVerticalBlock"] {
         width: 100% !important;
-        max-width: 500px !important;
+        max-width: 300px !important;
         margin: 0 auto !important;
         display: flex !important;
         flex-direction: column !important;
