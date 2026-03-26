@@ -9,14 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-def get_image_base64(path):
-    try:
-        with open(path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode()
-    except:
-        return ""
-
-# --- 2. CSS PARA DESIGN "NEON LUMINARY" (STITCH STYLE) ---
+# --- 2. CSS PARA DESIGN "NEON LUMINARY" (ULTRA CLEAN & NON-FIXED) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -27,34 +20,36 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
+    /* Esconde elementos padrão do Streamlit */
     header[data-testid="stHeader"], [data-testid="stSidebar"], .stDeployButton, footer { 
         display: none !important; 
     }
 
-    /* Brand Logo iG2P */
+    /* Brand Header - AGORA NÃO É FIXO (Scrolla com a página) */
     .brand-header {
-        position: fixed;
-        top: 40px;
-        left: 48px;
-        z-index: 1000;
+        width: 100%;
+        padding: 40px 48px;
         display: flex;
         align-items: center;
         gap: 12px;
+        background-color: transparent;
     }
     .brand-logo {
         color: #a4fd4c;
         font-family: 'Manrope', sans-serif;
-        font-size: 32px;
+        font-size: 24px;
         font-weight: 900;
-        letter-spacing: -2px;
-        text-decoration: none;
+        letter-spacing: -1.5px;
+    }
+    .brand-divider {
+        color: rgba(164, 253, 76, 0.3);
+        font-size: 24px;
+        font-weight: 200;
     }
     .brand-tagline {
         color: #a4fd4c;
         font-size: 14px;
         font-weight: 600;
-        border-left: 1px solid rgba(164, 253, 76, 0.3);
-        padding-left: 12px;
         margin-top: 4px;
     }
 
@@ -62,16 +57,13 @@ st.markdown("""
     .main-container {
         max-width: 1200px;
         margin: 0 auto;
-        padding-top: 120px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
+        padding: 0 48px 100px 48px;
     }
 
-    /* Tipografia de Títulos */
+    /* Tipografia Hero */
     .hero-title {
         font-family: 'Manrope', sans-serif;
-        font-size: 72px;
+        font-size: 64px;
         font-weight: 800;
         color: white;
         line-height: 1.1;
@@ -81,17 +73,25 @@ st.markdown("""
         color: #a4fd4c;
         display: block;
     }
+    .hero-subtitle {
+        color: #a7b076; 
+        font-size: 18px; 
+        max-width: 600px; 
+        margin-bottom: 60px;
+        line-height: 1.6;
+    }
+
+    /* Seção de Seleção */
     .section-label {
-        color: #a7b076;
+        color: white;
         text-transform: uppercase;
         letter-spacing: 2px;
         font-size: 14px;
         font-weight: 700;
-        margin-top: 60px;
-        margin-bottom: 24px;
+        margin-bottom: 32px;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 16px;
     }
     .section-label::before {
         content: "";
@@ -100,12 +100,17 @@ st.markdown("""
         background-color: #a4fd4c;
     }
 
-    /* Estilização do Selectbox (Setor) */
+    /* Estilização do Selectbox (Searchbox) */
     div[data-baseweb="select"] {
-        background-color: #1a1f00 !important;
-        border: 1px solid rgba(164, 253, 76, 0.2) !important;
+        background-color: #111500 !important;
+        border: 1px solid rgba(164, 253, 76, 0.1) !important;
         border-radius: 12px !important;
-        padding: 8px !important;
+        padding: 12px !important;
+        transition: all 0.3s ease;
+    }
+    div[data-baseweb="select"]:hover {
+        border-color: rgba(164, 253, 76, 0.4) !important;
+        background-color: #1a1f00 !important;
     }
     div[data-baseweb="select"] * {
         color: white !important;
@@ -115,37 +120,31 @@ st.markdown("""
         display: none !important;
     }
 
-    /* Grid de Municípios (Botões) */
+    /* Grid de Municípios (Botões de Card) */
     .stButton > button {
         width: 100% !important;
-        background-color: #131800 !important;
-        color: #a7b076 !important;
-        border: 1px solid rgba(164, 253, 76, 0.1) !important;
-        padding: 24px !important;
+        background-color: #0e1200 !important;
+        color: white !important;
+        border: 1px solid rgba(164, 253, 76, 0.05) !important;
+        padding: 32px 24px !important;
         border-radius: 12px !important;
         font-weight: 600 !important;
         font-size: 16px !important;
-        transition: all 0.3s ease !important;
-        text-align: left !important;
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        text-align: center !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
     }
 
     .stButton > button:hover {
-        background-color: #222900 !important;
+        background-color: #1a1f00 !important;
         color: #a4fd4c !important;
         border-color: #a4fd4c !important;
-        transform: translateY(-2px);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 30px rgba(164, 253, 76, 0.1) !important;
     }
 
-    /* Grid Layout para os botões */
-    [data-testid="stHorizontalBlock"] {
-        gap: 16px !important;
-    }
-    
-    /* Informativo de Municípios do Setor */
-    .results-label {
+    /* Informativo de Resultados */
+    .results-header {
         display: flex;
         justify-content: space-between;
         width: 100%;
@@ -154,53 +153,57 @@ st.markdown("""
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1px;
-        margin-top: 48px;
-        margin-bottom: 16px;
+        margin-top: 64px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid rgba(164, 253, 76, 0.1);
+        padding-bottom: 12px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. HEADER / LOGO ---
+# --- 3. HEADER (NÃO FIXO) ---
 st.markdown(
-    f'''
+    '''
     <div class="brand-header">
-        <div class="brand-logo">iG2P</div>
-        <div class="brand-tagline">Gestão Inteligente</div>
+        <span class="brand-logo">iG2P</span>
+        <span class="brand-divider">|</span>
+        <span class="brand-tagline">Gestão Inteligente</span>
     </div>
     ''',
     unsafe_allow_html=True
 )
 
-# --- 4. CONTEÚDO ---
+# --- 4. CONTEÚDO PRINCIPAL ---
 with st.container():
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
     
+    # Hero Section
     st.markdown('''
         <h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1>
-        <p style="color: #a7b076; font-size: 18px; max-width: 600px; margin-bottom: 40px;">
+        <p class="hero-subtitle">
             Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.
         </p>
     ''', unsafe_allow_html=True)
 
+    # Seletor de Setor
     st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
     
-    # Selectbox de Setor com design limpo
     setor = st.selectbox(
-        "Selecione o Setor",
+        "Escolha o Setor",
         ["Saúde", "Educação"],
         index=None,
-        placeholder="Escolha entre Saúde ou Educação...",
+        placeholder="Clique para escolher entre Saúde ou Educação...",
     )
 
     if setor:
         st.markdown(f'''
-            <div class="results-label">
+            <div class="results-header">
                 <span>Municípios do Setor: {setor}</span>
                 <span style="opacity: 0.6;">RESULTADOS SUGERIDOS</span>
             </div>
         ''', unsafe_allow_html=True)
 
-        # Lógica de botões em Grid (4 colunas)
+        # Configuração do Grid de Municípios
         cols = st.columns(4)
         
         if setor == "Saúde":
@@ -217,9 +220,10 @@ with st.container():
                 ("Município Educação B", None)
             ]
 
+        # Renderização dos botões em Grid
         for i, (nome, path) in enumerate(municipios):
             with cols[i % 4]:
-                if st.button(nome, key=f"btn_{nome}"):
+                if st.button(nome, key=f"btn_{nome}_{i}"):
                     if path:
                         st.switch_page(path)
 
