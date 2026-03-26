@@ -133,21 +133,21 @@ if setor:
     """, unsafe_allow_html=True)
 
     if setor == "Saúde":
-        if st.button("🏙️ Bom Jesus da Penha"):
+        if st.button("Bom Jesus da Penha"):
             st.switch_page("pages/1_Bom_Jesus_da_Penha_Saúde.py")
         
-        if st.button("🏢 Alpinópolis"):
+        if st.button("Alpinópolis"):
             st.switch_page("pages/Alpinópolis_Saúde.py")
 
-        if st.button("🏢 Cássia"):
+        if st.button("Cássia"):
             st.switch_page("pages/Cássia_Saúde.py")
 
-        if st.button("🏢 Delfinópolis"):
+        if st.button("Delfinópolis"):
             st.switch_page("pages/Delfinópolis_Saúde.py")
 
     elif setor == "Educação":
-        if st.button("🏙️ Alpinópolis"):
+        if st.button("Alpinópolis"):
             st.switch_page("pages/1_Alpinópolis_Educação.py")
             
-        if st.button("🏢 Município Educação B"):
+        if st.button("Município Educação B"):
             pass
