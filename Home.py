@@ -138,7 +138,7 @@ if setor:
             st.switch_page("pages/Alpinópolis_Saúde.py")
 
         if st.button("Bom Jesus da Penha"):
-            st.switch_page("pages/1_Bom_Jesus_da_Penha_Saúde.py")
+            st.switch_page("pages/Bom_Jesus_da_Penha_Saúde.py")
 
         if st.button("Cássia"):
             st.switch_page("pages/Cássia_Saúde.py")
@@ -151,7 +151,7 @@ if setor:
 
     elif setor == "Educação":
         if st.button("Alpinópolis"):
-            st.switch_page("pages/1_Alpinópolis_Educação.py")
+            st.switch_page("pages/Alpinópolis_Educação.py")
             
         if st.button("Município Educação B"):
             pass
