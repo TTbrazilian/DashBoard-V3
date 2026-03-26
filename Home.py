@@ -131,10 +131,10 @@ if setor:
             st.switch_page("pages/1_Bom_Jesus_da_Penha.py")
         
         if st.button("🏢 Alpinópolis"):
-            st.switch_page("pages/Alpinopolis_Saude.py")
+            st.switch_page("pages/Alpinópolis_Saúde.py")
 
         if st.button("🏢 Cássia"):
-            st.switch_page("pages/Cassia_Saude.py")
+            st.switch_page("pages/Cássia_Saúde.py")
 
 
     elif setor == "Educação":
