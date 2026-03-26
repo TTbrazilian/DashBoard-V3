@@ -71,21 +71,27 @@ st.markdown("""
     }
     .info-text { color: #90CAF9; margin: 0; font-size: 14px; font-weight: 500; }
 
-    /* Estilo dos Botões - Sempre centralizados e do mesmo tamanho */
-    div.stButton {
+    /* --- AJUSTE AQUI: Estilo dos Botões para tamanho fixo e igual --- */
+    div[data-testid="stButton"] {
         width: 100% !important;
     }
-    div.stButton > button {
+    
+    div[data-testid="stButton"] button {
         background-color: #3d3f4b !important;
         color: white !important;
         border: none !important;
         padding: 14px 20px !important;
         font-size: 16px !important;
         width: 100% !important; 
+        display: block !important;
         border-radius: 8px !important;
         margin-bottom: 10px !important;
     }
-    div.stButton > button:hover { background-color: #4e515f !important; }
+    
+    div[data-testid="stButton"] button:hover { 
+        background-color: #4e515f !important; 
+        border: none !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -136,9 +142,7 @@ if setor:
         if st.button("🏢 Cássia"):
             st.switch_page("pages/Cássia_Saúde.py")
 
-
     elif setor == "Educação":
-        # Botão de Alpinópolis adicionado conforme solicitado
         if st.button("🏙️ Alpinópolis"):
             st.switch_page("pages/1_Alpinópolis_Educação.py")
             
