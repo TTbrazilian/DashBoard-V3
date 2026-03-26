@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA DESIGN "NEON LUMINARY" (FIDELIDADE TOTAL AO DESIGN SEM BARRA DE TOPO) ---
+# --- 2. CSS PARA DESIGN "NEON LUMINARY" (FIDELIDADE TOTAL AO DESIGN ULTRA CLEAN) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -102,8 +102,8 @@ st.markdown("""
     /* --- CARDS DE SETOR (Educação / Saúde) --- */
     div.stButton > button[key^="sector_"] {
         height: 280px !important;
-        background-color: #0c1000 !important;
-        border: 1px solid rgba(164, 253, 76, 0.1) !important;
+        background-color: #0c1200 !important; /* Fundo mais escuro */
+        border: 1px solid rgba(164, 253, 76, 0.15) !important;
         border-radius: 24px !important;
         color: white !important;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
@@ -114,31 +114,24 @@ st.markdown("""
         gap: 20px !important;
         font-family: 'Manrope', sans-serif !important;
         font-weight: 700 !important;
-        font-size: 20px !important;
+        font-size: 24px !important;
     }
 
     div.stButton > button[key^="sector_"]:hover {
         border-color: #a4fd4c !important;
         background-color: #1a1f00 !important;
         transform: translateY(-8px) !important;
-        box-shadow: 0 20px 40px rgba(164, 253, 76, 0.15) !important;
+        box-shadow: 0 20px 40px rgba(164, 253, 76, 0.2) !important;
         color: #a4fd4c !important;
-    }
-
-    /* Estilo de "Selecionado" */
-    div.stButton > button[key^="sector_"].selected {
-        border-color: #a4fd4c !important;
-        background-color: #222900 !important;
-        box-shadow: 0 0 30px rgba(164, 253, 76, 0.2) !important;
     }
 
     /* --- CARDS DE MUNICÍPIO --- */
     div.stButton > button[key^="mun_"] {
         width: 100% !important;
-        background-color: #0c1000 !important;
+        background-color: #0c1200 !important;
         color: #a7b076 !important;
-        border: 1px solid rgba(164, 253, 76, 0.05) !important;
-        padding: 30px 20px !important;
+        border: 1px solid rgba(164, 253, 76, 0.08) !important;
+        padding: 32px 24px !important;
         border-radius: 12px !important;
         font-weight: 600 !important;
         font-size: 16px !important;
@@ -188,9 +181,9 @@ with st.container():
     
     # Hero Section
     st.markdown('''
-        <h1 class="hero-title">Decisões <span class="hero-highlight">Guiadas</span> por Dados</h1>
+        <h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1>
         <p class="hero-subtitle">
-            Selecione o setor de atuação para visualizar os indicadores estratégicos e ferramentas de gestão de sua região.
+            Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.
         </p>
     ''', unsafe_allow_html=True)
 
