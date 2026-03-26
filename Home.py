@@ -13,7 +13,7 @@ def get_image_base64(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-# --- 2. CSS PARA CENTRALIZAÇÃO ABSOLUTA (SEM ERROS) ---
+# --- 2. CSS PARA CENTRALIZAÇÃO ABSOLUTA ---
 st.markdown("""
     <style>
     /* Limpeza total de interface */
@@ -22,7 +22,7 @@ st.markdown("""
     .stDeployButton { display:none; }
     footer { visibility: hidden; }
 
-    /* Cursor de botão no Selectbox e trava de escrita */
+    /* Cursor de botão no Selectbox */
     div[data-baseweb="select"] { cursor: pointer !important; }
     div[data-baseweb="select"] input { caret-color: transparent !important; cursor: pointer !important; }
 
@@ -39,22 +39,19 @@ st.markdown("""
     .logo-img { width: 150px; pointer-events: none; }
     .brand-text { color: white; font-size: 16px; margin-top: 5px; }
 
-    /* CENTRALIZAÇÃO FORÇADA DE TODOS OS ELEMENTOS */
-    .stApp {
-        align-items: center !important;
-    }
+    /* CENTRALIZAÇÃO FORÇADA */
+    .stApp { align-items: center !important; }
     
     [data-testid="stVerticalBlock"] {
         width: 100% !important;
-        max-width: 500px !important; /* Define a largura da "coluna" central */
+        max-width: 500px !important;
         margin: 0 auto !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
-        justify-content: center !important;
     }
 
-    /* Ajuste do Selectbox para ocupar 100% da largura do bloco central */
+    /* Ajuste do Selectbox */
     div[data-testid="stSelectbox"], div[data-testid="stSelectbox"] > div {
         width: 100% !important;
     }
@@ -71,24 +68,27 @@ st.markdown("""
     }
     .info-text { color: #90CAF9; margin: 0; font-size: 14px; font-weight: 500; }
 
-    /* --- AJUSTE AQUI: Estilo dos Botões para tamanho fixo e igual --- */
-    div[data-testid="stButton"] {
+    /* --- AJUSTE DEFINITIVO DOS BOTÕES --- */
+    /* Força o container do widget a ocupar toda a largura disponível (500px) */
+    div[data-testid="stVerticalBlock"] > div:has(button) {
         width: 100% !important;
     }
-    
-    div[data-testid="stButton"] button {
+
+    /* Estilização do botão em si */
+    button[kind="secondary"], button[kind="primary"] {
+        width: 100% !important;
+        min-width: 100% !important;
+        display: block !important;
         background-color: #3d3f4b !important;
         color: white !important;
         border: none !important;
         padding: 14px 20px !important;
         font-size: 16px !important;
-        width: 100% !important; 
-        display: block !important;
         border-radius: 8px !important;
         margin-bottom: 10px !important;
     }
-    
-    div[data-testid="stButton"] button:hover { 
+
+    button:hover { 
         background-color: #4e515f !important; 
         border: none !important;
     }
