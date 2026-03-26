@@ -9,30 +9,28 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA DESIGN "NEON LUMINARY" (ULTRA CLEAN & NON-FIXED) ---
+# --- 2. CSS PARA DESIGN "NEON LUMINARY" (FIDELIDADE TOTAL AO DESIGN) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
 
-    /* Reset e Fundo Profundo */
+    /* Fundo e Reset */
     .stApp {
         background-color: #060800 !important;
         font-family: 'Inter', sans-serif;
     }
 
-    /* Esconde elementos padrão do Streamlit */
     header[data-testid="stHeader"], [data-testid="stSidebar"], .stDeployButton, footer { 
         display: none !important; 
     }
 
-    /* Brand Header - Não fixo */
+    /* Brand Header (Não fixo para rolar com a página) */
     .brand-header {
         width: 100%;
         padding: 40px 48px;
         display: flex;
         align-items: center;
         gap: 12px;
-        background-color: transparent;
     }
     .brand-logo {
         color: #a4fd4c;
@@ -60,7 +58,7 @@ st.markdown("""
         padding: 0 48px 100px 48px;
     }
 
-    /* Tipografia Hero */
+    /* Hero Section */
     .hero-title {
         font-family: 'Manrope', sans-serif;
         font-size: 64px;
@@ -71,17 +69,17 @@ st.markdown("""
     }
     .hero-highlight {
         color: #a4fd4c;
-        display: block;
+        font-style: italic;
     }
     .hero-subtitle {
         color: #a7b076; 
         font-size: 18px; 
-        max-width: 600px; 
-        margin-bottom: 60px;
+        max-width: 700px; 
+        margin-bottom: 64px;
         line-height: 1.6;
     }
 
-    /* Seção de Seleção */
+    /* Seção Label */
     .section-label {
         color: white;
         text-transform: uppercase;
@@ -100,49 +98,56 @@ st.markdown("""
         background-color: #a4fd4c;
     }
 
-    /* Estilização dos Botões de Setor (Cards Grandes) */
-    .sector-card-container {
-        margin-bottom: 48px;
-    }
-    
-    /* Custom CSS para os botões de setor do Streamlit agirem como cards */
+    /* --- CARDS DE SETOR (Educação / Saúde) --- */
     div.stButton > button[key^="sector_"] {
-        height: 240px !important;
-        background-color: #0e1200 !important;
+        height: 280px !important;
+        background-color: #0c1000 !important;
         border: 1px solid rgba(164, 253, 76, 0.1) !important;
-        border-radius: 20px !important;
+        border-radius: 24px !important;
         color: white !important;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
-        gap: 16px !important;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        gap: 20px !important;
+        position: relative !important;
+        overflow: hidden !important;
     }
-    
+
     div.stButton > button[key^="sector_"]:hover {
         border-color: #a4fd4c !important;
         background-color: #1a1f00 !important;
         transform: translateY(-8px) !important;
-        box-shadow: 0 20px 40px rgba(164, 253, 76, 0.1) !important;
+        box-shadow: 0 20px 40px rgba(164, 253, 76, 0.15) !important;
     }
 
-    /* Municípios Grid */
+    /* Estilo de "Selecionado" para os Setores */
+    div.stButton > button[key^="sector_"].selected {
+        border-color: #a4fd4c !important;
+        background-color: #222900 !important;
+        box-shadow: 0 0 30px rgba(164, 253, 76, 0.2) !important;
+    }
+
+    /* --- CARDS DE MUNICÍPIO --- */
     div.stButton > button[key^="mun_"] {
         width: 100% !important;
-        background-color: #0c1000 !important;
+        background-color: #0e1200 !important;
         color: #a7b076 !important;
         border: 1px solid rgba(164, 253, 76, 0.05) !important;
-        padding: 24px !important;
+        padding: 30px 20px !important;
         border-radius: 12px !important;
         font-weight: 600 !important;
+        font-size: 16px !important;
         transition: all 0.3s ease !important;
+        text-align: center !important;
     }
     
     div.stButton > button[key^="mun_"]:hover {
         color: #a4fd4c !important;
         border-color: #a4fd4c !important;
         background-color: #1a1f00 !important;
+        transform: scale(1.02);
     }
 
     .results-header {
@@ -151,10 +156,10 @@ st.markdown("""
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1px;
-        margin-top: 24px;
+        margin-top: 64px;
         margin-bottom: 24px;
         border-bottom: 1px solid rgba(164, 253, 76, 0.1);
-        padding-bottom: 12px;
+        padding-bottom: 16px;
         display: flex;
         justify-content: space-between;
     }
@@ -173,34 +178,35 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 4. CONTEÚDO ---
+# --- 4. CONTEÚDO PRINCIPAL ---
 with st.container():
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
     
     # Hero Section
     st.markdown('''
-        <h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1>
+        <h1 class="hero-title">Decisões <span class="hero-highlight">Guiadas</span> por Dados</h1>
         <p class="hero-subtitle">
-            Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.
+            Selecione o setor de atuação para visualizar os indicadores estratégicos e ferramentas de gestão de sua região.
         </p>
     ''', unsafe_allow_html=True)
 
-    # Seleção de Setor
-    st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
-    
-    # Grid de Setores (Botões Grandes)
+    # Grid de Setores (Cards Grandes como no design)
     col_edu, col_sau = st.columns(2)
     
+    if 'setor_selecionado' not in st.session_state:
+        st.session_state.setor_selecionado = None
+
     with col_edu:
-        if st.button("Educação", key="sector_edu", use_container_width=True):
+        # Nota: O ícone e texto são renderizados via HTML dentro do botão ou CSS
+        if st.button("🎓\\n\\nEducação", key="sector_edu", use_container_width=True):
             st.session_state.setor_selecionado = "Educação"
             
     with col_sau:
-        if st.button("Saúde", key="sector_sau", use_container_width=True):
+        if st.button("🏥\\n\\nSaúde", key="sector_sau", use_container_width=True):
             st.session_state.setor_selecionado = "Saúde"
 
-    # Exibição dos Municípios com base no setor
-    if 'setor_selecionado' in st.session_state:
+    # Lista de Municípios
+    if st.session_state.setor_selecionado:
         setor = st.session_state.setor_selecionado
         
         st.markdown(f'''
@@ -223,7 +229,9 @@ with st.container():
         else: # Educação
             municipios = [
                 ("Alpinópolis", "pages/Alpinópolis_Educação.py"),
-                ("Município Educação B", None)
+                ("Município Educação B", None),
+                ("Município Educação C", None),
+                ("Município Educação D", None)
             ]
 
         for i, (nome, path) in enumerate(municipios):
