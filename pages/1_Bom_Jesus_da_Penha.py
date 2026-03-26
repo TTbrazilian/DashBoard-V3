@@ -40,9 +40,9 @@ def formar_real(valor):
 @st.cache_data
 def load_data():
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    caminho = os.path.join(diretorio_atual, '..', 'BomJesus.csv')
+    caminho = os.path.join(diretorio_atual, '..', 'Saúde/BomJesus.csv')
     if not os.path.exists(caminho):
-        caminho = os.path.join(diretorio_atual, 'BomJesus.csv')
+        caminho = os.path.join(diretorio_atual, 'Saúde/BomJesus.csv')
         if not os.path.exists(caminho): return None
         
     df = pd.read_csv(caminho, sep=None, engine='python', encoding='utf-8', header=1)
