@@ -102,49 +102,65 @@ st.markdown("""
     /* --- CARDS DE SETOR (Educação / Saúde) --- */
     div.stButton > button[key^="sector_"] {
         height: 280px !important;
-        background-color: #0c1200 !important; /* Fundo mais escuro */
+        background-color: rgba(255, 255, 255, 0.03) !important;
         border: 1px solid rgba(164, 253, 76, 0.15) !important;
         border-radius: 24px !important;
         color: white !important;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
         display: flex !important;
         flex-direction: column !important;
-        justify-content: center !important;
-        align-items: center !important;
-        gap: 20px !important;
-        font-family: 'Manrope', sans-serif !important;
-        font-weight: 700 !important;
-        font-size: 24px !important;
+        justify-content: flex-start !important;
+        align-items: flex-start !important;
+        padding: 40px !important;
+        white-space: pre-wrap !important;
+        text-align: left !important;
+    }
+
+    /* Adição dos Ícones Estilizados via Pseudo-elementos */
+    button[key="sector_edu"]::before {
+        content: "🎓";
+        display: block;
+        font-size: 24px;
+        background: rgba(164, 253, 76, 0.1);
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+    button[key="sector_sau"]::before {
+        content: "🛡️";
+        display: block;
+        font-size: 24px;
+        background: rgba(164, 253, 76, 0.1);
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 20px;
     }
 
     div.stButton > button[key^="sector_"]:hover {
         border-color: #a4fd4c !important;
-        background-color: #1a1f00 !important;
+        background-color: rgba(164, 253, 76, 0.05) !important;
         transform: translateY(-8px) !important;
-        box-shadow: 0 20px 40px rgba(164, 253, 76, 0.2) !important;
-        color: #a4fd4c !important;
+        box-shadow: 0 20px 40px rgba(164, 253, 76, 0.1) !important;
     }
 
     /* --- CARDS DE MUNICÍPIO --- */
     div.stButton > button[key^="mun_"] {
         width: 100% !important;
-        background-color: #0c1200 !important;
+        background-color: rgba(255, 255, 255, 0.03) !important;
         color: #a7b076 !important;
         border: 1px solid rgba(164, 253, 76, 0.08) !important;
-        padding: 32px 24px !important;
+        padding: 20px !important;
         border-radius: 12px !important;
         font-weight: 600 !important;
         font-size: 16px !important;
         transition: all 0.3s ease !important;
-        text-align: center !important;
+        text-align: left !important;
     }
     
     div.stButton > button[key^="mun_"]:hover {
         color: #a4fd4c !important;
         border-color: #a4fd4c !important;
-        background-color: #1a1f00 !important;
-        transform: scale(1.02);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.3) !important;
+        background-color: rgba(164, 253, 76, 0.05) !important;
     }
 
     .results-header {
@@ -195,11 +211,12 @@ with st.container():
         st.session_state.setor_selecionado = None
 
     with col_edu:
-        if st.button("🎓\\n\\nEducação", key="sector_edu", use_container_width=True):
+        # Texto formatado com Título e Subtítulo conforme a imagem
+        if st.button("Educação\nÍndices de alfabetização, infraestrutura escolar e performance acadêmica regional.", key="sector_edu", use_container_width=True):
             st.session_state.setor_selecionado = "Educação"
             
     with col_sau:
-        if st.button("🏥\\n\\nSaúde", key="sector_sau", use_container_width=True):
+        if st.button("Saúde\nLeitos disponíveis, tempo de espera e cobertura vacinal em tempo real.", key="sector_sau", use_container_width=True):
             st.session_state.setor_selecionado = "Saúde"
 
     # Lista de Municípios
