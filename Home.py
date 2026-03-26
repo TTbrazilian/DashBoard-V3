@@ -144,6 +144,9 @@ if setor:
 
         if st.button("Delfinópolis"):
             st.switch_page("pages/Delfinópolis_Saúde.py")
+        
+        if st.button("Itaú de Minas"):
+            st.switch_page("pages/Itaú_de_Minas_Saúde.py")
 
     elif setor == "Educação":
         if st.button("Alpinópolis"):
