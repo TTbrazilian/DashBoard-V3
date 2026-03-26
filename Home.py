@@ -133,6 +133,10 @@ if setor:
         if st.button("🏢 Alpinópolis"):
             st.switch_page("pages/Alpinopolis_Saude.py")
 
+        if st.button("🏢 Cássia"):
+            st.switch_page("pages/Cassia_Saude.py")
+
+
     elif setor == "Educação":
         # Botão de Alpinópolis adicionado conforme solicitado
         if st.button("🏙️ Alpinópolis"):
