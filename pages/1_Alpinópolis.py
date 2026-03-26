@@ -49,9 +49,9 @@ def buscar_arquivo(nome):
 
 @st.cache_data
 def load_all_data():
-    arquivo_f = "Educação/Alpinópolis.csv"
-    arquivo_r = "Educação/Alpinópolis_R.csv"
-    arquivo_df = "Educação/Alpinópolis_DF.csv" 
+    arquivo_f = "zEducação/Alpinópolis.csv"
+    arquivo_r = "zEducação/Alpinópolis_R.csv"
+    arquivo_df = "zEducação/Alpinópolis_DF.csv" 
     
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
