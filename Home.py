@@ -25,7 +25,7 @@ st.markdown("""
         display: none !important; 
     }
 
-    /* Brand Header (Não fixo, apenas marca no topo esquerdo) */
+    /* Brand Header */
     .brand-header {
         width: 100%;
         padding: 40px 48px;
@@ -114,6 +114,13 @@ st.markdown("""
         padding: 40px !important;
         white-space: pre-wrap !important;
         text-align: left !important;
+        font-family: 'Manrope', sans-serif !important;
+    }
+
+    /* Estilização específica para o Título e Subtítulo dentro do botão */
+    div.stButton > button[key^="sector_"] p {
+        margin: 0 !important;
+        line-height: 1.4 !important;
     }
 
     /* Adição dos Ícones Estilizados via Pseudo-elementos */
@@ -149,12 +156,13 @@ st.markdown("""
         background-color: rgba(255, 255, 255, 0.03) !important;
         color: #a7b076 !important;
         border: 1px solid rgba(164, 253, 76, 0.08) !important;
-        padding: 20px !important;
-        border-radius: 12px !important;
-        font-weight: 600 !important;
-        font-size: 16px !important;
+        padding: 16px 20px !important;
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+        font-size: 14px !important;
         transition: all 0.3s ease !important;
         text-align: left !important;
+        height: 50px !important;
     }
     
     div.stButton > button[key^="mun_"]:hover {
@@ -211,12 +219,13 @@ with st.container():
         st.session_state.setor_selecionado = None
 
     with col_edu:
-        # Texto formatado com Título e Subtítulo conforme a imagem
-        if st.button("Educação\nÍndices de alfabetização, infraestrutura escolar e performance acadêmica regional.", key="sector_edu", use_container_width=True):
+        # Texto exato da imagem
+        if st.button("Educação\n\nÍndices de alfabetização, infraestrutura escolar e performance acadêmica regional.", key="sector_edu", use_container_width=True):
             st.session_state.setor_selecionado = "Educação"
             
     with col_sau:
-        if st.button("Saúde\nLeitos disponíveis, tempo de espera e cobertura vacinal em tempo real.", key="sector_sau", use_container_width=True):
+        # Texto exato da imagem
+        if st.button("Saúde\n\nLeitos disponíveis, tempo de espera e cobertura vacinal em tempo real.", key="sector_sau", use_container_width=True):
             st.session_state.setor_selecionado = "Saúde"
 
     # Lista de Municípios
@@ -230,7 +239,8 @@ with st.container():
             </div>
         ''', unsafe_allow_html=True)
 
-        cols = st.columns(4)
+        # Usando 6 colunas para os municípios ficarem menores, conforme imagem
+        cols = st.columns(6)
         
         if setor == "Saúde":
             municipios = [
@@ -243,13 +253,13 @@ with st.container():
         else: # Educação
             municipios = [
                 ("Alpinópolis", "pages/Alpinópolis_Educação.py"),
-                ("Município Educação B", None),
-                ("Município Educação C", None),
-                ("Município Educação D", None)
+                ("Bom Jesus da Penha", None),
+                ("Cássia", None),
+                ("Delfinópolis", None)
             ]
 
         for i, (nome, path) in enumerate(municipios):
-            with cols[i % 4]:
+            with cols[i % 6]:
                 if st.button(nome, key=f"mun_{nome}_{i}", use_container_width=True):
                     if path:
                         st.switch_page(path)
