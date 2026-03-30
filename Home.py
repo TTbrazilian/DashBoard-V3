@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA FIDELIDADE TOTAL AO DESIGN "ULTRA CLEAN" ---
+# --- 2. CSS PARA DESIGN "NEON LUMINARY" (FIDELIDADE TOTAL AO DESIGN ULTRA CLEAN) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -25,7 +25,7 @@ st.markdown("""
         display: none !important; 
     }
 
-    /* Brand Header */
+    /* Brand Header (Não fixo, rola com a página) */
     .brand-header {
         width: 100%;
         padding: 40px 48px;
@@ -68,6 +68,7 @@ st.markdown("""
         color: white;
         line-height: 1.1;
         margin-bottom: 24px;
+        letter-spacing: -2px;
     }
     .hero-highlight {
         color: #a4fd4c;
@@ -76,7 +77,7 @@ st.markdown("""
         color: #a7b076; 
         font-size: 18px; 
         max-width: 700px; 
-        margin-bottom: 64px;
+        margin-bottom: 80px;
         line-height: 1.6;
     }
 
@@ -114,9 +115,10 @@ st.markdown("""
         padding: 48px !important;
         text-align: left !important;
         overflow: hidden !important;
+        font-family: 'Manrope', sans-serif !important;
     }
 
-    /* Ícones dentro dos botões */
+    /* Ícones dentro dos botões via pseudo-elementos */
     div.stButton > button[key^="sector_"]::before {
         font-size: 28px;
         background: rgba(164, 253, 76, 0.1);
@@ -137,12 +139,6 @@ st.markdown("""
         background-color: rgba(164, 253, 76, 0.08) !important;
         transform: translateY(-12px) !important;
         box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4) !important;
-    }
-
-    /* Estilo Selecionado */
-    div.stButton > button[key^="sector_"].selected {
-        border-color: #a4fd4c !important;
-        background-color: rgba(164, 253, 76, 0.1) !important;
     }
 
     /* --- CARDS DE MUNICÍPIO --- */
@@ -215,12 +211,12 @@ with st.container():
         st.session_state.setor_selecionado = None
 
     with col_edu:
-        btn_label_edu = "Educação"
+        btn_label_edu = "Educação\\n\\nÍndices de alfabetização, infraestrutura escolar e performance acadêmica regional."
         if st.button(btn_label_edu, key="sector_edu", use_container_width=True):
             st.session_state.setor_selecionado = "Educação"
             
     with col_sau:
-        btn_label_sau = "Saúde"
+        btn_label_sau = "Saúde\\n\\nLeitos disponíveis, tempo de espera e cobertura vacinal em tempo real."
         if st.button(btn_label_sau, key="sector_sau", use_container_width=True):
             st.session_state.setor_selecionado = "Saúde"
 
@@ -248,9 +244,9 @@ with st.container():
         else: # Educação
             municipios = [
                 ("Alpinópolis", "pages/Alpinópolis_Educação.py"),
-                ("Município Educação B", None),
-                ("Município Educação C", None),
-                ("Município Educação D", None)
+                ("Bom Jesus da Penha", None),
+                ("Cássia", None),
+                ("Delfinópolis", None)
             ]
 
         for i, (nome, path) in enumerate(municipios):
