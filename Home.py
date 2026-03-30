@@ -1,175 +1,92 @@
 import streamlit as st
-import os
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA (Sua Lógica Original) ---
 st.set_page_config(
     page_title="iG2P - Inteligência em Gestão", 
     layout="wide", 
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PROFISSIONAL (FIX DE BOTÕES E CORES) ---
+# --- 2. CSS (AJUSTES VISUAIS E FIX DE BOTÕES) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
 
-    .stApp {
-        background-color: #060800 !important;
-        font-family: 'Inter', sans-serif;
-        color: #ffffff;
-    }
+    .stApp { background-color: #060800 !important; font-family: 'Inter', sans-serif; color: #ffffff; }
+    header, [data-testid="stSidebar"], .stDeployButton, footer { display: none !important; }
 
-    /* Remove elementos padrão */
-    header[data-testid="stHeader"], [data-testid="stSidebar"], .stDeployButton, footer { 
-        display: none !important; 
-    }
-
-    .brand-header {
-        width: 100%;
-        padding: 40px 48px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
+    .brand-header { padding: 40px 48px; display: flex; align-items: center; gap: 12px; }
     .brand-logo { color: #a4fd4c; font-family: 'Manrope', sans-serif; font-size: 24px; font-weight: 900; }
-    .brand-tagline { color: #a4fd4c; font-size: 14px; font-weight: 600; }
+    .main-container { max-width: 1200px; margin: 0 auto; padding: 0 48px 100px 48px; }
 
-    .main-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 48px 100px 48px;
-    }
-
-    .hero-title {
-        font-family: 'Manrope', sans-serif;
-        font-size: 64px;
-        font-weight: 800;
-        line-height: 1.1;
-        margin-bottom: 24px;
-    }
+    /* Hero Section */
+    .hero-title { font-family: 'Manrope', sans-serif; font-size: 64px; font-weight: 800; line-height: 1.1; margin-bottom: 24px; }
     .hero-highlight { color: #a4fd4c; }
-    .hero-subtitle {
-        color: #a7b076; 
-        font-size: 18px; 
-        max-width: 700px; 
-        margin-bottom: 64px;
-    }
+    .hero-subtitle { color: #a7b076; font-size: 18px; max-width: 700px; margin-bottom: 64px; }
 
-    .section-label {
-        color: white;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        font-size: 14px;
-        font-weight: 700;
-        margin-bottom: 32px;
-        display: flex; align-items: center; gap: 16px;
-    }
-    .section-label::before {
-        content: ""; width: 40px; height: 2px; background-color: #a4fd4c;
-    }
+    .section-label { color: white; text-transform: uppercase; letter-spacing: 2px; font-size: 14px; font-weight: 700; margin-bottom: 32px; display: flex; align-items: center; gap: 16px; }
+    .section-label::before { content: ""; width: 40px; height: 2px; background-color: #a4fd4c; }
 
-    /* --- FIX: CARDS COMO BOTÕES REAIS --- */
-    .button-container {
-        position: relative;
-        width: 100%;
-        height: 280px;
-    }
+    /* --- CARDS COMO BOTÕES (CORREÇÃO DE CLIQUE) --- */
+    .button-container { position: relative; width: 100%; height: 280px; }
 
-    /* Seletor ultra-específico para tornar o botão invisível e funcional */
+    /* Garante que o botão do Streamlit fique invisível e cubra o card todo */
     div[data-testid="stButton"] > button[key^="sector_"] {
         position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 280px !important;
+        top: 0 !important; left: 0 !important;
+        width: 100% !important; height: 280px !important;
         background-color: transparent !important;
         color: transparent !important;
         border: none !important;
         z-index: 100 !important;
         cursor: pointer !important;
     }
-    
-    /* Remove o efeito de hover padrão do botão invisível */
-    div[data-testid="stButton"] > button[key^="sector_"]:hover {
-        background-color: transparent !important;
-        color: transparent !important;
-    }
 
     .sector-card {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         background-color: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(164, 253, 76, 0.1);
-        border-radius: 24px;
-        padding: 40px;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        overflow: hidden;
-        z-index: 1;
+        border-radius: 24px; padding: 40px;
+        transition: all 0.4s ease; z-index: 1;
     }
 
-    /* O hover agora é engatilhado pelo container pai */
     .button-container:hover .sector-card {
         border-color: #a4fd4c;
         background-color: rgba(164, 253, 76, 0.05);
-        transform: translateY(-10px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        transform: translateY(-8px);
     }
 
-    .card-icon {
-        width: 56px; height: 56px;
-        background: rgba(164, 253, 76, 0.1);
-        border-radius: 12px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 24px; margin-bottom: 40px;
-    }
-
-    .card-title { font-size: 32px; font-weight: 700; margin-bottom: 10px; color: white; }
+    .card-icon { width: 56px; height: 56px; background: rgba(164, 253, 76, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 30px; }
+    .card-title { font-size: 32px; font-weight: 700; margin-bottom: 8px; color: white; }
     .card-subtitle { color: #a7b076; font-size: 14px; line-height: 1.5; }
+    .card-bg-icon { position: absolute; right: -20px; bottom: -30px; font-size: 180px; color: #a4fd4c; opacity: 0.03; pointer-events: none; }
 
-    .card-bg-icon {
-        position: absolute; right: -20px; bottom: -30px;
-        font-size: 180px; color: #a4fd4c; opacity: 0.03;
-        pointer-events: none;
-    }
-
-    /* --- BOTÕES MUNICÍPIOS (ESTILO NEON) --- */
+    /* --- BOTÕES MUNICÍPIOS NEON --- */
     div[data-testid="stButton"] > button[key^="mun_"] {
         width: 100% !important;
         background-color: rgba(255, 255, 255, 0.03) !important;
         color: #a7b076 !important;
         border: 1px solid rgba(164, 253, 76, 0.1) !important;
-        padding: 14px 20px !important;
-        border-radius: 12px !important;
-        text-align: left !important;
-        font-size: 16px !important;
-        transition: 0.3s ease !important;
+        padding: 18px !important; border-radius: 12px !important;
+        text-align: left !important; transition: 0.3s !important;
     }
-    
     div[data-testid="stButton"] > button[key^="mun_"]:hover {
         color: #a4fd4c !important;
         border-color: #a4fd4c !important;
-        background-color: rgba(164, 253, 76, 0.1) !important;
-        box-shadow: 0 0 15px rgba(164, 253, 76, 0.1) !important;
+        background-color: rgba(164, 253, 76, 0.08) !important;
     }
 
-    .results-header {
-        color: #a7b076; font-size: 12px; text-transform: uppercase;
-        letter-spacing: 1px; margin-top: 64px; margin-bottom: 24px;
-        border-bottom: 1px solid rgba(164, 253, 76, 0.1);
-        padding-bottom: 16px; display: flex; justify-content: space-between;
-    }
+    .results-header { color: #a7b076; font-size: 12px; text-transform: uppercase; margin-top: 60px; margin-bottom: 24px; border-bottom: 1px solid rgba(164, 253, 76, 0.1); padding-bottom: 12px; display: flex; justify-content: space-between; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 3. HEADER ---
-st.markdown('<div class="brand-header"><span class="brand-logo">iG2P</span><span style="color:rgba(164,253,76,0.3); margin:0 10px;">|</span><span class="brand-tagline">Gestão Inteligente</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="brand-header"><span class="brand-logo">iG2P</span></div>', unsafe_allow_html=True)
 
-# --- 4. CONTEÚDO PRINCIPAL ---
+# --- 4. CONTEÚDO PRINCIPAL (Funcionalidades Preservadas) ---
 with st.container():
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
-    
     st.markdown('<h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1><p class="hero-subtitle">Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.</p>', unsafe_allow_html=True)
-
     st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
     
     if 'setor_selecionado' not in st.session_state:
@@ -178,41 +95,21 @@ with st.container():
     col_edu, col_sau = st.columns(2)
     
     with col_edu:
-        st.markdown('''
-            <div class="button-container">
-                <div class="sector-card">
-                    <div class="card-icon">🎓</div>
-                    <div class="card-title">Educação</div>
-                    <div class="card-subtitle">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</div>
-                    <div class="card-bg-icon">🎓</div>
-                </div>
-            </div>
-        ''', unsafe_allow_html=True)
-        # Botão invisível posicionado por CSS
-        if st.button("Edu", key="sector_edu"):
+        st.markdown('''<div class="button-container"><div class="sector-card"><div class="card-icon">🎓</div><div class="card-title">Educação</div><div class="card-subtitle">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</div><div class="card-bg-icon">🎓</div></div></div>''', unsafe_allow_html=True)
+        # O botão agora tem um label vazio e está escondido pelo CSS por cima do card
+        if st.button(" ", key="sector_edu"):
             st.session_state.setor_selecionado = "Educação"
             
     with col_sau:
-        st.markdown('''
-            <div class="button-container">
-                <div class="sector-card">
-                    <div class="card-icon">🏥</div>
-                    <div class="card-title">Saúde</div>
-                    <div class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</div>
-                    <div class="card-bg-icon">✚</div>
-                </div>
-            </div>
-        ''', unsafe_allow_html=True)
-        # Botão invisível posicionado por CSS
-        if st.button("Sau", key="sector_sau"):
+        st.markdown('''<div class="button-container"><div class="sector-card"><div class="card-icon">🏥</div><div class="card-title">Saúde</div><div class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</div><div class="card-bg-icon">✚</div></div></div>''', unsafe_allow_html=True)
+        if st.button(" ", key="sector_sau"):
             st.session_state.setor_selecionado = "Saúde"
 
-    # --- LISTA DE MUNICÍPIOS (LÓGICA COMPLETA PRESERVADA) ---
+    # --- LÓGICA DE MUNICÍPIOS (Sua Lista Original) ---
     if st.session_state.setor_selecionado:
         setor = st.session_state.setor_selecionado
         st.markdown(f'<div class="results-header"><span>Municípios do Setor: {setor}</span><span>RESULTADOS SUGERIDOS</span></div>', unsafe_allow_html=True)
 
-        # Usando a lista original sem cortes
         if setor == "Saúde":
             municipios = [
                 ("Alpinópolis", "pages/Alpinópolis_Saúde.py"),
@@ -221,7 +118,7 @@ with st.container():
                 ("Delfinópolis", "pages/Delfinópolis_Saúde.py"),
                 ("Itaú de Minas", "pages/Itaú_de_Minas_Saúde.py")
             ]
-        else: # Educação
+        else:
             municipios = [
                 ("Alpinópolis", "pages/Alpinópolis_Educação.py"),
                 ("Município Educação B", None),
@@ -229,7 +126,7 @@ with st.container():
                 ("Município Educação D", None)
             ]
 
-        # Renderizando em grid de 4 colunas
+        # Mantendo o grid original de 4 colunas
         for i in range(0, len(municipios), 4):
             cols = st.columns(4)
             for j in range(4):
