@@ -8,7 +8,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PROFISSIONAL (FIX DE BOTÕES E CORES) ---
+# --- 2. CSS PROFISSIONAL (DESIGN FIEL ÀS FOTOS) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -32,7 +32,7 @@ st.markdown("""
         gap: 12px;
     }
     .brand-logo { color: #a4fd4c; font-family: 'Manrope', sans-serif; font-size: 24px; font-weight: 900; }
-    .brand-tagline { color: #a4fd4c; font-size: 14px; font-weight: 600; }
+    .brand-tagline { color: #a4fd4c; font-size: 14px; font-weight: 600; opacity: 0.7; }
 
     .main-container {
         max-width: 1200px;
@@ -68,51 +68,46 @@ st.markdown("""
         content: ""; width: 40px; height: 2px; background-color: #a4fd4c;
     }
 
-    /* --- FIX: CARDS COMO BOTÕES REAIS --- */
-    .button-container {
+    /* --- FIX: CARDS SOBREPOSTOS PERFEITAMENTE --- */
+    .button-wrapper {
         position: relative;
         width: 100%;
         height: 280px;
+        display: grid; /* Força sobreposição absoluta dos filhos */
+        place-items: stretch;
     }
 
-    /* Seletor ultra-específico para tornar o botão invisível e funcional */
+    /* O Card visual que fica atrás */
+    .sector-card {
+        grid-area: 1 / 1; /* Ocupa a mesma célula do grid */
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(164, 253, 76, 0.1);
+        border-radius: 24px;
+        padding: 40px;
+        transition: all 0.4s ease;
+        z-index: 1;
+        pointer-events: none; /* Deixa o clique passar para o botão real */
+    }
+
+    /* O botão invisível que fica na frente */
     div[data-testid="stButton"] > button[key^="sector_"] {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
+        grid-area: 1 / 1;
         width: 100% !important;
         height: 280px !important;
         background-color: transparent !important;
         color: transparent !important;
         border: none !important;
-        z-index: 100 !important;
+        z-index: 10 !important;
         cursor: pointer !important;
-    }
-    
-    /* Remove o efeito de hover padrão do botão invisível */
-    div[data-testid="stButton"] > button[key^="sector_"]:hover {
-        background-color: transparent !important;
-        color: transparent !important;
+        margin: 0 !important;
+        transition: none !important;
     }
 
-    .sector-card {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(164, 253, 76, 0.1);
-        border-radius: 24px;
-        padding: 40px;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        overflow: hidden;
-        z-index: 1;
-    }
-
-    /* O hover agora é engatilhado pelo container pai */
-    .button-container:hover .sector-card {
+    /* Efeito de hover no card quando o mouse está sobre o contêiner do botão */
+    .button-wrapper:hover .sector-card {
         border-color: #a4fd4c;
         background-color: rgba(164, 253, 76, 0.05);
-        transform: translateY(-10px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        transform: translateY(-8px);
     }
 
     .card-icon {
@@ -125,12 +120,7 @@ st.markdown("""
 
     .card-title { font-size: 32px; font-weight: 700; margin-bottom: 10px; color: white; }
     .card-subtitle { color: #a7b076; font-size: 14px; line-height: 1.5; }
-
-    .card-bg-icon {
-        position: absolute; right: -20px; bottom: -30px;
-        font-size: 180px; color: #a4fd4c; opacity: 0.03;
-        pointer-events: none;
-    }
+    .card-bg-icon { position: absolute; right: 20px; bottom: -30px; font-size: 180px; color: #a4fd4c; opacity: 0.03; pointer-events: none; }
 
     /* --- BOTÕES MUNICÍPIOS (ESTILO NEON) --- */
     div[data-testid="stButton"] > button[key^="mun_"] {
@@ -141,7 +131,6 @@ st.markdown("""
         padding: 14px 20px !important;
         border-radius: 12px !important;
         text-align: left !important;
-        font-size: 16px !important;
         transition: 0.3s ease !important;
     }
     
@@ -149,7 +138,6 @@ st.markdown("""
         color: #a4fd4c !important;
         border-color: #a4fd4c !important;
         background-color: rgba(164, 253, 76, 0.1) !important;
-        box-shadow: 0 0 15px rgba(164, 253, 76, 0.1) !important;
     }
 
     .results-header {
@@ -165,78 +153,74 @@ st.markdown("""
 st.markdown('<div class="brand-header"><span class="brand-logo">iG2P</span><span style="color:rgba(164,253,76,0.3); margin:0 10px;">|</span><span class="brand-tagline">Gestão Inteligente</span></div>', unsafe_allow_html=True)
 
 # --- 4. CONTEÚDO PRINCIPAL ---
-with st.container():
-    st.markdown('<div class="main-container">', unsafe_allow_html=True)
-    
-    st.markdown('<h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1><p class="hero-subtitle">Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.</p>', unsafe_allow_html=True)
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-    st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
-    
-    if 'setor_selecionado' not in st.session_state:
-        st.session_state.setor_selecionado = None
+st.markdown('<h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1><p class="hero-subtitle">Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.</p>', unsafe_allow_html=True)
 
-    col_edu, col_sau = st.columns(2)
-    
-    with col_edu:
-        st.markdown('''
-            <div class="button-container">
-                <div class="sector-card">
-                    <div class="card-icon">🎓</div>
-                    <div class="card-title">Educação</div>
-                    <div class="card-subtitle">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</div>
-                    <div class="card-bg-icon">🎓</div>
-                </div>
+st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
+
+if 'setor_selecionado' not in st.session_state:
+    st.session_state.setor_selecionado = None
+
+col_edu, col_sau = st.columns(2)
+
+with col_edu:
+    st.markdown('''
+        <div class="button-wrapper">
+            <div class="sector-card">
+                <div class="card-icon">🎓</div>
+                <div class="card-title">Educação</div>
+                <div class="card-subtitle">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</div>
+                <div class="card-bg-icon">🎓</div>
             </div>
-        ''', unsafe_allow_html=True)
-        # Botão invisível posicionado por CSS
-        if st.button("Edu", key="sector_edu"):
-            st.session_state.setor_selecionado = "Educação"
-            
-    with col_sau:
-        st.markdown('''
-            <div class="button-container">
-                <div class="sector-card">
-                    <div class="card-icon">🏥</div>
-                    <div class="card-title">Saúde</div>
-                    <div class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</div>
-                    <div class="card-bg-icon">✚</div>
-                </div>
+        </div>
+    ''', unsafe_allow_html=True)
+    if st.button("Edu", key="sector_edu"):
+        st.session_state.setor_selecionado = "Educação"
+        
+with col_sau:
+    st.markdown('''
+        <div class="button-wrapper">
+            <div class="sector-card">
+                <div class="card-icon">🏥</div>
+                <div class="card-title">Saúde</div>
+                <div class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</div>
+                <div class="card-bg-icon">✚</div>
             </div>
-        ''', unsafe_allow_html=True)
-        # Botão invisível posicionado por CSS
-        if st.button("Sau", key="sector_sau"):
-            st.session_state.setor_selecionado = "Saúde"
+        </div>
+    ''', unsafe_allow_html=True)
+    if st.button("Sau", key="sector_sau"):
+        st.session_state.setor_selecionado = "Saúde"
 
-    # --- LISTA DE MUNICÍPIOS (LÓGICA COMPLETA PRESERVADA) ---
-    if st.session_state.setor_selecionado:
-        setor = st.session_state.setor_selecionado
-        st.markdown(f'<div class="results-header"><span>Municípios do Setor: {setor}</span><span>RESULTADOS SUGERIDOS</span></div>', unsafe_allow_html=True)
+# --- LISTA DE MUNICÍPIOS (LÓGICA PRESERVADA) ---
+if st.session_state.setor_selecionado:
+    setor = st.session_state.setor_selecionado
+    st.markdown(f'<div class="results-header"><span>Municípios do Setor: {setor}</span><span>RESULTADOS SUGERIDOS</span></div>', unsafe_allow_html=True)
 
-        # Usando a lista original sem cortes
-        if setor == "Saúde":
-            municipios = [
-                ("Alpinópolis", "pages/Alpinópolis_Saúde.py"),
-                ("Bom Jesus da Penha", "pages/Bom_Jesus_da_Penha_Saúde.py"),
-                ("Cássia", "pages/Cássia_Saúde.py"),
-                ("Delfinópolis", "pages/Delfinópolis_Saúde.py"),
-                ("Itaú de Minas", "pages/Itaú_de_Minas_Saúde.py")
-            ]
-        else: # Educação
-            municipios = [
-                ("Alpinópolis", "pages/Alpinópolis_Educação.py"),
-                ("Município Educação B", None),
-                ("Município Educação C", None),
-                ("Município Educação D", None)
-            ]
+    if setor == "Saúde":
+        municipios = [
+            ("Alpinópolis", "pages/Alpinópolis_Saúde.py"),
+            ("Bom Jesus da Penha", "pages/Bom_Jesus_da_Penha_Saúde.py"),
+            ("Cássia", "pages/Cássia_Saúde.py"),
+            ("Delfinópolis", "pages/Delfinópolis_Saúde.py"),
+            ("Itaú de Minas", "pages/Itaú_de_Minas_Saúde.py")
+        ]
+    else:
+        municipios = [
+            ("Alpinópolis", "pages/Alpinópolis_Educação.py"),
+            ("Município Educação B", None),
+            ("Município Educação C", None),
+            ("Município Educação D", None)
+        ]
 
-        # Renderizando em grid de 4 colunas
-        for i in range(0, len(municipios), 4):
-            cols = st.columns(4)
-            for j in range(4):
-                if i + j < len(municipios):
-                    nome, path = municipios[i + j]
-                    with cols[j]:
-                        if st.button(nome, key=f"mun_{nome}_{i+j}", use_container_width=True):
-                            if path: st.switch_page(path)
+    # Renderizando em grid de 4 colunas como no design original
+    for i in range(0, len(municipios), 4):
+        cols = st.columns(4)
+        for j in range(4):
+            if i + j < len(municipios):
+                nome, path = municipios[i + j]
+                with cols[j]:
+                    if st.button(nome, key=f"mun_{nome}_{i+j}"):
+                        if path: st.switch_page(path)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
