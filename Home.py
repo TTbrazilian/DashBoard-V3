@@ -215,12 +215,12 @@ with st.container():
         st.session_state.setor_selecionado = None
 
     with col_edu:
-        btn_label_edu = "Educação\\n\\nÍndices de alfabetização, infraestrutura escolar e performance acadêmica regional."
+        btn_label_edu = "Educação"
         if st.button(btn_label_edu, key="sector_edu", use_container_width=True):
             st.session_state.setor_selecionado = "Educação"
             
     with col_sau:
-        btn_label_sau = "Saúde\\n\\nLeitos disponíveis, tempo de espera e cobertura vacinal em tempo real."
+        btn_label_sau = "Saúde"
         if st.button(btn_label_sau, key="sector_sau", use_container_width=True):
             st.session_state.setor_selecionado = "Saúde"
 
