@@ -1,14 +1,14 @@
 import streamlit as st
 import os
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA (Lógica Original) ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="iG2P - Inteligência em Gestão", 
     layout="wide", 
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA DESIGN "FIEL À PRINT" (NEON, GRIDS E CARDS) ---
+# --- 2. CSS PROFISSIONAL (FIX DE BOTÕES E CORES) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -62,36 +62,37 @@ st.markdown("""
         font-size: 14px;
         font-weight: 700;
         margin-bottom: 32px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
+        display: flex; align-items: center; gap: 16px;
     }
     .section-label::before {
-        content: "";
-        width: 40px;
-        height: 2px;
-        background-color: #a4fd4c;
+        content: ""; width: 40px; height: 2px; background-color: #a4fd4c;
     }
 
-    /* --- AJUSTE DOS CARDS COMO BOTÃO --- */
+    /* --- FIX: CARDS COMO BOTÕES REAIS --- */
     .button-container {
         position: relative;
         width: 100%;
         height: 280px;
     }
 
-    /* Botão invisível por cima de tudo */
-    div:has(> button[key^="sector_"]) {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        z-index: 10;
-    }
-    div:has(> button[key^="sector_"]) button {
+    /* Seletor ultra-específico para tornar o botão invisível e funcional */
+    div[data-testid="stButton"] > button[key^="sector_"] {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
         width: 100% !important;
         height: 280px !important;
-        opacity: 0 !important;
-        cursor: pointer !important;
+        background-color: transparent !important;
+        color: transparent !important;
         border: none !important;
+        z-index: 100 !important;
+        cursor: pointer !important;
+    }
+    
+    /* Remove o efeito de hover padrão do botão invisível */
+    div[data-testid="stButton"] > button[key^="sector_"]:hover {
+        background-color: transparent !important;
+        color: transparent !important;
     }
 
     .sector-card {
@@ -101,15 +102,17 @@ st.markdown("""
         border: 1px solid rgba(164, 253, 76, 0.1);
         border-radius: 24px;
         padding: 40px;
-        transition: all 0.4s ease;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         overflow: hidden;
         z-index: 1;
     }
 
+    /* O hover agora é engatilhado pelo container pai */
     .button-container:hover .sector-card {
         border-color: #a4fd4c;
         background-color: rgba(164, 253, 76, 0.05);
-        transform: translateY(-8px);
+        transform: translateY(-10px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
     }
 
     .card-icon {
@@ -120,32 +123,33 @@ st.markdown("""
         font-size: 24px; margin-bottom: 40px;
     }
 
-    .card-title { font-size: 32px; font-weight: 700; margin-bottom: 10px; }
+    .card-title { font-size: 32px; font-weight: 700; margin-bottom: 10px; color: white; }
     .card-subtitle { color: #a7b076; font-size: 14px; line-height: 1.5; }
 
-    /* ÍCONES DE FUNDO */
     .card-bg-icon {
         position: absolute; right: -20px; bottom: -30px;
         font-size: 180px; color: #a4fd4c; opacity: 0.03;
         pointer-events: none;
     }
 
-    /* --- BOTÕES MUNICÍPIOS (CORES PADRÃO) --- */
-    div.stButton > button[key^="mun_"] {
+    /* --- BOTÕES MUNICÍPIOS (ESTILO NEON) --- */
+    div[data-testid="stButton"] > button[key^="mun_"] {
         width: 100% !important;
         background-color: rgba(255, 255, 255, 0.03) !important;
         color: #a7b076 !important;
         border: 1px solid rgba(164, 253, 76, 0.1) !important;
-        padding: 18px !important;
-        border-radius: 10px !important;
+        padding: 14px 20px !important;
+        border-radius: 12px !important;
         text-align: left !important;
-        transition: 0.3s !important;
+        font-size: 16px !important;
+        transition: 0.3s ease !important;
     }
     
-    div.stButton > button[key^="mun_"]:hover {
+    div[data-testid="stButton"] > button[key^="mun_"]:hover {
         color: #a4fd4c !important;
         border-color: #a4fd4c !important;
-        background-color: rgba(164, 253, 76, 0.08) !important;
+        background-color: rgba(164, 253, 76, 0.1) !important;
+        box-shadow: 0 0 15px rgba(164, 253, 76, 0.1) !important;
     }
 
     .results-header {
@@ -160,35 +164,55 @@ st.markdown("""
 # --- 3. HEADER ---
 st.markdown('<div class="brand-header"><span class="brand-logo">iG2P</span><span style="color:rgba(164,253,76,0.3); margin:0 10px;">|</span><span class="brand-tagline">Gestão Inteligente</span></div>', unsafe_allow_html=True)
 
-# --- 4. CONTEÚDO PRINCIPAL (TODA A SUA LÓGICA) ---
+# --- 4. CONTEÚDO PRINCIPAL ---
 with st.container():
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
     
     st.markdown('<h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1><p class="hero-subtitle">Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.</p>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
-    col_edu, col_sau = st.columns(2)
     
     if 'setor_selecionado' not in st.session_state:
         st.session_state.setor_selecionado = None
 
+    col_edu, col_sau = st.columns(2)
+    
     with col_edu:
-        st.markdown('''<div class="button-container"><div class="sector-card"><div class="card-icon">🎓</div><div class="card-title">Educação</div><div class="card-subtitle">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</div><div class="card-bg-icon">🎓</div></div></div>''', unsafe_allow_html=True)
+        st.markdown('''
+            <div class="button-container">
+                <div class="sector-card">
+                    <div class="card-icon">🎓</div>
+                    <div class="card-title">Educação</div>
+                    <div class="card-subtitle">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</div>
+                    <div class="card-bg-icon">🎓</div>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+        # Botão invisível posicionado por CSS
         if st.button("Edu", key="sector_edu"):
             st.session_state.setor_selecionado = "Educação"
             
     with col_sau:
-        # CRUZ VERMELHA aplicada aqui
-        st.markdown('''<div class="button-container"><div class="sector-card"><div class="card-icon">🏥</div><div class="card-title">Saúde</div><div class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</div><div class="card-bg-icon">✚</div></div></div>''', unsafe_allow_html=True)
+        st.markdown('''
+            <div class="button-container">
+                <div class="sector-card">
+                    <div class="card-icon">🏥</div>
+                    <div class="card-title">Saúde</div>
+                    <div class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</div>
+                    <div class="card-bg-icon">✚</div>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+        # Botão invisível posicionado por CSS
         if st.button("Sau", key="sector_sau"):
             st.session_state.setor_selecionado = "Saúde"
 
-    # --- LISTA COMPLETA DE MUNICÍPIOS (SEM CORTES) ---
+    # --- LISTA DE MUNICÍPIOS (LÓGICA COMPLETA PRESERVADA) ---
     if st.session_state.setor_selecionado:
         setor = st.session_state.setor_selecionado
         st.markdown(f'<div class="results-header"><span>Municípios do Setor: {setor}</span><span>RESULTADOS SUGERIDOS</span></div>', unsafe_allow_html=True)
 
-        cols = st.columns(4)
+        # Usando a lista original sem cortes
         if setor == "Saúde":
             municipios = [
                 ("Alpinópolis", "pages/Alpinópolis_Saúde.py"),
@@ -205,9 +229,14 @@ with st.container():
                 ("Município Educação D", None)
             ]
 
-        for i, (nome, path) in enumerate(municipios):
-            with cols[i % 4]:
-                if st.button(nome, key=f"mun_{nome}_{i}", use_container_width=True):
-                    if path: st.switch_page(path)
+        # Renderizando em grid de 4 colunas
+        for i in range(0, len(municipios), 4):
+            cols = st.columns(4)
+            for j in range(4):
+                if i + j < len(municipios):
+                    nome, path = municipios[i + j]
+                    with cols[j]:
+                        if st.button(nome, key=f"mun_{nome}_{i+j}", use_container_width=True):
+                            if path: st.switch_page(path)
 
     st.markdown('</div>', unsafe_allow_html=True)
