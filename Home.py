@@ -2,14 +2,14 @@ import streamlit as st
 import os
 import base64
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA (CONSERVADO) ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA (Lógica Preservada) ---
 st.set_page_config(
     page_title="iG2P - Inteligência em Gestão", 
     layout="wide", 
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA DESIGN "NEON LUMINARY" (AJUSTADO PARA FIDELIDADE TOTAL) ---
+# --- 2. CSS PARA DESIGN "FIEL À PRINT" (NEON, GRIDS E CARDS) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -18,6 +18,7 @@ st.markdown("""
     .stApp {
         background-color: #060800 !important;
         font-family: 'Inter', sans-serif;
+        color: #ffffff;
     }
 
     /* Remove elementos padrão do Streamlit */
@@ -34,24 +35,8 @@ st.markdown("""
         gap: 12px;
         background-color: transparent;
     }
-    .brand-logo {
-        color: #a4fd4c;
-        font-family: 'Manrope', sans-serif;
-        font-size: 24px;
-        font-weight: 900;
-        letter-spacing: -1.5px;
-    }
-    .brand-divider {
-        color: rgba(164, 253, 76, 0.3);
-        font-size: 24px;
-        font-weight: 200;
-    }
-    .brand-tagline {
-        color: #a4fd4c;
-        font-size: 14px;
-        font-weight: 600;
-        margin-top: 4px;
-    }
+    .brand-logo { color: #a4fd4c; font-family: 'Manrope', sans-serif; font-size: 24px; font-weight: 900; }
+    .brand-tagline { color: #a4fd4c; font-size: 14px; font-weight: 600; }
 
     /* Container Principal */
     .main-container {
@@ -65,13 +50,10 @@ st.markdown("""
         font-family: 'Manrope', sans-serif;
         font-size: 64px;
         font-weight: 800;
-        color: white;
         line-height: 1.1;
         margin-bottom: 24px;
     }
-    .hero-highlight {
-        color: #a4fd4c;
-    }
+    .hero-highlight { color: #a4fd4c; }
     .hero-subtitle {
         color: #a7b076; 
         font-size: 18px; 
@@ -99,66 +81,86 @@ st.markdown("""
         background-color: #a4fd4c;
     }
 
-    /* --- CARDS DE SETOR (Educação / Saúde) --- */
-    div.stButton > button[key^="sector_"] {
-        height: 300px !important;
-        background-color: rgba(255, 255, 255, 0.02) !important;
-        border: 1px solid rgba(164, 253, 76, 0.1) !important;
-        border-radius: 24px !important;
-        color: white !important;
-        padding: 40px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
-        transition: all 0.4s ease !important;
+    /* --- AJUSTE DEFINITIVO: CARDS DE SETOR COMO HTML SELECIONÁVEL --- */
+    /* Isso transforma o botão Streamlit invisível em um container visual idêntico à print */
+    
+    div:has(> button[key^="sector_"]) {
+        position: relative;
+        cursor: pointer;
+        width: 100%;
     }
 
-    /* Hack para o Streamlit aceitar \n e formatar o texto do card */
-    div.stButton > button[key^="sector_"] p {
-        font-family: 'Manrope', sans-serif !important;
-        font-weight: 700 !important;
-        font-size: 28px !important;
-        margin: 0 !important;
-        line-height: 1.3 !important;
-        white-space: pre-wrap !important; /* Essencial para as quebras de linha */
+    /* O botão do streamlit fica invisível por cima, mas captura o clique */
+    div:has(> button[key^="sector_"]) button {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        opacity: 0 !important;
+        z-index: 10;
+        cursor: pointer;
     }
 
-    /* Ícones Quadrados Flutuantes conforme a imagem */
-    button[key="sector_edu"]::before {
-        content: "🎓";
+    /* O container visual (Card) */
+    .sector-card {
+        height: 280px;
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(164, 253, 76, 0.1);
+        border-radius: 24px;
+        padding: 40px;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
+        flex-direction: column;
+        justify-content: flex-start;
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden; /* Para travar o ícone de fundo opaco */
+    }
+
+    /* Ícone flutuante em cima (Quadrado transparente) */
+    .card-icon {
         width: 56px;
         height: 56px;
         background: rgba(164, 253, 76, 0.1);
         border-radius: 12px;
-        margin-bottom: 40px;
-    }
-    button[key="sector_sau"]::before {
-        content: "🛡️";
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 24px;
-        width: 56px;
-        height: 56px;
-        background: rgba(164, 253, 76, 0.1);
-        border-radius: 12px;
         margin-bottom: 40px;
     }
 
-    div.stButton > button[key^="sector_"]:hover {
+    /* Título e Subtítulo */
+    .card-title {
+        font-family: 'Manrope', sans-serif;
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    .card-subtitle {
+        color: #a7b076;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    /* ÍCONES OPACOS DE FUNDO (A booa que você pediu) */
+    .card-bg-icon {
+        position: absolute;
+        right: -20px;
+        bottom: -30px;
+        font-size: 150px;
+        color: #a4fd4c;
+        opacity: 0.03; /* Oculto, mas visível */
+        font-family: serif; /* Fontes padrão aceitam melhor emojis */
+        pointer-events: none;
+    }
+
+    /* Hover effects */
+    div:has(> button[key^="sector_"]):hover .sector-card {
         border-color: #a4fd4c !important;
         background-color: rgba(164, 253, 76, 0.05) !important;
         transform: translateY(-8px) !important;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
     }
 
-    /* --- CARDS DE MUNICÍPIO (CONSERVADO E AJUSTADO) --- */
+    /* --- CARDS DE MUNICÍPIO (Lógica e Regras Conservadas, Design Ajustado) --- */
     div.stButton > button[key^="mun_"] {
         width: 100% !important;
         background-color: rgba(255, 255, 255, 0.03) !important;
@@ -168,8 +170,8 @@ st.markdown("""
         border-radius: 10px !important;
         font-weight: 600 !important;
         font-size: 15px !important;
-        transition: all 0.3s ease !important;
         text-align: left !important;
+        transition: all 0.3s ease !important;
     }
     
     div.stButton > button[key^="mun_"]:hover {
@@ -226,14 +228,31 @@ with st.container():
     if 'setor_selecionado' not in st.session_state:
         st.session_state.setor_selecionado = None
 
+    # --- SETOR EDUCAÇÃO (HTML + BOTÃO STREAMLIT INVISÍVEL) ---
     with col_edu:
-        # Texto formatado para o card
-        if st.button("Educação\n\nÍndices de alfabetização, infraestrutura escolar e performance acadêmica regional.", key="sector_edu", use_container_width=True):
+        st.markdown('''
+            <div class="sector-card">
+                <div class="card-icon">🎓</div>
+                <div class="card-title">Educação</div>
+                <div class="card-subtitle">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</div>
+                <div class="card-bg-icon">🎓</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        # Este botão captura o clique e executa a lógica, mas está invisível por cima do HTML
+        if st.button("Selecionar Educação", key="sector_edu", use_container_width=True):
             st.session_state.setor_selecionado = "Educação"
             
+    # --- SETOR SAÚDE (HTML + BOTÃO STREAMLIT INVISÍVEL) ---
     with col_sau:
-        # Texto formatado para o card
-        if st.button("Saúde\n\nLeitos disponíveis, tempo de espera e cobertura vacinal em tempo real.", key="sector_sau", use_container_width=True):
+        st.markdown('''
+            <div class="sector-card">
+                <div class="card-icon">🛡️</div>
+                <div class="card-title">Saúde</div>
+                <div class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</div>
+                <div class="card-bg-icon">🛡️</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        if st.button("Selecionar Saúde", key="sector_sau", use_container_width=True):
             st.session_state.setor_selecionado = "Saúde"
 
     # Lista de Municípios (Toda a lógica de dados e navegação original conservada)
@@ -247,8 +266,7 @@ with st.container():
             </div>
         ''', unsafe_allow_html=True)
 
-        # Usando 4 colunas como no seu código original para os municípios
-        cols = st.columns(4)
+        cols = st.columns(4) # Grid original mantida
         
         # Sua lógica de dados original (CONSERVADA)
         if setor == "Saúde":
