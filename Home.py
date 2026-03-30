@@ -81,27 +81,30 @@ st.markdown("""
         background-color: #a4fd4c;
     }
 
-    /* --- AJUSTE DEFINITIVO: CARDS DE SETOR COMO HTML SELECIONÁVEL --- */
-    /* Isso transforma o botão Streamlit invisível em um container visual idêntico à print */
-    
+    /* --- CARDS DE SETOR COMO BOTÃO INTEGRAL --- */
+    /* Faz o container do botão ter posição relativa para ancorar o design */
     div:has(> button[key^="sector_"]) {
         position: relative;
-        cursor: pointer;
+        height: 280px;
         width: 100%;
     }
 
-    /* O botão do streamlit fica invisível por cima, mas captura o clique */
+    /* O botão do streamlit fica invisível e cobre 100% da área do card */
     div:has(> button[key^="sector_"]) button {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
         opacity: 0 !important;
-        z-index: 10;
-        cursor: pointer;
+        z-index: 10 !important;
+        cursor: pointer !important;
     }
 
-    /* O container visual (Card) */
+    /* O container visual (Card) desenhado por baixo do botão */
     .sector-card {
-        height: 280px;
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
         background-color: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(164, 253, 76, 0.1);
         border-radius: 24px;
@@ -110,49 +113,10 @@ st.markdown("""
         flex-direction: column;
         justify-content: flex-start;
         transition: all 0.4s ease;
-        position: relative;
-        overflow: hidden; /* Para travar o ícone de fundo opaco */
+        overflow: hidden;
     }
 
-    /* Ícone flutuante em cima (Quadrado transparente) */
-    .card-icon {
-        width: 56px;
-        height: 56px;
-        background: rgba(164, 253, 76, 0.1);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        margin-bottom: 40px;
-    }
-
-    /* Título e Subtítulo */
-    .card-title {
-        font-family: 'Manrope', sans-serif;
-        font-size: 32px;
-        font-weight: 700;
-        margin-bottom: 10px;
-    }
-    .card-subtitle {
-        color: #a7b076;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-
-    /* ÍCONES OPACOS DE FUNDO (A booa que você pediu) */
-    .card-bg-icon {
-        position: absolute;
-        right: -20px;
-        bottom: -30px;
-        font-size: 150px;
-        color: #a4fd4c;
-        opacity: 0.03; /* Oculto, mas visível */
-        font-family: serif; /* Fontes padrão aceitam melhor emojis */
-        pointer-events: none;
-    }
-
-    /* Hover effects */
+    /* Efeito de Hover no Card Visual */
     div:has(> button[key^="sector_"]):hover .sector-card {
         border-color: #a4fd4c !important;
         background-color: rgba(164, 253, 76, 0.05) !important;
@@ -160,7 +124,30 @@ st.markdown("""
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
     }
 
-    /* --- CARDS DE MUNICÍPIO (Lógica e Regras Conservadas, Design Ajustado) --- */
+    .card-icon {
+        width: 56px; height: 56px;
+        background: rgba(164, 253, 76, 0.1);
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; margin-bottom: 40px;
+    }
+
+    .card-title { font-family: 'Manrope', sans-serif; font-size: 32px; font-weight: 700; margin-bottom: 10px; }
+    .card-subtitle { color: #a7b076; font-size: 14px; line-height: 1.5; max-width: 85%; }
+
+    /* ÍCONES OPACOS DE FUNDO */
+    .card-bg-icon {
+        position: absolute;
+        right: -20px;
+        bottom: -30px;
+        font-size: 180px;
+        color: #a4fd4c;
+        opacity: 0.03;
+        pointer-events: none;
+        font-family: serif;
+    }
+
+    /* --- CARDS DE MUNICÍPIO (DESIGN NEON) --- */
     div.stButton > button[key^="mun_"] {
         width: 100% !important;
         background-color: rgba(255, 255, 255, 0.03) !important;
@@ -181,17 +168,11 @@ st.markdown("""
     }
 
     .results-header {
-        color: #a7b076;
-        font-size: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-top: 64px;
-        margin-bottom: 24px;
+        color: #a7b076; font-size: 12px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 1px;
+        margin-top: 64px; margin-bottom: 24px;
         border-bottom: 1px solid rgba(164, 253, 76, 0.1);
-        padding-bottom: 16px;
-        display: flex;
-        justify-content: space-between;
+        padding-bottom: 16px; display: flex; justify-content: space-between;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -208,11 +189,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 4. CONTEÚDO PRINCIPAL (LÓGICA CONSERVADA) ---
+# --- 4. CONTEÚDO PRINCIPAL (LÓGICA TOTALMENTE PRESERVADA) ---
 with st.container():
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
     
-    # Hero Section - Textos conforme imagem de referência
+    # Hero Section
     st.markdown('''
         <h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1>
         <p class="hero-subtitle">
@@ -224,11 +205,10 @@ with st.container():
     st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
     col_edu, col_sau = st.columns(2)
     
-    # Lógica de persistência de estado (CONSERVADA)
     if 'setor_selecionado' not in st.session_state:
         st.session_state.setor_selecionado = None
 
-    # --- SETOR EDUCAÇÃO (HTML + BOTÃO STREAMLIT INVISÍVEL) ---
+    # --- SETOR EDUCAÇÃO (DESIGN FIEL + LÓGICA ORIGINAL) ---
     with col_edu:
         st.markdown('''
             <div class="sector-card">
@@ -238,24 +218,25 @@ with st.container():
                 <div class="card-bg-icon">🎓</div>
             </div>
             ''', unsafe_allow_html=True)
-        # Este botão captura o clique e executa a lógica, mas está invisível por cima do HTML
+        # Botão invisível que executa sua lógica
         if st.button("Selecionar Educação", key="sector_edu", use_container_width=True):
             st.session_state.setor_selecionado = "Educação"
             
-    # --- SETOR SAÚDE (HTML + BOTÃO STREAMLIT INVISÍVEL) ---
+    # --- SETOR SAÚDE (CRUZ HOSPITALAR + LÓGICA ORIGINAL) ---
     with col_sau:
         st.markdown('''
             <div class="sector-card">
-                <div class="card-icon">🛡️</div>
+                <div class="card-icon">🏥</div>
                 <div class="card-title">Saúde</div>
                 <div class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</div>
-                <div class="card-bg-icon">🛡️</div>
+                <div class="card-bg-icon">✚</div>
             </div>
             ''', unsafe_allow_html=True)
+        # Botão invisível que executa sua lógica
         if st.button("Selecionar Saúde", key="sector_sau", use_container_width=True):
             st.session_state.setor_selecionado = "Saúde"
 
-    # Lista de Municípios (Toda a lógica de dados e navegação original conservada)
+    # --- LISTA DE MUNICÍPIOS (LÓGICA ORIGINAL COMPLETA) ---
     if st.session_state.setor_selecionado:
         setor = st.session_state.setor_selecionado
         
@@ -266,9 +247,9 @@ with st.container():
             </div>
         ''', unsafe_allow_html=True)
 
-        cols = st.columns(4) # Grid original mantida
+        cols = st.columns(4) 
         
-        # Sua lógica de dados original (CONSERVADA)
+        # Sua lógica de dados 100% original:
         if setor == "Saúde":
             municipios = [
                 ("Alpinópolis", "pages/Alpinópolis_Saúde.py"),
@@ -285,7 +266,7 @@ with st.container():
                 ("Município Educação D", None)
             ]
 
-        # Sua lógica de loop e switch_page (CONSERVADA)
+        # Sua lógica de navegação original:
         for i, (nome, path) in enumerate(municipios):
             with cols[i % 4]:
                 if st.button(nome, key=f"mun_{nome}_{i}", use_container_width=True):
