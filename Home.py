@@ -7,19 +7,17 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS (FIDELIDADE TOTAL À IMAGEM) ---
+# --- 2. CSS GLOBAL (FIDELIDADE PIXEL-PERFECT) ---
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
 
-/* ---- BASE ---- */
-.stApp { 
-    background-color: #0C1004 !important; 
-    font-family: 'Manrope', sans-serif; 
-    color: #E0E5CE; 
+/* Fundo global e Fontes */
+.stApp {
+    background-color: #080A04 !important;
 }
 
-/* Remover elementos padrão do Streamlit */
+/* Ocultar UI nativa do Streamlit */
 header[data-testid="stHeader"], 
 [data-testid="stSidebar"], 
 .stDeployButton, 
@@ -27,279 +25,139 @@ footer {
     display: none !important; 
 }
 
-.block-container { 
-    padding: 0 !important; 
-    max-width: 100% !important; 
+/* Ajuste de espaçamento da tela */
+.block-container {
+    padding-top: 3rem !important;
+    padding-bottom: 5rem !important;
+    max-width: 1200px !important;
 }
 
-/* ---- HEADER ---- */
-.brand-header {
-    padding: 48px 64px 0 64px;
-    display: flex; 
-    align-items: center; 
-    gap: 16px;
-}
-.brand-logo { 
-    color: #BFFF00; 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 28px; 
-    font-weight: 800; 
-    letter-spacing: -1px;
-}
-.brand-tagline { 
-    color: #BFFF00; 
-    font-size: 14px; 
-    font-weight: 600; 
-    opacity: 0.8;
-}
-
-/* ---- MAIN WRAP ---- */
-.main-wrap { 
-    max-width: 1400px; 
-    margin: 0 auto; 
-    padding: 0 64px; 
-}
-
-/* ---- HERO ---- */
-.hero-title {
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 96px; 
-    font-weight: 800;
-    line-height: 0.95; 
-    margin-top: 80px; 
-    margin-bottom: 24px; 
-    color: white;
-    letter-spacing: -3px;
-}
-.hero-highlight { 
-    color: #BFFF00; 
-}
-.hero-subtitle {
-    color: #8A9175; 
-    font-size: 20px; 
-    max-width: 640px; 
-    margin-bottom: 80px; 
-    line-height: 1.5;
-    font-weight: 400;
-}
-
-/* ---- SECTION LABEL ---- */
-.section-label {
-    color: #BFFF00; 
-    text-transform: uppercase; 
-    letter-spacing: 4px; 
-    font-size: 14px;
-    font-weight: 700; 
-    margin-bottom: 40px; 
-    display: flex; 
-    align-items: center; 
-    gap: 20px;
-}
-.section-label::before { 
-    content: ""; 
-    width: 60px; 
-    height: 3px; 
-    background-color: #BFFF00; 
-    flex-shrink: 0; 
-}
-
-/* ---- SECTOR CARDS ---- */
-.sector-card {
-    background-color: #111508;
-    border: 1px solid rgba(191, 255, 0, 0.1);
-    border-radius: 32px;
-    padding: 48px;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+/* Colunas precisam ser relativas para o hack dos cards funcionar */
+[data-testid="column"] {
     position: relative;
-    overflow: hidden;
-    min-height: 320px;
-    cursor: pointer;
 }
 
-.sector-card.active {
-    border-color: #BFFF00;
-    background-color: rgba(191, 255, 0, 0.03);
-    box-shadow: 0 0 40px rgba(191, 255, 0, 0.05);
-}
-
-.card-icon-box {
-    width: 64px; 
-    height: 64px; 
-    background: rgba(191, 255, 0, 0.1); 
-    border-radius: 16px;
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    font-size: 28px; 
-    margin-bottom: 48px;
-}
-
-.card-title { 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 42px; 
-    font-weight: 700; 
-    margin-bottom: 12px; 
-    color: white; 
-}
-.card-subtitle { 
-    color: #8A9175; 
-    font-size: 16px; 
-    line-height: 1.6; 
-    max-width: 380px; 
-}
-
-.card-bg-icon {
-    position: absolute; 
-    right: -20px; 
-    bottom: -40px; 
-    font-size: 200px;
-    color: #BFFF00; 
-    opacity: 0.03; 
-    pointer-events: none;
-}
-
-/* ---- MUNICÍPIOS SECTION ---- */
-.results-header {
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center;
-    margin-top: 100px; 
-    margin-bottom: 32px;
-}
-.results-header-title { 
-    color: white; 
-    font-size: 24px; 
-    font-weight: 700; 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-}
-.results-header-label { 
-    color: #4A5A2A; 
-    font-size: 12px; 
-    text-transform: uppercase; 
-    letter-spacing: 2px; 
-    font-weight: 700; 
-}
-
-/* ---- BOTÕES MUNICÍPIOS ---- */
-div[data-testid="stButton"] > button {
-    width: 100% !important;
-    background-color: #111508 !important;
-    color: #E0E5CE !important;
-    border: 1px solid rgba(191, 255, 0, 0.05) !important;
-    padding: 18px 24px !important;
-    border-radius: 12px !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    transition: all 0.3s ease !important;
-    font-family: 'Manrope', sans-serif !important;
-    text-align: center !important;
-}
-
-div[data-testid="stButton"] > button:hover {
-    color: #BFFF00 !important;
-    border-color: rgba(191, 255, 0, 0.4) !important;
-    background-color: rgba(191, 255, 0, 0.05) !important;
-}
-
-/* Overlay para botões invisíveis nos cards */
-.overlay-button div[data-testid="stButton"] > button {
-    opacity: 0 !important;
-    height: 320px !important;
-    margin-top: -320px !important;
-    position: relative !important;
-    z-index: 10 !important;
-    border: none !important;
-    cursor: pointer !important;
-}
-
-/* VER TODOS */
-.ver-todos div[data-testid="stButton"] > button {
-    background-color: transparent !important;
-    color: #BFFF00 !important;
-    border: 1px solid #BFFF00 !important;
+/* Estilo Base dos Botões de Municípios */
+[data-testid="stButton"] button {
+    background-color: #0F140A !important;
+    color: #EAEFD3 !important;
+    border: 1px solid #192010 !important;
+    border-radius: 8px !important;
+    padding: 16px 12px !important;
     font-size: 13px !important;
-    font-weight: 800 !important;
-    letter-spacing: 2px !important;
-    text-transform: uppercase !important;
+    font-weight: 600 !important;
+    font-family: 'Manrope', sans-serif !important;
+    transition: all 0.2s ease !important;
+    width: 100% !important;
 }
 
-.ver-todos div[data-testid="stButton"] > button:hover {
-    background-color: #BFFF00 !important;
-    color: #0C1004 !important;
+[data-testid="stButton"] button:hover {
+    border-color: #8CE02A !important;
+    background-color: #121A0C !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 3. SESSION STATE ---
 if 'setor_selecionado' not in st.session_state:
-    st.session_state.setor_selecionado = "Saúde" # Default conforme a imagem de referência
+    st.session_state.setor_selecionado = "Educação" # Default
 
-# --- 4. HEADER ---
+# --- 4. HEADER & HERO ---
 st.markdown("""
-<div class="brand-header">
-    <span class="brand-logo">iG2P</span>
-    <span style="color:rgba(191,255,0,0.2);margin:0 4px;font-size:24px;font-weight:200;">|</span>
-    <span class="brand-tagline">Gestão Inteligente</span>
+<div style="display: flex; align-items: center; margin-bottom: 5rem;">
+    <span style="color: #8CE02A; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 20px;">iG2P</span>
+    <span style="color: #8CE02A; margin: 0 16px; opacity: 0.3;">|</span>
+    <span style="color: #8CE02A; font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 14px;">Gestão Inteligente</span>
+</div>
+
+<h1 style="color: #EAEFD3; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 72px; font-weight: 800; line-height: 1.05; margin: 0 0 24px 0; letter-spacing: -2px;">
+    Inteligência em<br>
+    <span style="color: #8CE02A;">Gestão Pública.</span>
+</h1>
+<p style="color: #848B6E; font-family: 'Manrope', sans-serif; font-size: 18px; line-height: 1.6; max-width: 600px; margin: 0 0 4rem 0;">
+    Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.
+</p>
+
+<div style="display: flex; align-items: center; margin-bottom: 2rem;">
+    <div style="width: 40px; height: 2px; background-color: #8CE02A; margin-right: 16px;"></div>
+    <span style="color: #848B6E; font-family: 'Manrope', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Selecione o Setor</span>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 5. HERO ---
-st.markdown("""
-<div class="main-wrap">
-  <h1 class="hero-title">Inteligência em<br><span class="hero-highlight">Gestão Pública.</span></h1>
-  <p class="hero-subtitle">Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.</p>
-  <div class="section-label">Selecione o Setor</div>
-</div>
-""", unsafe_allow_html=True)
+# --- 5. CARDS DE SETOR ---
+col1, col2 = st.columns(2, gap="large")
 
-# --- 6. CARDS DE SETOR ---
-st.markdown('<div class="main-wrap">', unsafe_allow_html=True)
-col_edu, col_sau = st.columns(2, gap="large")
+# Controle visual de Ativação
+is_edu = st.session_state.setor_selecionado == "Educação"
+edu_border = "#8CE02A" if is_edu else "#192010"
+edu_bg = "#11180A" if is_edu else "#0F140A"
 
-with col_edu:
-    is_active = "active" if st.session_state.setor_selecionado == "Educação" else ""
+is_sau = st.session_state.setor_selecionado == "Saúde"
+sau_border = "#8CE02A" if is_sau else "#192010"
+sau_bg = "#11180A" if is_sau else "#0F140A"
+
+# Ícones SVG idênticos à foto
+svg_edu = '''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8CE02A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>'''
+svg_sau = '''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8CE02A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M8 11h8M12 7v8"/></svg>'''
+
+with col1:
     st.markdown(f"""
-    <div class="sector-card {is_active}">
-        <div class="card-icon-box">🎓</div>
-        <div class="card-title">Educação</div>
-        <p class="card-subtitle">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</p>
-        <div class="card-bg-icon">🎓</div>
+    <style>
+    /* Oculta o botão real do Streamlit por cima do card HTML usando absolute positioning */
+    div[data-testid="column"]:nth-child(1) [data-testid="stButton"] button {{
+        position: absolute !important; top: 0; left: 0; width: 100% !important; height: 100% !important;
+        opacity: 0 !important; z-index: 10 !important; cursor: pointer !important;
+    }}
+    </style>
+    <div style="background-color: {edu_bg}; border: 1px solid {edu_border}; border-radius: 24px; padding: 40px; position: relative; overflow: hidden; height: 320px; transition: all 0.3s ease;">
+        <div style="background-color: #161D0C; width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 32px;">
+            {svg_edu}
+        </div>
+        <h2 style="color: white; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 32px; font-weight: 700; margin: 0 0 12px 0;">Educação</h2>
+        <p style="color: #848B6E; font-family: 'Manrope', sans-serif; font-size: 15px; margin: 0; max-width: 90%; line-height: 1.6;">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</p>
+        <div style="position: absolute; right: -30px; bottom: -30px; width: 220px; height: 220px; opacity: 0.03; color: #8CE02A;">
+            {svg_edu.replace('width="24" height="24"', 'width="100%" height="100%"')}
+        </div>
     </div>
     """, unsafe_allow_html=True)
-    st.markdown('<div class="overlay-button">', unsafe_allow_html=True)
+    
     if st.button("Selecionar Educação", key="btn_edu_trigger"):
         st.session_state.setor_selecionado = "Educação"
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
-with col_sau:
-    is_active = "active" if st.session_state.setor_selecionado == "Saúde" else ""
+with col2:
     st.markdown(f"""
-    <div class="sector-card {is_active}">
-        <div class="card-icon-box">🛡️</div>
-        <div class="card-title">Saúde</div>
-        <p class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</p>
-        <div class="card-bg-icon">✚</div>
+    <style>
+    div[data-testid="column"]:nth-child(2) [data-testid="stButton"] button {{
+        position: absolute !important; top: 0; left: 0; width: 100% !important; height: 100% !important;
+        opacity: 0 !important; z-index: 10 !important; cursor: pointer !important;
+    }}
+    </style>
+    <div style="background-color: {sau_bg}; border: 1px solid {sau_border}; border-radius: 24px; padding: 40px; position: relative; overflow: hidden; height: 320px; transition: all 0.3s ease;">
+        <div style="background-color: #161D0C; width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 32px;">
+            {svg_sau}
+        </div>
+        <h2 style="color: white; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 32px; font-weight: 700; margin: 0 0 12px 0;">Saúde</h2>
+        <p style="color: #848B6E; font-family: 'Manrope', sans-serif; font-size: 15px; margin: 0; max-width: 90%; line-height: 1.6;">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</p>
+        <div style="position: absolute; right: -30px; bottom: -30px; width: 220px; height: 220px; opacity: 0.03; color: #8CE02A;">
+            {svg_sau.replace('width="24" height="24"', 'width="100%" height="100%"')}
+        </div>
     </div>
     """, unsafe_allow_html=True)
-    st.markdown('<div class="overlay-button">', unsafe_allow_html=True)
+    
     if st.button("Selecionar Saúde", key="btn_sau_trigger"):
         st.session_state.setor_selecionado = "Saúde"
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. LISTA DE MUNICÍPIOS (LÓGICA E DADOS DO SEU CÓDIGO) ---
-setor = st.session_state.setor_selecionado
-
-st.markdown(f"""
-<div class="main-wrap">
-  <div class="results-header">
-    <span class="results-header-title">Municípios do Setor: {setor}</span>
-    <span class="results-header-label">Resultados Sugeridos</span>
-  </div>
+# --- 6. LISTA DE MUNICÍPIOS ---
+st.markdown("""
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 5rem; margin-bottom: 2rem;">
+    <h3 style="color: white; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; font-weight: 700; margin: 0;">Municípios do Setor</h3>
+    <span style="color: #848B6E; font-family: 'Manrope', sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">Resultados Sugeridos</span>
 </div>
 """, unsafe_allow_html=True)
+
+setor = st.session_state.setor_selecionado
 
 if setor == "Saúde":
     municipios = [
@@ -318,22 +176,34 @@ else:
         ("Itaú de Minas", "pages/Itaú_de_Minas_Educação.py"),
     ]
 
-st.markdown('<div class="main-wrap" style="padding-bottom:120px;">', unsafe_allow_html=True)
-NUM_COLS = 6 # Configurado para 6 colunas como na imagem
+# Grid de 6 colunas
+NUM_COLS = 6
 for i in range(0, len(municipios), NUM_COLS):
     cols = st.columns(NUM_COLS, gap="small")
     chunk = municipios[i:i + NUM_COLS]
+    
     for j, (nome, path) in enumerate(chunk):
         with cols[j]:
             if st.button(nome, key=f"mun_{nome}_{i+j}"):
                 if path: st.switch_page(path)
     
-    # Botão "VER TODOS" posicionado na última coluna da primeira linha
-    last_chunk_len = len(chunk)
-    if last_chunk_len < NUM_COLS:
-        with cols[last_chunk_len]:
-            st.markdown('<div class="ver-todos">', unsafe_allow_html=True)
+    # Botão VER TODOS formatado na última coluna vazia dinamicamente
+    if len(chunk) < NUM_COLS:
+        idx_ver_todos = len(chunk)
+        with cols[idx_ver_todos]:
+            # CSS injetado especificamente para pintar o texto do botão "Ver Todos" de verde
+            css_col_nth = idx_ver_todos + 1
+            st.markdown(f"""
+            <style>
+            div[data-testid="column"]:nth-child({css_col_nth}) [data-testid="stButton"] button p {{
+                color: #8CE02A !important;
+                font-size: 12px !important;
+                font-weight: 800 !important;
+                letter-spacing: 1.5px !important;
+                text-transform: uppercase;
+            }}
+            </style>
+            """, unsafe_allow_html=True)
+            
             if st.button("VER TODOS", key="btn_ver_todos"):
-                pass
-            st.markdown('</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+                pass  # Lógica para ver todos
