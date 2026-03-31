@@ -56,7 +56,6 @@ def load_all_data():
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
     
-    # Base de Fichas
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
@@ -64,15 +63,12 @@ def load_all_data():
         else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
 
-    # Base de Receitas
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
 
-    # Base de Despesa por Fonte
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
 
-    # Normalização de nomes de meses para evitar KeyError
     meses_limpeza = ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
     for col in df_f.columns:
@@ -127,7 +123,6 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # Busca dinâmica de meses para evitar erro de índice
         meses_disponiveis = [c for c in df_r.columns if c in ['Janeiro', 'Fevereiro', 'Março']]
         
         col_fonte_df = 'Fonte'
@@ -137,15 +132,7 @@ if df_f_raw is not None and df_r is not None:
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
 
-        def cat_fonte_desp(fonte):
-            if '15407' in fonte: return 'FUNDEB 70%'
-            if '15403' in fonte: return 'FUNDEB 30%'
-            if '1546' in fonte: return 'FUNDEB ETI'
-            if '2540' in fonte: return 'FUNDEB Superávit'
-            return 'Outras Fontes'
-        df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(cat_fonte_desp)
-
-        # Cálculo de métricas
+        # Métricas
         tot_rec_ano = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR'][meses_disponiveis].sum().sum()
@@ -169,9 +156,11 @@ if df_f_raw is not None and df_r is not None:
         df_plot_r = pd.DataFrame(dados_m_r)
         fig_r_bar = px.bar(df_plot_r, x='Mês', y='Valor', color='Categoria', text='Valor',
                            color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
-        # Alteração: Removendo legenda e títulos laterais apenas no FUNDEB
-        fig_r_bar.update_layout(barnorm='percent', separators=',.', showlegend=False)
-        fig_r_bar.update_yaxes(title_text="")
+        
+        # AJUSTE: Remove títulos e números laterais, mas MANTÉM legenda
+        fig_r_bar.update_layout(barnorm='percent', separators=',.', showlegend=True)
+        fig_r_bar.update_yaxes(title_text="", showticklabels=False) # Remove "Valor" e os números (0, 20, 40...)
+        fig_r_bar.update_xaxes(title_text="") # Remove "Mês"
         fig_r_bar.update_traces(texttemplate='%{text:.2s}', textposition='inside', 
                                 hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{text:,.2f}<extra></extra>")
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
@@ -188,9 +177,11 @@ if df_f_raw is not None and df_r is not None:
         df_plot_f = pd.DataFrame(dados_m_f)
         fig_f_bar = px.bar(df_plot_f, x='Mês', y='Valor', color='Fonte', text='Valor',
                            color_discrete_map={'FUNDEB 70%':'#4169E1', 'FUNDEB 30%':'#FF4500'})
-        # Alteração: Removendo legenda e títulos laterais apenas no FUNDEB
-        fig_f_bar.update_layout(barnorm='percent', separators=',.', showlegend=False)
-        fig_f_bar.update_yaxes(title_text="")
+        
+        # AJUSTE: Remove títulos e números laterais, mas MANTÉM legenda
+        fig_f_bar.update_layout(barnorm='percent', separators=',.', showlegend=True)
+        fig_f_bar.update_yaxes(title_text="", showticklabels=False)
+        fig_f_bar.update_xaxes(title_text="")
         fig_f_bar.update_traces(texttemplate='%{text:.2s}', textposition='inside', 
                                 hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{text:,.2f}<extra></extra>")
         st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
@@ -200,14 +191,15 @@ if df_f_raw is not None and df_r is not None:
         total_desp_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'][meses_disponiveis].sum().sum()
         df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
         fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s')
-        # Alteração: Removendo legenda e títulos laterais apenas no FUNDEB
-        fig_comp.update_layout(separators=',.', showlegend=False)
-        fig_comp.update_yaxes(title_text="")
+        
+        # AJUSTE: Limpeza visual mantendo legenda
+        fig_comp.update_layout(separators=',.', showlegend=True)
+        fig_comp.update_yaxes(title_text="", showticklabels=False)
         fig_comp.update_xaxes(title_text="")
         fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
-        st.markdown("### 📋 Relatório de Fichas FUNDEB (Detalhamento)")
+        st.markdown("### 📋 Relatório de Fichas FUNDEB")
         col_liq_fichas = [c for c in df_f.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo', 'Soma_Liquidado']].copy()
@@ -216,7 +208,8 @@ if df_f_raw is not None and df_r is not None:
 
     # --- PÁGINA: RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
-        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Próprios (Educação)</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Próprios</h1>", unsafe_allow_html=True)
+        # Código de Recursos Próprios preservado sem as alterações de limpeza do FUNDEB
         df_r_imp = df_r[(df_r['Categoria'] == 'IMPOSTOS')].copy()
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'].astype(str) == '15001')].copy()
         tot_receita_imp = df_r_imp['Total'].sum()
@@ -231,7 +224,6 @@ if df_f_raw is not None and df_r is not None:
         with m2: st.metric("Despesas 15001 (Liq.)", formar_real(tot_desp_15001))
         with m3: st.metric("Percentual dos 25%", f"{perc_atual:.2f}%", delta=f"{perc_atual-25:.2f}%")
 
-        st.subheader("🔹 Análise Mensal")
         meses_rp = [c for c in df_r_imp.columns if c in ['Janeiro', 'Fevereiro', 'Março']]
         dados_rec_mensal = []
         for m in meses_rp:
@@ -239,10 +231,8 @@ if df_f_raw is not None and df_r is not None:
             dados_rec_mensal.append({"Mês": m, "Tipo": "Receita Impostos", "Valor": val_r})
         
         fig_rec = px.bar(pd.DataFrame(dados_rec_mensal), x='Mês', y='Valor', color='Tipo', barmode='group')
-        # Mantendo legenda para Próprios
         st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
-        st.markdown("### 📋 Relatório de Fichas Recursos Próprios")
         df_f_15001_fichas = df_f[df_f['Fonte'].str.contains('15001', na=False)].copy()
         df_f_final_rp = df_f_15001_fichas[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
         for col in ['Orçado', 'Saldo']: df_f_final_rp[col] = df_f_final_rp[col].apply(formar_real)
@@ -263,10 +253,8 @@ if df_f_raw is not None and df_r is not None:
 
         df_pie_r = df_r_vinc.groupby('Descrição da Receita')['Total'].sum().reset_index()
         fig_vinc_pie = px.pie(df_pie_r, values='Total', names='Descrição da Receita', hole=.4)
-        # Mantendo legenda para Vinculados
         st.plotly_chart(fig_vinc_pie, use_container_width=True, config=CONFIG_PT)
 
-        st.markdown("### 📋 Detalhamento de Fichas (Recursos Vinculados)")
         df_f_vinc_final = df_f_vinc[['Atividade', 'Ficha', 'Fonte', 'Orçado', 'Saldo']].copy()
         for col in ['Orçado', 'Saldo']: df_f_vinc_final[col] = df_f_vinc_final[col].apply(formar_real)
         st.dataframe(df_f_vinc_final, use_container_width=True, hide_index=True)
