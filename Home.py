@@ -179,7 +179,6 @@ with col_edu:
     <div class="sector-card">
         <div class="card-icon">🎓</div>
         <div class="card-title">Educação</div>
-        <div class="card-subtitle">Índices de alfabetização, infraestrutura escolar e performance acadêmica regional.</div>
         <div class="card-bg-icon">🎓</div>
     </div>
     """, unsafe_allow_html=True)
@@ -192,7 +191,6 @@ with col_sau:
     <div class="sector-card">
         <div class="card-icon">🏥</div>
         <div class="card-title">Saúde</div>
-        <div class="card-subtitle">Leitos disponíveis, tempo de espera e cobertura vacinal em tempo real.</div>
         <div class="card-bg-icon">✚</div>
     </div>
     """, unsafe_allow_html=True)
