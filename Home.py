@@ -34,10 +34,6 @@ st.markdown(f"""
     div[data-baseweb="select"] input {{
         caret-color: transparent !important;
         cursor: pointer !important;
-    }}
-    
-    /* Bloqueia eventos de teclado no input para evitar busca/escrita */
-    div[data-baseweb="select"] input {{
         pointer-events: none !important;
     }}
 
@@ -86,6 +82,7 @@ st.markdown(f"""
         text-align: center;
         width: 100%;
         margin-top: 40px;
+        font-family: sans-serif;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -124,21 +121,31 @@ with col_center:
 
 # --- 6. GRID DE MUNICÍPIOS CENTRALIZADO ---
 if setor_escolhido:
-    # Título centralizado
     st.markdown(f'<p class="municipio-header">Municípios do Setor: {setor_escolhido}</p>', unsafe_allow_html=True)
     
-    # Lógica de rotas
-    suffix = "Saúde" if setor_escolhido == "Saúde" else "Educação"
-    nomes = ["Alpinópolis", "Bom Jesus da Penha", "Cássia", "Delfinópolis", "Itaú de Minas"]
+    # Definição das listas específicas por setor
+    if setor_escolhido == "Educação":
+        nomes = [
+            "Alpinópolis", "Cássia", "Capetinga", "Claraval", "Delfinópolis", 
+            "Ibiraci", "Itaú", "Pratápolis", "Restinga", "São João Batista Do Glória", 
+            "São José da Barra", "São Roque de Minas", "São Tomás de Aquino", "Itamogi"
+        ]
+        suffix = "Educação"
+    else: # Saúde
+        nomes = ["Alpinópolis", "Bom Jesus da Penha", "Cássia", "Delfinópolis", "Itaú de Minas"]
+        suffix = "Saúde"
     
-    # Centralização das caixas (botões)
-    # Usamos colunas laterais vazias para empurrar o conteúdo para o centro exato
-    _, col_buttons, _ = st.columns([0.15, 0.7, 0.15])
+    # Centralização das caixas com margens laterais iguais
+    _, col_buttons, _ = st.columns([0.1, 0.8, 0.1])
     
     with col_buttons:
+        # Criar colunas (5 por linha)
         cols = st.columns(5)
         for i, nome in enumerate(nomes):
             with cols[i % 5]:
-                path = f"pages/{nome.replace(' ', '_')}_{suffix}.py"
-                if st.button(nome, key=f"btn_{nome}", use_container_width=True):
+                # Formata o caminho do arquivo para o switch_page
+                file_name = nome.replace(' ', '_')
+                path = f"pages/{file_name}_{suffix}.py"
+                
+                if st.button(nome, key=f"btn_{nome}_{i}", use_container_width=True):
                     st.switch_page(path)
