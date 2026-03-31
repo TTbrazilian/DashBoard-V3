@@ -69,7 +69,6 @@ def load_all_data():
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
 
-    # Ajuste de meses conforme checklist (Jan-Fev)
     meses_limpeza = ['Janeiro', 'Fevereiro', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
     for col in df_f.columns:
@@ -119,21 +118,8 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # --- PADRONIZAÇÃO DE CORES (Checklist) ---
-        # Receitas: Escala de Azul (Escuro -> Claro)
-        cores_azul = {
-            'Principal': '#08306b', 
-            'VAAR': '#2171b5', 
-            'ETI': '#6baed6', 
-            'Aplicação': '#deebf7'
-        }
-        # Despesas: Escala de Vermelho (Escuro -> Claro)
-        cores_vermelho = {
-            'FUNDEB 70%': '#7f0000', 
-            'FUNDEB 30%': '#d7301f'
-        }
-        
-        # Correção de Período: Jan-Fev
+        cores_azul = {'Principal': '#08306b', 'VAAR': '#2171b5', 'ETI': '#6baed6', 'Aplicação': '#deebf7'}
+        cores_vermelho = {'FUNDEB 70%': '#7f0000', 'FUNDEB 30%': '#d7301f'}
         meses_ajustados = ['Janeiro', 'Fevereiro']
 
         df_df_fundeb = df_df_raw[(df_df_raw['Fonte'].astype(str).str.contains('15407|15403', na=False))].copy()
@@ -141,21 +127,17 @@ if df_f_raw is not None and df_r is not None:
         df_r_fundeb = df_r[(df_r['Categoria'] == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
 
-        # Cálculos com Período Jan-Fev
         tot_rec_periodo = df_r_fundeb[meses_ajustados].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         
-        # Base para cálculo dos 70% (Receitas exceto VAAR conforme regras gerais de cálculo)
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR'][meses_ajustados].sum().sum()
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_ajustados].sum().sum()
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
-        # --- MÉTRICAS DE TOPO ---
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
         with m2: st.metric("Total Arrecadado (Jan - Fev)", formar_real(tot_rec_periodo))
         
-        # Destaque Visual Índice 70% (Checklist)
         simbolo = "✅" if perc_70 >= 70 else "⚠️"
         cor_idx = "green" if perc_70 >= 70 else "red"
         status_txt = "Dentro do esperado" if perc_70 >= 70 else "Abaixo do mínimo"
@@ -170,7 +152,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         
-        # --- 1. RECEITAS FUNDEB (Gráfico Empilhado) ---
+        # --- 1. RECEITAS FUNDEB (Gráfico Empilhado em %) ---
         st.subheader("🔹 1. Receitas FUNDEB por Categoria (Jan-Fev)")
         dados_m_r = []
         for m in meses_ajustados:
@@ -179,18 +161,16 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
         
         fig_r_bar = px.bar(
-            pd.DataFrame(dados_m_r), 
-            x='Mês', y='Valor', 
-            color='Categoria', 
-            barmode='relative', # Empilhado
-            color_discrete_map=cores_azul,
-            text_auto='.2s'
+            pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', 
+            barmode='relative', barnorm='percent', # Alterado para percentual
+            color_discrete_map=cores_azul, text_auto='.1f'
         )
+        fig_r_bar.update_yaxes(title="Porcentagem (%)", tickmode='linear', tick0=0, dtick=10) # Escala de 10 em 10
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
         
-        # --- 2. DESPESAS FUNDEB (Gráfico Empilhado) ---
+        # --- 2. DESPESAS FUNDEB (Gráfico Empilhado em %) ---
         st.subheader("🔹 2. Despesas FUNDEB por Categoria (Jan-Fev)")
         dados_m_f = []
         for m in meses_ajustados:
@@ -199,36 +179,29 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         
         fig_f_bar = px.bar(
-            pd.DataFrame(dados_m_f), 
-            x='Mês', y='Valor', 
-            color='Fonte', 
-            barmode='relative', # Empilhado
-            color_discrete_map=cores_vermelho,
-            text_auto='.2s'
+            pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', 
+            barmode='relative', barnorm='percent', # Alterado para percentual
+            color_discrete_map=cores_vermelho, text_auto='.1f'
         )
+        fig_f_bar.update_yaxes(title="Porcentagem (%)", tickmode='linear', tick0=0, dtick=10) # Escala de 10 em 10
         st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
         
-        # --- 3. ANÁLISE DOS 70% (Novo Gráfico Acumulado) ---
+        # --- 3. ANÁLISE DOS 70% (Acumulado) ---
         st.subheader("🔹 3. Análise do Índice dos 70% (Acumulado Jan-Fev)")
-        
         df_70_comp = pd.DataFrame({
             "Tipo": ["Receita Base (100%)", "Despesa Pessoal (Alvo 70%)"],
             "Valor": [rec_base_70, desp_70_val],
             "Cor": ["Receita", "Despesa"]
         })
-        
         fig_70 = px.bar(
-            df_70_comp, 
-            x='Tipo', y='Valor', 
-            color='Cor',
+            df_70_comp, x='Tipo', y='Valor', color='Cor',
             color_discrete_map={"Receita": "#08306b", "Despesa": cor_idx},
             text_auto='.3s'
         )
         st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
 
-        # Relatório de Fichas (Jan-Fev)
         st.markdown("### 📋 Detalhamento de Fichas (Jan-Fev)")
         col_liq_fichas = [c for c in df_f.columns if any(m in c for m in meses_ajustados) and 'Liquidado' in c]
         df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
@@ -240,12 +213,10 @@ if df_f_raw is not None and df_r is not None:
     # --- PÁGINA: RECURSOS PRÓPRIOS (Preservada) ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Próprios</h1>", unsafe_allow_html=True)
-        # Logica original mantida...
 
     # --- PÁGINA: RECURSOS VINCULADOS (Preservada) ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
-        # Logica original mantida...
 
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
