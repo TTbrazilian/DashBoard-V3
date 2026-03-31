@@ -69,7 +69,8 @@ def load_all_data():
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
 
-    meses_limpeza = ['Janeiro', 'Fevereiro', 'Março ', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
+    # Ajuste de meses conforme checklist (Jan-Fev)
+    meses_limpeza = ['Janeiro', 'Fevereiro', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
@@ -118,9 +119,21 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # Definição de Cores do Checklist
-        cores_azul = {'Principal': '#08306b', 'VAAR': '#2171b5', 'ETI': '#6baed6', 'Aplicação': '#deebf7'}
-        cores_vermelho = {'FUNDEB 70%': '#7f0000', 'FUNDEB 30%': '#d7301f'}
+        # --- PADRONIZAÇÃO DE CORES (Checklist) ---
+        # Receitas: Escala de Azul (Escuro -> Claro)
+        cores_azul = {
+            'Principal': '#08306b', 
+            'VAAR': '#2171b5', 
+            'ETI': '#6baed6', 
+            'Aplicação': '#deebf7'
+        }
+        # Despesas: Escala de Vermelho (Escuro -> Claro)
+        cores_vermelho = {
+            'FUNDEB 70%': '#7f0000', 
+            'FUNDEB 30%': '#d7301f'
+        }
+        
+        # Correção de Período: Jan-Fev
         meses_ajustados = ['Janeiro', 'Fevereiro']
 
         df_df_fundeb = df_df_raw[(df_df_raw['Fonte'].astype(str).str.contains('15407|15403', na=False))].copy()
@@ -132,58 +145,91 @@ if df_f_raw is not None and df_r is not None:
         tot_rec_periodo = df_r_fundeb[meses_ajustados].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         
+        # Base para cálculo dos 70% (Receitas exceto VAAR conforme regras gerais de cálculo)
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR'][meses_ajustados].sum().sum()
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_ajustados].sum().sum()
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
+        # --- MÉTRICAS DE TOPO ---
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
         with m2: st.metric("Total Arrecadado (Jan - Fev)", formar_real(tot_rec_periodo))
         
-        # Destaque Visual Índice 70%
+        # Destaque Visual Índice 70% (Checklist)
         simbolo = "✅" if perc_70 >= 70 else "⚠️"
         cor_idx = "green" if perc_70 >= 70 else "red"
-        with m3: st.markdown(f"**Índice 70% (Pessoal)** <br> <span style='font-size:22px; color:{cor_idx}; font-weight:bold;'>{perc_70:.2f}% {simbolo}</span>", unsafe_allow_html=True)
+        status_txt = "Dentro do esperado" if perc_70 >= 70 else "Abaixo do mínimo"
+        with m3: 
+            st.markdown(f"""
+                <div style='background-color: #f0f2f6; padding: 10px; border-radius: 10px; border-left: 5px solid {cor_idx};'>
+                    <small>Índice 70% (Pessoal)</small><br>
+                    <span style='font-size:22px; color:{cor_idx}; font-weight:bold;'>{perc_70:.2f}% {simbolo}</span><br>
+                    <small style='color: gray;'>{status_txt}</small>
+                </div>
+            """, unsafe_allow_html=True)
 
         st.markdown("---")
-        st.subheader("🔹 1. Receitas FUNDEB (Empilhado)")
         
-        fig_r_pie = px.pie(df_r_fundeb, values='Total', names='Subcategoria', hole=.4, color='Subcategoria', color_discrete_map=cores_azul)
-        st.plotly_chart(fig_r_pie, use_container_width=True, config=CONFIG_PT)
-
+        # --- 1. RECEITAS FUNDEB (Gráfico Empilhado) ---
+        st.subheader("🔹 1. Receitas FUNDEB por Categoria (Jan-Fev)")
         dados_m_r = []
         for m in meses_ajustados:
             for cat in df_r_fundeb['Subcategoria'].unique():
                 val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
         
-        fig_r_bar = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', barmode='relative', color_discrete_map=cores_azul)
+        fig_r_bar = px.bar(
+            pd.DataFrame(dados_m_r), 
+            x='Mês', y='Valor', 
+            color='Categoria', 
+            barmode='relative', # Empilhado
+            color_discrete_map=cores_azul,
+            text_auto='.2s'
+        )
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        st.subheader("🔹 2. Despesas FUNDEB (Empilhado)")
         
-        df_plot_f = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'].groupby('Fonte_Nome')[meses_ajustados].sum().sum(axis=1).reset_index()
-        df_plot_f.columns = ['Fonte_Nome', 'Total']
-        fig_f_pie = px.pie(df_plot_f, values='Total', names='Fonte_Nome', hole=.4, color='Fonte_Nome', color_discrete_map=cores_vermelho)
-        st.plotly_chart(fig_f_pie, use_container_width=True, config=CONFIG_PT)
-
+        # --- 2. DESPESAS FUNDEB (Gráfico Empilhado) ---
+        st.subheader("🔹 2. Despesas FUNDEB por Categoria (Jan-Fev)")
         dados_m_f = []
         for m in meses_ajustados:
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
                 val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         
-        fig_f_bar = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', barmode='relative', color_discrete_map=cores_vermelho)
+        fig_f_bar = px.bar(
+            pd.DataFrame(dados_m_f), 
+            x='Mês', y='Valor', 
+            color='Fonte', 
+            barmode='relative', # Empilhado
+            color_discrete_map=cores_vermelho,
+            text_auto='.2s'
+        )
         st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        st.subheader("🔹 3. Análise dos 70% (Acumulado)")
-        df_70_comp = pd.DataFrame({"Tipo": ["Receita Base", "Despesa 70% (15407)"], "Valor": [rec_base_70, desp_70_val]})
-        fig_70 = px.bar(df_70_comp, x='Tipo', y='Valor', color='Tipo', color_discrete_map={"Receita Base": "#08306b", "Despesa 70% (15407)": cor_idx})
+        
+        # --- 3. ANÁLISE DOS 70% (Novo Gráfico Acumulado) ---
+        st.subheader("🔹 3. Análise do Índice dos 70% (Acumulado Jan-Fev)")
+        
+        df_70_comp = pd.DataFrame({
+            "Tipo": ["Receita Base (100%)", "Despesa Pessoal (Alvo 70%)"],
+            "Valor": [rec_base_70, desp_70_val],
+            "Cor": ["Receita", "Despesa"]
+        })
+        
+        fig_70 = px.bar(
+            df_70_comp, 
+            x='Tipo', y='Valor', 
+            color='Cor',
+            color_discrete_map={"Receita": "#08306b", "Despesa": cor_idx},
+            text_auto='.3s'
+        )
         st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
 
-        st.markdown("### 📋 Relatório de Fichas (Jan-Fev)")
+        # Relatório de Fichas (Jan-Fev)
+        st.markdown("### 📋 Detalhamento de Fichas (Jan-Fev)")
         col_liq_fichas = [c for c in df_f.columns if any(m in c for m in meses_ajustados) and 'Liquidado' in c]
         df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
