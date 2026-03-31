@@ -41,17 +41,19 @@ st.markdown("""
 
     .hero-title {
         font-family: 'Manrope', sans-serif;
-        font-size: 64px;
+        font-size: 72px;
         font-weight: 800;
-        line-height: 1.1;
-        margin-bottom: 24px;
+        line-height: 1.05;
+        margin-bottom: 20px;
+        color: white;
     }
     .hero-highlight { color: #a4fd4c; }
     .hero-subtitle {
         color: #a7b076; 
-        font-size: 18px; 
-        max-width: 700px; 
+        font-size: 17px; 
+        max-width: 580px; 
         margin-bottom: 64px;
+        line-height: 1.6;
     }
 
     .section-label {
@@ -83,7 +85,7 @@ st.markdown("""
         padding: 40px;
         transition: all 0.4s ease;
         z-index: 1;
-        pointer-events: none; /* Deixa o clique passar para o botão */
+        pointer-events: none;
     }
 
     /* O botão invisível do Streamlit */
@@ -127,7 +129,7 @@ st.markdown("""
         border: 1px solid rgba(164, 253, 76, 0.1) !important;
         padding: 14px 20px !important;
         border-radius: 12px !important;
-        text-align: left !important;
+        text-align: center !important;
     }
     div[data-testid="stButton"] > button[key^="mun_"]:hover {
         color: #a4fd4c !important;
@@ -135,11 +137,46 @@ st.markdown("""
         background-color: rgba(164, 253, 76, 0.1) !important;
     }
 
+    /* --- BOTÃO VER TODOS --- */
+    div[data-testid="stButton"] > button[key="btn_ver_todos"] {
+        width: 100% !important;
+        background-color: #a4fd4c !important;
+        color: #060800 !important;
+        border: none !important;
+        padding: 14px 20px !important;
+        border-radius: 12px !important;
+        text-align: center !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        letter-spacing: 1.5px !important;
+        text-transform: uppercase !important;
+    }
+    div[data-testid="stButton"] > button[key="btn_ver_todos"]:hover {
+        background-color: #b8fd6a !important;
+    }
+
+    /* --- HEADER MUNICÍPIOS --- */
     .results-header {
-        color: #a7b076; font-size: 12px; text-transform: uppercase;
-        letter-spacing: 1px; margin-top: 64px; margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 64px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
         border-bottom: 1px solid rgba(164, 253, 76, 0.1);
-        padding-bottom: 16px; display: flex; justify-content: space-between;
+    }
+    .results-header-title {
+        color: white;
+        font-size: 18px;
+        font-weight: 600;
+        font-family: 'Manrope', sans-serif;
+    }
+    .results-header-label {
+        color: #5a6a3a;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 600;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -150,7 +187,7 @@ st.markdown('<div class="brand-header"><span class="brand-logo">iG2P</span><span
 # --- 4. CONTEÚDO PRINCIPAL ---
 st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-st.markdown('<h1 class="hero-title">Inteligência em <span class="hero-highlight">Gestão Pública.</span></h1><p class="hero-subtitle">Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="hero-title">Inteligência em<br><span class="hero-highlight">Gestão Pública.</span></h1><p class="hero-subtitle">Analise métricas em tempo real e tome decisões baseadas em dados para transformar o futuro dos municípios.</p>', unsafe_allow_html=True)
 
 st.markdown('<div class="section-label">Selecione o Setor</div>', unsafe_allow_html=True)
 
@@ -190,7 +227,15 @@ with col_sau:
 # --- LISTA DE MUNICÍPIOS ---
 if st.session_state.setor_selecionado:
     setor = st.session_state.setor_selecionado
-    st.markdown(f'<div class="results-header"><span>Municípios do Setor: {setor}</span><span>RESULTADOS SUGERIDOS</span></div>', unsafe_allow_html=True)
+
+    # Header atualizado para o estilo da imagem
+    st.markdown(
+        '<div class="results-header">'
+        '<span class="results-header-title">Municípios do Setor</span>'
+        '<span class="results-header-label">Resultados Sugeridos</span>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     if setor == "Saúde":
         municipios = [
@@ -208,13 +253,33 @@ if st.session_state.setor_selecionado:
             ("Município Educação D", None)
         ]
 
-    for i in range(0, len(municipios), 4):
-        cols = st.columns(4)
-        for j in range(4):
-            if i + j < len(municipios):
-                nome, path = municipios[i + j]
-                with cols[j]:
-                    if st.button(nome, key=f"mun_{nome}_{i+j}"):
-                        if path: st.switch_page(path)
+    # Grade de 6 colunas com "VER TODOS" no último slot disponível
+    NUM_COLS = 6
+    total = len(municipios)
+
+    for i in range(0, total, NUM_COLS):
+        chunk = municipios[i:i + NUM_COLS]
+        is_last = (i + NUM_COLS >= total)
+        cols = st.columns(NUM_COLS)
+
+        for j, (nome, path) in enumerate(chunk):
+            with cols[j]:
+                if st.button(nome, key=f"mun_{nome}_{i+j}"):
+                    if path:
+                        st.switch_page(path)
+
+        # Botão "VER TODOS" no próximo slot da última linha
+        if is_last:
+            next_slot = len(chunk)
+            if next_slot < NUM_COLS:
+                with cols[next_slot]:
+                    if st.button("VER TODOS", key="btn_ver_todos"):
+                        pass  # lógica futura
+            else:
+                # Linha cheia: nova linha com o botão no último slot
+                extra_cols = st.columns(NUM_COLS)
+                with extra_cols[NUM_COLS - 1]:
+                    if st.button("VER TODOS", key="btn_ver_todos"):
+                        pass  # lógica futura
 
 st.markdown('</div>', unsafe_allow_html=True)
