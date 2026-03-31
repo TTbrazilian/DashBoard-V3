@@ -201,23 +201,30 @@ if df_f_raw is not None and df_r is not None:
             df_f_final[col] = df_f_final[col].apply(formar_real)
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
-    # --- ABA RECURSOS PRÓPRIOS (INTEGRAÇÃO COMPLETA DOS 3 ARQUIVOS) ---
+    # --- ABA RECURSOS PRÓPRIOS (TOTALMENTE INTEGRADA E CORRIGIDA) ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>🏛️ Alpinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
         meses_proprios = ['Janeiro', 'Fevereiro']
         
-        # 1. Cruzamento de Dados (Receitas + Despesas Consolidadas + Fichas)
-        df_r_imp = df_r[df_r['Categoria'] == 'IMPOSTOS'].copy()
+        # 1. Cruzamento de Dados dos 3 arquivos
+        # Busca robusta por "IMPOSTO" na categoria
+        df_r_imp = df_r[df_r['Categoria'].astype(str).str.upper().str.contains('IMPOSTO', na=False)].copy()
         df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
         df_f_15001 = df_f_raw[df_f_raw['Fonte'].str.contains('15001', na=False)].copy()
         
-        # Cálculos de Receitas (df_r)
-        total_impostos = df_r_imp[meses_proprios].sum().sum()
-        total_deducoes = df_r_imp[[c for c in df_r_imp.columns if 'Dedução' in c]].sum().sum()
+        # Cálculos de Receitas (Arquivo R)
+        if not df_r_imp.empty:
+            total_impostos = df_r_imp[meses_proprios].sum().sum()
+            cols_deducao = [c for c in df_r_imp.columns if 'Dedução' in c]
+            total_deducoes = df_r_imp[cols_deducao].sum().sum()
+        else:
+            total_impostos = 0.0
+            total_deducoes = 0.0
+            
         base_calculo_25 = total_impostos - total_deducoes
         
-        # Cálculos de Despesas por Fase (df_df_raw)
+        # Cálculos de Despesas por Fase (Arquivo DF)
         desp_fases = {}
         for fase in ['Empenhado', 'Liquidado', 'Pago']:
             desp_fases[fase] = df_df_15001[df_df_15001['Tipo'] == fase][meses_proprios].sum().sum()
@@ -229,28 +236,32 @@ if df_f_raw is not None and df_r is not None:
         with m1: st.metric("Total Receitas de Impostos", formar_real(total_impostos))
         with m2: st.metric("Total Despesas 15001 (Liq.)", formar_real(desp_fases['Liquidado']))
         with m3:
+            label_ind = "Índice de Aplicação (Mín. 25%)"
             if perc_25 >= 25:
-                st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
+                st.metric(label_ind, f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
             else:
-                st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
+                st.metric(label_ind, f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
 
         st.markdown("---")
 
-        # --- 2 & 3. RECEITAS E DESPESAS MENSAIS ---
+        # --- 2 & 3. GRÁFICOS MENSAIS ---
         c1, c2 = st.columns(2)
         with c1:
             st.subheader("🔹 Receitas de Impostos (Mensal)")
-            dados_r_mensal = []
-            for m in meses_proprios:
-                val_m = df_r_imp[m].sum()
-                ded_m = df_r_imp[df_r_imp.columns[df_r_imp.columns.str.contains(f'Dedução.*{m}', case=False)]].sum().sum()
-                dados_r_mensal.append({"Mês": m, "Tipo": "Receita Mensal", "Valor": val_m})
-                dados_r_mensal.append({"Mês": m, "Tipo": "Dedução", "Valor": ded_m})
-            
-            fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
-                               color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
-            fig_r_prop.update_layout(separators=",.")
-            st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT)
+            if not df_r_imp.empty:
+                dados_r_mensal = []
+                for m in meses_proprios:
+                    val_m = df_r_imp[m].sum()
+                    ded_m = df_r_imp[[c for c in df_r_imp.columns if 'Dedução' in c and m in c]].sum().sum()
+                    dados_r_mensal.append({"Mês": m, "Tipo": "Receita Mensal", "Valor": val_m})
+                    dados_r_mensal.append({"Mês": m, "Tipo": "Dedução", "Valor": ded_m})
+                
+                fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
+                                   color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
+                fig_r_prop.update_layout(separators=",.")
+                st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT)
+            else:
+                st.warning("Verifique a coluna 'Categoria' no arquivo de Receitas.")
 
         with c2:
             st.subheader("🔹 Despesas Fonte 15001 (Mensal)")
@@ -268,37 +279,36 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         # --- 4. ANÁLISE COMPARATIVA ---
-        st.subheader("🔹 4. Análise Comparativa e Meta de Aplicação")
-        fase_analise = st.radio("Fase para cálculo do índice:", ["Liquidado", "Empenhado", "Pago"], horizontal=True, key="fase_prop")
+        st.subheader("🔹 4. Análise Comparativa e Meta (25%)")
+        fase_sel = st.radio("Fase para índice:", ["Liquidado", "Empenhado", "Pago"], horizontal=True, key="fase_prop")
         
         valor_meta = base_calculo_25 * 0.25
         df_comp_prop = pd.DataFrame({
-            "Categoria": ["Receita Base", f"Despesa ({fase_analise})"],
-            "Valor": [base_calculo_25, desp_fases[fase_analise]]
+            "Categoria": ["Receita Base", f"Despesa ({fase_sel})"],
+            "Valor": [base_calculo_25, desp_fases[fase_sel]]
         })
         
         fig_indices = px.bar(df_comp_prop, x='Categoria', y='Valor', color='Categoria', text_auto='.3s',
-                            color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_analise})": "#990000"})
+                            color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_sel})": "#990000"})
         fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green", 
                              annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
         fig_indices.update_layout(separators=",.")
         st.plotly_chart(fig_indices, use_container_width=True, config=CONFIG_PT)
 
-        # --- 5. RELATÓRIO DETALHADO DE FICHAS (df_f_raw) ---
+        # --- 5. RELATÓRIO DE FICHAS (Arquivo Principal) ---
         st.markdown("### 📋 Detalhamento de Fichas - Fonte 15001")
-        # Filtrar colunas de liquidação conforme o período
         col_liq_f_prop = [c for c in df_f_15001.columns if any(m in c for m in meses_proprios) and 'Liquidado' in c]
         df_f_15001['Total_Periodo'] = df_f_15001[col_liq_f_prop].sum(axis=1)
         
         c_orc = next((c for c in df_f_15001.columns if 'Orçado' in c), None)
         c_sld = next((c for c in df_f_15001.columns if 'Saldo' in c), None)
         
-        show_rp = ['Atividade', 'Ficha']
-        if c_orc: show_rp.append(c_orc)
-        if c_sld: show_rp.append(c_sld)
-        show_rp.append('Total_Periodo')
+        show_cols = ['Atividade', 'Ficha']
+        if c_orc: show_cols.append(c_orc)
+        if c_sld: show_cols.append(c_sld)
+        show_cols.append('Total_Periodo')
         
-        df_rp_final = df_f_15001[show_rp].copy()
+        df_rp_final = df_f_15001[show_cols].copy()
         for col in [c for c in [c_orc, c_sld, 'Total_Periodo'] if c]:
             df_rp_final[col] = df_rp_final[col].apply(formar_real)
         
