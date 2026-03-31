@@ -144,7 +144,7 @@ if df_f_raw is not None and df_r is not None:
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         # AJUSTE HOVER PT-BR
         fig_r.update_layout(separators=",.")
-        fig_r.update_traces(hovertemplate='%{fullData.name}<br>Mês = %{x}<br>Valor = %{y:,.2f}<extra></extra>')
+        fig_r.update_traces(hovertemplate='%{fullData.name}<br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
