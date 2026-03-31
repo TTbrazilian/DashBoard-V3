@@ -59,8 +59,9 @@ def load_all_data():
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
+        # CORREÇÃO: Se o nível 0 for 'Unnamed', usa o nível 1. Caso contrário, prioriza o nível 0 para colunas como 'Atividade'
         if "Unnamed" in col[0]: new_cols.append(col[1].strip())
-        else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
+        else: new_cols.append(col[0].strip()) 
     df_f.columns = new_cols
 
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
@@ -131,6 +132,9 @@ if df_f_raw is not None and df_r is not None:
         df_r_fundeb = df_r[(df_r['Categoria'] == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
+        
+        # CORREÇÃO: Criar a coluna que o seu relatório de fichas solicita mais abaixo
+        df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
 
         # Métricas
         tot_rec_ano = df_r_fundeb[meses_disponiveis].sum().sum()
@@ -157,10 +161,9 @@ if df_f_raw is not None and df_r is not None:
         fig_r_bar = px.bar(df_plot_r, x='Mês', y='Valor', color='Categoria', text='Valor',
                            color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
         
-        # AJUSTE: Remove títulos e números laterais, mas MANTÉM legenda
         fig_r_bar.update_layout(barnorm='percent', separators=',.', showlegend=True)
-        fig_r_bar.update_yaxes(title_text="", showticklabels=False) # Remove "Valor" e os números (0, 20, 40...)
-        fig_r_bar.update_xaxes(title_text="") # Remove "Mês"
+        fig_r_bar.update_yaxes(title_text="", showticklabels=False)
+        fig_r_bar.update_xaxes(title_text="")
         fig_r_bar.update_traces(texttemplate='%{text:.2s}', textposition='inside', 
                                 hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{text:,.2f}<extra></extra>")
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
@@ -178,7 +181,6 @@ if df_f_raw is not None and df_r is not None:
         fig_f_bar = px.bar(df_plot_f, x='Mês', y='Valor', color='Fonte', text='Valor',
                            color_discrete_map={'FUNDEB 70%':'#4169E1', 'FUNDEB 30%':'#FF4500'})
         
-        # AJUSTE: Remove títulos e números laterais, mas MANTÉM legenda
         fig_f_bar.update_layout(barnorm='percent', separators=',.', showlegend=True)
         fig_f_bar.update_yaxes(title_text="", showticklabels=False)
         fig_f_bar.update_xaxes(title_text="")
@@ -192,7 +194,6 @@ if df_f_raw is not None and df_r is not None:
         df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
         fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s')
         
-        # AJUSTE: Limpeza visual mantendo legenda
         fig_comp.update_layout(separators=',.', showlegend=True)
         fig_comp.update_yaxes(title_text="", showticklabels=False)
         fig_comp.update_xaxes(title_text="")
@@ -202,6 +203,7 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
         col_liq_fichas = [c for c in df_f.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
+        # CORREÇÃO: O seletor abaixo agora funcionará porque ajustamos os nomes das colunas no load_all_data
         df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', 'Orçado', 'Saldo', 'Soma_Liquidado']].copy()
         for col in ['Orçado', 'Saldo', 'Soma_Liquidado']: df_f_final[col] = df_f_final[col].apply(formar_real)
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
@@ -209,7 +211,6 @@ if df_f_raw is not None and df_r is not None:
     # --- PÁGINA: RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Próprios</h1>", unsafe_allow_html=True)
-        # Código de Recursos Próprios preservado sem as alterações de limpeza do FUNDEB
         df_r_imp = df_r[(df_r['Categoria'] == 'IMPOSTOS')].copy()
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'].astype(str) == '15001')].copy()
         tot_receita_imp = df_r_imp['Total'].sum()
