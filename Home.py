@@ -10,7 +10,7 @@ st.set_page_config(
 
 # --- 2. CAMINHO DO LOGO ---
 # Altere para o nome do arquivo que deseja usar (BRANCO ou OFICIAL)
-LOGO_PATH = "LOGOTIPO IG2P - OFICIAL.png" 
+LOGO_PATH = "Logos/LOGOTIPO IG2P - OFICIAL.png" 
 
 # --- 3. CSS PARA REPLICAR O DESIGN DA CAPTURA ---
 st.markdown("""
