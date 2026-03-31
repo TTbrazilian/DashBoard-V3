@@ -56,45 +56,31 @@ def load_all_data():
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
     
-    # 1. Ler com header multinível
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
-    
-    # 2. Criar uma lista fixa de nomes combinando Nível 1 + Nível 0 (ex: Orçado_Total)
-    fixed_cols = []
+    new_cols = []
     for col in df_f.columns:
-        c0, c1 = str(col[0]).strip(), str(col[1]).strip()
-        if "Unnamed" in c0: 
-            fixed_cols.append(c1) # Colunas base como Ficha, Atividade
-        else: 
-            fixed_cols.append(f"{c1}_{c0}") # Colunas de valor como Orçado_Total, Saldo_Total
-    
-    # 3. Forçar os nomes fixos
-    df_f.columns = fixed_cols
+        if "Unnamed" in col[0]: new_cols.append(col[1].strip())
+        else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
+    df_f.columns = new_cols
 
-    # --- RESTANTE DA LEITURA ---
-    # Base de Receitas
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
 
-    # Base de Despesa por Fonte
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
 
-    # Limpeza de valores (usando os novos nomes fixos para df_f)
-    meses_limpeza_r_df = ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
+    meses_limpeza = ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
-    # Limpeza específica para df_f usando os nomes fixos gerados (ex: Orçado_Total)
     for col in df_f.columns:
-        if any(k in col for k in ['Orçado_', 'Saldo_', 'Liquidado_', 'Empenhado_', 'Pago_']):
+        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
             df_f[col] = df_f[col].apply(limpar_valor)
             
-    # Limpeza padrão para df_r e df_df
     for col in df_r.columns:
-        if any(k in col for k in meses_limpeza_r_df):
+        if any(k in col for k in meses_limpeza):
             df_r[col] = df_r[col].apply(limpar_valor)
             
     for col in df_df.columns:
-        if any(k in col for k in meses_limpeza_r_df):
+        if any(k in col for k in meses_limpeza):
             df_df[col] = df_df[col].apply(limpar_valor)
             
     if 'Fonte' in df_f.columns:
@@ -119,13 +105,17 @@ if df_f_raw is not None and df_r is not None:
     if st.sidebar.button("Recursos Vinculados", use_container_width=True):
         st.session_state.setor = 'Recursos Vinculados'
 
+    df_f = df_f_raw.copy()
+    if search_term:
+        mask = (df_f['Atividade'].str.contains(search_term, case=False, na=False) |
+                df_f['Elemento'].str.contains(search_term, case=False, na=False) |
+                df_f['Ficha'].astype(str).str.contains(search_term, case=False, na=False))
+        df_f = df_f[mask]
+
     # --- PÁGINA: FUNDEB ---
     if st.session_state.setor == 'FUNDEB':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
         
-        # Checklist 1: Atualização de Título Receitas
-        st.subheader("Previsão Orçamentária Receitas 2026")
-
         def cat_receita(desc):
             desc = desc.upper()
             if 'VAAR' in desc: return 'VAAR'
@@ -133,7 +123,7 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # Checklist 2: Correção de Período (Jan-Fev)
+        # Ajuste de Período Jan-Fev
         meses_disponiveis = [c for c in df_r.columns if c in ['Janeiro', 'Fevereiro']]
         
         col_fonte_df = 'Fonte'
@@ -141,32 +131,27 @@ if df_f_raw is not None and df_r is not None:
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb[col_fonte_df].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
         df_r_fundeb = df_r[(df_r['Categoria'] == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
-        
-        # Filtro de fichas usando a coluna 'Fonte' que definimos como fixa em load_all_data
-        df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('540|546', na=False)].copy()
+        df_f_fundeb = df_f[df_f['Fonte'].str.contains('540|546', na=False)].copy()
 
-        # Métricas (Usando Jan-Fev acumulado)
+        # Métricas
         tot_rec_ano = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
-        
-        # Checklist 5 (Parte 1): Cálculo Acumulado (Receita Base vs Despesa 15407)
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR'][meses_disponiveis].sum().sum()
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
-        
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
-        # Cabeçalho de Métricas (Seguindo o padrão visual limpo, sem HTML customizado)
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
         with m2: st.metric(f"Total Arrecadado ({meses_disponiveis[0]} - {meses_disponiveis[-1]})", formar_real(tot_rec_ano))
         
-        # Checklist 6: Destaque Visual do Índice (Formatação Condicional nativa do st.metric)
-        delta_70 = perc_70 - 70
-        st.metric("Aplicação em Pessoal (70%)", f"{perc_70:.2f}%", delta=f"{delta_70:.2f}%")
+        # Destaque Visual do Índice (70%)
+        if perc_70 >= 70:
+            st.metric("Aplicação em Pessoal (70%)", f"✅ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
+        else:
+            st.metric("Aplicação em Pessoal (70%)", f"⚠️ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%", delta_color="inverse")
 
         st.markdown("---")
-        # Checklist 3 e 4: Gráficos Empilhados e Padronização de Cores (Azul sóbrio para Receitas)
-        st.subheader("🔹 1. Receitas FUNDEB por Categoria (Empilhado - Escala de Azul)")
+        st.subheader("🔹 1. Receitas FUNDEB (Proporção Mensal)")
         
         dados_m_r = []
         for m in meses_disponiveis:
@@ -175,22 +160,17 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
         
         df_plot_r = pd.DataFrame(dados_m_r)
+        fig_r_bar = px.bar(df_plot_r, x='Mês', y='Valor', color='Categoria', text='Valor', barmode='stack',
+                           color_discrete_map={'Principal':'#003366', 'VAAR':'#004080', 'ETI':'#0059b3', 'Aplicação':'#3385ff'})
         
-        # AJUSTE: Cores em escala de Azul Sóbrio e barmode='stack'
-        fig_r_bar = px.bar(df_plot_r, x='Mês', y='Valor', color='Valor', text='Categoria', 
-                           barmode='stack', color_continuous_scale='dense')
-        
-        # Limpeza visual mantendo legenda (Ocultando a barra de cor lateral)
-        fig_r_bar.update_layout(separators=',.', showlegend=False, coloraxis_showscale=False)
-        fig_r_bar.update_yaxes(title_text="", showticklabels=False) 
-        fig_r_bar.update_xaxes(title_text="") 
-        fig_r_bar.update_traces(texttemplate='%{y:.2s}', textposition='inside', 
-                                hovertemplate="<b>%{x}</b><br>%{text}<br>Valor: R$ %{y:,.2f}<extra></extra>")
+        fig_r_bar.update_layout(separators=',.', showlegend=True)
+        fig_r_bar.update_yaxes(title_text="", showticklabels=False)
+        fig_r_bar.update_xaxes(title_text="")
+        fig_r_bar.update_traces(texttemplate='%{text:.2s}', textposition='inside')
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        # Checklist 3 e 4: Gráficos Empilhados e Padronização de Cores (Vermelho sóbrio para Despesas)
-        st.subheader("🔹 2. Despesas FUNDEB por Parcela (Empilhado - Escala de Vermelho)")
+        st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada - Proporção)")
         
         dados_m_f = []
         for m in meses_disponiveis:
@@ -199,68 +179,63 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         
         df_plot_f = pd.DataFrame(dados_m_f)
+        fig_f_bar = px.bar(df_plot_f, x='Mês', y='Valor', color='Fonte', text='Valor', barmode='stack',
+                           color_discrete_map={'FUNDEB 70%':'#800000', 'FUNDEB 30%':'#ff4d4d'})
         
-        # AJUSTE: Cores em escala de Vermelho Sóbrio e barmode='stack'
-        fig_f_bar = px.bar(df_plot_f, x='Mês', y='Valor', color='Valor', text='Fonte', 
-                           barmode='stack', color_continuous_scale='burg')
-        
-        # Limpeza visual mantendo legenda (Ocultando a barra de cor lateral)
-        fig_f_bar.update_layout(separators=',.', showlegend=False, coloraxis_showscale=False)
+        fig_f_bar.update_layout(separators=',.', showlegend=True)
         fig_f_bar.update_yaxes(title_text="", showticklabels=False)
         fig_f_bar.update_xaxes(title_text="")
-        fig_f_bar.update_traces(texttemplate='%{y:.2s}', textposition='inside', 
-                                hovertemplate="<b>%{x}</b><br>%{text}<br>Valor: R$ %{y:,.2f}<extra></extra>")
+        fig_f_bar.update_traces(texttemplate='%{text:.2s}', textposition='inside')
         st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        # Checklist 5 (Parte 2): Gráfico específico para Análise dos 70% (Acumulado)
-        st.subheader("🔹 3. Análise Acumulada do Índice FUNDEB 70% (Jan-Fev)")
+        # Gráfico de Análise 70% Acumulado (Receitas x Despesas) com Escala de Cores
+        st.subheader("🔹 3. Análise dos 70% (Acumulado)")
         
-        # Cor condicional sóbria para o gráfico
-        cor_grafico_desp = "#d62728" if perc_70 < 70 else "#2ca02c"
-        
-        df_70_analise = pd.DataFrame({
-            "Tipo": ["Receita Base (VAAR excluído)", "Despesa Pessoal (Liq. 15407)"],
+        df_comp = pd.DataFrame({
+            "Tipo": ["Receitas", "Despesas (F15407)"], 
             "Valor": [rec_base_70, desp_70_val]
         })
         
-        fig_70 = px.bar(df_70_analise, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
-                        color_discrete_map={"Receita Base (VAAR excluído)": "#1f77b4", "Despesa Pessoal (Liq. 15407)": cor_grafico_desp})
+        # Receitas em Azul, Despesas em Vermelho
+        fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
+                          color_discrete_map={"Receitas": "#004080", "Despesas (F15407)": "#800000"})
         
-        # Limpeza visual mantendo legenda
-        fig_70.update_layout(separators=',.', showlegend=True)
-        fig_70.update_yaxes(title_text="", showticklabels=False)
-        fig_70.update_xaxes(title_text="")
-        fig_70.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
-        st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
+        fig_comp.update_layout(separators=',.', showlegend=False)
+        fig_comp.update_yaxes(title_text="", showticklabels=False)
+        fig_comp.update_xaxes(title_text="")
+        st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
-        st.markdown("### 📋 Relatório de Fichas FUNDEB (Jan-Fev)")
-        # Lógica de agrupamento e exibição das fichas (utilizando os nomes fixos do multinível)
-        
-        # Identifica as colunas de Liquidado para Jan e Fev
-        col_liq_fichas = [c for c in df_f_fundeb.columns if any(m in c for m in meses_disponiveis) and 'Liquidado_' in c]
-        
-        # Soma o liquidado acumulado
+        st.markdown("### 📋 Relatório de Fichas FUNDEB")
+        # Correção do KeyError identificando dinamicamente as colunas presentes
+        col_liq_fichas = [c for c in df_f.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         
-        # Agrupa Fonte 70/30 (usando a coluna 'Fonte' fixa)
         df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
         
-        # Define as colunas Orçado e Saldo fixas do multinível
-        col_orc = 'Orçado_Total'
-        col_sld = 'Saldo_Total'
+        # Mapeamento seguro das colunas orçado e saldo
+        col_orc = next((c for c in df_f_fundeb.columns if 'Orçado' in c), None)
+        col_sld = next((c for c in df_f_fundeb.columns if 'Saldo' in c), None)
         
-        # Filtra e formata a tabela final
-        df_f_final = df_f_fundeb[['Atividade', 'Ficha', 'Fonte_Agrupada', col_orc, col_sld, 'Soma_Liquidado']].copy()
-        for col in [col_orc, col_sld, 'Soma_Liquidado']: 
+        # Seleção segura de colunas para evitar KeyError
+        cols_para_exibir = ['Atividade', 'Ficha', 'Fonte_Agrupada']
+        if col_orc: cols_para_exibir.append(col_orc)
+        if col_sld: cols_para_exibir.append(col_sld)
+        cols_para_exibir.append('Soma_Liquidado')
+
+        df_f_final = df_f_fundeb[cols_para_exibir].copy()
+        
+        # Formatação para real
+        cols_numericas = [c for c in [col_orc, col_sld, 'Soma_Liquidado'] if c]
+        for col in cols_numericas: 
             df_f_final[col] = df_f_final[col].apply(formar_real)
-        
+            
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
     # --- PÁGINA: RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
-        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Próprios</h1>", unsafe_allow_html=True)
-        # Código preservado sem alterações
+        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Próprios</h1>")
+        # Mantido conforme original
         df_r_imp = df_r[(df_r['Categoria'] == 'IMPOSTOS')].copy()
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'].astype(str) == '15001')].copy()
         tot_receita_imp = df_r_imp['Total'].sum()
@@ -284,11 +259,9 @@ if df_f_raw is not None and df_r is not None:
         fig_rec = px.bar(pd.DataFrame(dados_rec_mensal), x='Mês', y='Valor', color='Tipo', barmode='group')
         st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
-        df_f_15001_fichas = df_f_raw[df_f_raw['Fonte'].str.contains('15001', na=False)].copy()
-        
-        # Colunas fixas do multinível
-        col_orc = 'Orçado_Total'
-        col_sld = 'Saldo_Total'
+        df_f_15001_fichas = df_f[df_f['Fonte'].str.contains('15001', na=False)].copy()
+        col_orc = next((c for c in df_f_15001_fichas.columns if 'Orçado' in c), 'Orçado')
+        col_sld = next((c for c in df_f_15001_fichas.columns if 'Saldo' in c), 'Saldo')
         
         df_f_final_rp = df_f_15001_fichas[['Atividade', 'Ficha', 'Fonte', col_orc, col_sld]].copy()
         for col in [col_orc, col_sld]: 
@@ -297,13 +270,12 @@ if df_f_raw is not None and df_r is not None:
 
     # --- PÁGINA: RECURSOS VINCULADOS ---
     elif st.session_state.setor == 'Recursos Vinculados':
-        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
-        # Código preservado sem alterações
+        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Vinculados</h1>")
         programas = ['QESE', 'PTE', 'PNAE', 'PNATE']
         fontes_vinc = '1550|1551|1552|1553|2550|2551|2552|2553|1569|1570'
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains('|'.join(programas), case=False, na=False)].copy()
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).str.contains(fontes_vinc, na=False)].copy()
-        df_f_vinc = df_f_raw[df_f_raw['Fonte'].str.contains(fontes_vinc, na=False)].copy()
+        df_f_vinc = df_f[df_f['Fonte'].str.contains(fontes_vinc, na=False)].copy()
 
         m1, m2 = st.columns(2)
         with m1: st.metric("Total Receitas Vinculadas", formar_real(df_r_vinc['Total'].sum()))
@@ -313,9 +285,8 @@ if df_f_raw is not None and df_r is not None:
         fig_vinc_pie = px.pie(df_pie_r, values='Total', names='Descrição da Receita', hole=.4)
         st.plotly_chart(fig_vinc_pie, use_container_width=True, config=CONFIG_PT)
 
-        # Colunas fixas do multinível
-        col_orc = 'Orçado_Total'
-        col_sld = 'Saldo_Total'
+        col_orc = next((c for c in df_f_vinc.columns if 'Orçado' in c), 'Orçado')
+        col_sld = next((c for c in df_f_vinc.columns if 'Saldo' in c), 'Saldo')
         
         df_f_vinc_final = df_f_vinc[['Atividade', 'Ficha', 'Fonte', col_orc, col_sld]].copy()
         for col in [col_orc, col_sld]: 
