@@ -8,39 +8,70 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PROFISSIONAL (FIX TOTAL DE SOBREPOSIÇÃO) ---
+# --- 2. CSS PARA DESIGN "FIEL À PRINT" ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
 
-    .stApp { background-color: #060800 !important; font-family: 'Inter', sans-serif; color: #ffffff; }
+    .stApp {
+        background-color: #060800 !important;
+        font-family: 'Inter', sans-serif;
+        color: #ffffff;
+    }
 
-    /* Remove elementos padrão */
     header[data-testid="stHeader"], [data-testid="stSidebar"], .stDeployButton, footer { 
         display: none !important; 
     }
 
-    .brand-header { width: 100%; padding: 40px 48px; display: flex; align-items: center; gap: 12px; }
+    .brand-header {
+        width: 100%;
+        padding: 40px 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
     .brand-logo { color: #a4fd4c; font-family: 'Manrope', sans-serif; font-size: 24px; font-weight: 900; }
     .brand-tagline { color: #a4fd4c; font-size: 14px; font-weight: 600; opacity: 0.7; }
 
-    .main-container { max-width: 1200px; margin: 0 auto; padding: 0 48px 100px 48px; }
+    .main-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 48px 100px 48px;
+    }
 
-    .hero-title { font-family: 'Manrope', sans-serif; font-size: 64px; font-weight: 800; line-height: 1.1; margin-bottom: 24px; }
+    .hero-title {
+        font-family: 'Manrope', sans-serif;
+        font-size: 64px;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-bottom: 24px;
+    }
     .hero-highlight { color: #a4fd4c; }
-    .hero-subtitle { color: #a7b076; font-size: 18px; max-width: 700px; margin-bottom: 64px; }
+    .hero-subtitle {
+        color: #a7b076; 
+        font-size: 18px; 
+        max-width: 700px; 
+        margin-bottom: 64px;
+    }
 
     .section-label {
-        color: white; text-transform: uppercase; letter-spacing: 2px; font-size: 14px; font-weight: 700;
-        margin-bottom: 32px; display: flex; align-items: center; gap: 16px;
+        color: white;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 32px;
+        display: flex; align-items: center; gap: 16px;
     }
-    .section-label::before { content: ""; width: 40px; height: 2px; background-color: #a4fd4c; }
+    .section-label::before {
+        content: ""; width: 40px; height: 2px; background-color: #a4fd4c;
+    }
 
-    /* --- ESTRUTURA DO CARD-BOTÃO --- */
+    /* --- FIX: CARDS SOBREPOSTOS --- */
     .button-wrapper {
         position: relative;
         width: 100%;
-        height: 280px; /* Altura fixa do card */
+        height: 280px;
     }
 
     .sector-card {
@@ -52,27 +83,24 @@ st.markdown("""
         padding: 40px;
         transition: all 0.4s ease;
         z-index: 1;
+        pointer-events: none; /* Deixa o clique passar para o botão */
     }
 
-    /* ESSENCIAL: Faz a div do botão do Streamlit não ocupar espaço físico */
-    .stButton {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        z-index: 10;
-    }
-
-    /* Torna o botão em si invisível, mas mantendo o clique em toda a área */
+    /* O botão invisível do Streamlit */
     div[data-testid="stButton"] > button[key^="sector_"] {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
         width: 100% !important;
         height: 280px !important;
         background-color: transparent !important;
         color: transparent !important;
         border: none !important;
-        box-shadow: none !important;
+        z-index: 10 !important;
         cursor: pointer !important;
+        margin: 0 !important;
     }
 
-    /* Efeito de hover disparado pela interação com o wrapper */
     .button-wrapper:hover .sector-card {
         border-color: #a4fd4c;
         background-color: rgba(164, 253, 76, 0.05);
@@ -80,8 +108,10 @@ st.markdown("""
     }
 
     .card-icon {
-        width: 56px; height: 56px; background: rgba(164, 253, 76, 0.1);
-        border-radius: 12px; display: flex; align-items: center; justify-content: center;
+        width: 56px; height: 56px;
+        background: rgba(164, 253, 76, 0.1);
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
         font-size: 24px; margin-bottom: 40px;
     }
 
@@ -89,7 +119,7 @@ st.markdown("""
     .card-subtitle { color: #a7b076; font-size: 14px; line-height: 1.5; }
     .card-bg-icon { position: absolute; right: 20px; bottom: -30px; font-size: 180px; color: #a4fd4c; opacity: 0.03; pointer-events: none; }
 
-    /* --- BOTÕES MUNICÍPIOS --- */
+    /* --- MUNICÍPIOS --- */
     div[data-testid="stButton"] > button[key^="mun_"] {
         width: 100% !important;
         background-color: rgba(255, 255, 255, 0.03) !important;
@@ -98,9 +128,7 @@ st.markdown("""
         padding: 14px 20px !important;
         border-radius: 12px !important;
         text-align: left !important;
-        transition: 0.3s ease !important;
     }
-    
     div[data-testid="stButton"] > button[key^="mun_"]:hover {
         color: #a4fd4c !important;
         border-color: #a4fd4c !important;
@@ -132,7 +160,6 @@ if 'setor_selecionado' not in st.session_state:
 col_edu, col_sau = st.columns(2)
 
 with col_edu:
-    # A estrutura agora é um wrapper que contém o HTML visual E o botão invisível
     st.markdown('<div class="button-wrapper">', unsafe_allow_html=True)
     st.markdown('''
         <div class="sector-card">
@@ -145,7 +172,7 @@ with col_edu:
     if st.button(" ", key="sector_edu"):
         st.session_state.setor_selecionado = "Educação"
     st.markdown('</div>', unsafe_allow_html=True)
-        
+
 with col_sau:
     st.markdown('<div class="button-wrapper">', unsafe_allow_html=True)
     st.markdown('''
@@ -160,7 +187,7 @@ with col_sau:
         st.session_state.setor_selecionado = "Saúde"
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- LISTA DE MUNICÍPIOS (LÓGICA PRESERVADA) ---
+# --- LISTA DE MUNICÍPIOS ---
 if st.session_state.setor_selecionado:
     setor = st.session_state.setor_selecionado
     st.markdown(f'<div class="results-header"><span>Municípios do Setor: {setor}</span><span>RESULTADOS SUGERIDOS</span></div>', unsafe_allow_html=True)
