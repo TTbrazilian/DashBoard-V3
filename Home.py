@@ -7,7 +7,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS (FIDELIDADE ABSOLUTA À IMAGEM) ---
+# --- 2. CSS (FIDELIDADE TOTAL À IMAGEM) ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
@@ -113,6 +113,7 @@ footer {
     position: relative;
     overflow: hidden;
     min-height: 320px;
+    cursor: pointer;
 }
 
 .sector-card.active {
@@ -231,7 +232,7 @@ div[data-testid="stButton"] > button:hover {
 
 # --- 3. SESSION STATE ---
 if 'setor_selecionado' not in st.session_state:
-    st.session_state.setor_selecionado = "Saúde"
+    st.session_state.setor_selecionado = "Saúde" # Default conforme a imagem de referência
 
 # --- 4. HEADER ---
 st.markdown("""
@@ -288,7 +289,7 @@ with col_sau:
     st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. LISTA DE MUNICÍPIOS (MANTENDO RIGOROSAMENTE A SUA LISTA) ---
+# --- 7. LISTA DE MUNICÍPIOS (LÓGICA E DADOS DO SEU CÓDIGO) ---
 setor = st.session_state.setor_selecionado
 
 st.markdown(f"""
@@ -318,16 +319,16 @@ else:
     ]
 
 st.markdown('<div class="main-wrap" style="padding-bottom:120px;">', unsafe_allow_html=True)
-NUM_COLS = 6
+NUM_COLS = 6 # Configurado para 6 colunas como na imagem
 for i in range(0, len(municipios), NUM_COLS):
     cols = st.columns(NUM_COLS, gap="small")
     chunk = municipios[i:i + NUM_COLS]
     for j, (nome, path) in enumerate(chunk):
         with cols[j]:
             if st.button(nome, key=f"mun_{nome}_{i+j}"):
-                if path: st.info(f"Navegando para {path}")
+                if path: st.switch_page(path)
     
-    # Adicionar o botão "VER TODOS" na última coluna da primeira linha disponível
+    # Botão "VER TODOS" posicionado na última coluna da primeira linha
     last_chunk_len = len(chunk)
     if last_chunk_len < NUM_COLS:
         with cols[last_chunk_len]:
