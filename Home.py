@@ -11,7 +11,7 @@ st.set_page_config(
 # --- 2. CAMINHO DO LOGO ---
 LOGO_PATH = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png" 
 
-# --- 3. CSS PARA CORREÇÕES E POSICIONAMENTO ---
+# --- 3. CSS PARA QUALIDADE, POSICIONAMENTO E BLOQUEIO DE UI ---
 st.markdown("""
 <style>
     /* REMOVER MENU LATERAL E UI NATIVA */
@@ -23,12 +23,16 @@ st.markdown("""
         display: none !important;
     }
 
-    /* REMOVER BOTÃO DE TELA CHEIA E INTERAÇÃO NAS IMAGENS */
+    /* REMOVER BOTÃO DE TELA CHEIA E INTERAÇÕES DE IMAGEM */
+    [data-testid="stImage"] button, 
     button[title="View fullscreen"] {
         display: none !important;
     }
+    
     [data-testid="stImage"] img {
-        pointer-events: none; /* Impede hover e menus de imagem */
+        pointer-events: none; /* Desabilita cliques e hover no logo */
+        image-rendering: -webkit-optimize-contrast; /* Melhora nitidez em alguns navegadores */
+        image-rendering: crisp-edges;
     }
 
     /* AJUSTE DE ESPAÇAMENTO DA PÁGINA */
@@ -42,22 +46,13 @@ st.markdown("""
         background-color: #0E1117 !important;
     }
 
-    /* CONTAINER DO LOGO E TEXTO */
-    .brand-container {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
+    /* TEXTO ABAIXO DO LOGO */
     .brand-text {
         color: white;
         font-family: sans-serif;
         font-size: 14px;
-        margin-top: -10px; /* Gruda o texto no logo */
+        margin-top: -15px; /* Ajuste para colar no logo */
+        margin-left: 5px;
         font-weight: 400;
         opacity: 0.9;
     }
@@ -65,17 +60,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 4. LOGOTIPO E TEXTO (TOPO ESQUERDO) ---
-# Usamos colunas para posicionar o elemento sem que o Streamlit crie ícones de controle
 col_brand, _ = st.columns([1, 4])
 with col_brand:
     if os.path.exists(LOGO_PATH):
-        # Renderização nativa para evitar bug de foto corrompida via HTML
-        st.image(LOGO_PATH, width=160)
+        # Renderização com largura fixa para preservar a densidade de pixels
+        st.image(LOGO_PATH, width=170)
         st.markdown('<p class="brand-text">Inteligência em gestão</p>', unsafe_allow_html=True)
     else:
-        # Fallback caso o arquivo suma
         st.markdown("""
-            <div style="color: white; font-family: sans-serif;">
+            <div style="color: white; font-family: sans-serif; padding: 10px;">
                 <h2 style="margin:0;">iG2P</h2>
                 <p style="margin:0; font-size:14px;">Inteligência em gestão</p>
             </div>
@@ -97,28 +90,17 @@ with col_center:
         label_visibility="visible"
     )
 
-# --- 6. GRID DE MUNICÍPIOS (LÓGICA MANTIDA) ---
+# --- 6. GRID DE MUNICÍPIOS ---
 if setor_escolhido:
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown(f"<h3 style='color: white; font-size: 18px; font-weight: 400;'>Municípios do Setor: {setor_escolhido}</h3>", unsafe_allow_html=True)
     st.markdown("<hr style='border-top: 1px solid #31333F; margin-top: 0;'>", unsafe_allow_html=True)
 
-    if setor_escolhido == "Saúde":
-        municipios = [
-            ("Alpinópolis", "pages/Alpinópolis_Saúde.py"),
-            ("Bom Jesus da Penha", "pages/Bom_Jesus_da_Penha_Saúde.py"),
-            ("Cássia", "pages/Cássia_Saúde.py"),
-            ("Delfinópolis", "pages/Delfinópolis_Saúde.py"),
-            ("Itaú de Minas", "pages/Itaú_de_Minas_Saúde.py"),
-        ]
-    else: # Educação
-        municipios = [
-            ("Alpinópolis", "pages/Alpinópolis_Educação.py"),
-            ("Bom Jesus da Penha", "pages/Bom_Jesus_da_Penha_Educação.py"),
-            ("Cássia", "pages/Cássia_Educação.py"),
-            ("Delfinópolis", "pages/Delfinópolis_Educação.py"),
-            ("Itaú de Minas", "pages/Itaú_de_Minas_Educação.py"),
-        ]
+    # Lógica de caminhos conforme o setor
+    suffix = "Saúde" if setor_escolhido == "Saúde" else "Educação"
+    municipios_nomes = ["Alpinópolis", "Bom Jesus da Penha", "Cássia", "Delfinópolis", "Itaú de Minas"]
+    
+    municipios = [(nome, f"pages/{nome.replace(' ', '_')}_{suffix}.py") for nome in municipios_nomes]
 
     cols = st.columns(5)
     for i, (nome, path) in enumerate(municipios):
