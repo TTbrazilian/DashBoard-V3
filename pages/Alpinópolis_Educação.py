@@ -105,7 +105,6 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        # CORREÇÃO DE PERÍODO: jan-fev conforme checklist
         meses_disponiveis = ['Janeiro', 'Fevereiro']
         
         df_df_fundeb = df_df_raw[(df_df_raw['Fonte'].astype(str).str.contains('15407|15403', na=False))].copy()
@@ -116,19 +115,16 @@ if df_f_raw is not None and df_r is not None:
         
         df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('540|546', na=False)].copy()
 
-        # CÁLCULO DOS 70%: (Receitas - VAAR) / Despesas Fonte 15407 (Liquidado)
         tot_rec_ano = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR'][meses_disponiveis].sum().sum()
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
-        # --- HEADER MÉTRICAS ---
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
         with m2: st.metric(f"Total Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(tot_rec_ano))
         with m3:
-            # DESTAQUE VISUAL DO ÍNDICE (Formatação Condicional)
             if perc_70 >= 70:
                 st.metric("Aplicação em Pessoal (Mín. 70%)", f"✅ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
             else:
@@ -136,7 +132,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         
-        # --- 1. RECEITAS FUNDEB (Empilhado + Escala Azul) ---
+        # --- 1. RECEITAS FUNDEB ---
         st.subheader("🔹 1. Receitas FUNDEB (Escala de Azul)")
         dados_m_r = []
         for m in meses_disponiveis:
@@ -146,11 +142,14 @@ if df_f_raw is not None and df_r is not None:
         
         fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
+        # AJUSTE HOVER PT-BR
+        fig_r.update_layout(separators=",.")
+        fig_r.update_traces(hovertemplate='%{fullData.name}<br>Mês=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
         
-        # --- 2. DESPESAS FUNDEB (Empilhado + Escala Vermelho) ---
+        # --- 2. DESPESAS FUNDEB ---
         st.subheader("🔹 2. Despesas FUNDEB (Escala de Vermelho)")
         dados_m_f = []
         for m in meses_disponiveis:
@@ -160,11 +159,14 @@ if df_f_raw is not None and df_r is not None:
         
         fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                        color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
+        # AJUSTE HOVER PT-BR
+        fig_f.update_layout(separators=",.")
+        fig_f.update_traces(hovertemplate='%{fullData.name}<br>Mês=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
         
-        # --- 3. ANÁLISE RECEITAS X DESPESAS (Botão Alternar Total/Mensal) ---
+        # --- 3. COMPARATIVO ---
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
         tipo_grafico = st.segmented_control("Visualização:", ["Total Acumulado", "Mensal"], default="Total Acumulado")
 
@@ -172,6 +174,7 @@ if df_f_raw is not None and df_r is not None:
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
+            fig_comp.update_traces(hovertemplate='Tipo=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
@@ -181,7 +184,10 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
+            fig_comp.update_traces(hovertemplate='%{fullData.name}<br>Mês=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
 
+        # AJUSTE HOVER PT-BR
+        fig_comp.update_layout(separators=",.")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         # --- RELATÓRIO DE FICHAS ---
@@ -227,6 +233,9 @@ if df_f_raw is not None and df_r is not None:
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains('|'.join(programas), case=False, na=False)].copy()
         st.metric("Total Receitas Vinculadas", formar_real(df_r_vinc['Total'].sum()))
         fig_vinc = px.pie(df_r_vinc, values='Total', names='Descrição da Receita', hole=.4)
+        # AJUSTE HOVER PT-BR (Pie Chart)
+        fig_vinc.update_layout(separators=",.")
+        fig_vinc.update_traces(hovertemplate='%{label}<br>Valor=%{value:,.2f}<extra></extra>')
         st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
