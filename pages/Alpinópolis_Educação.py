@@ -158,15 +158,24 @@ if df_f_raw is not None and df_r is not None:
         for m in meses_ajustados:
             for cat in df_r_fundeb['Subcategoria'].unique():
                 val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
-                dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
+                dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": float(val)}) # Forçando float
         
-        fig_r_bar = px.bar(
-            pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', 
-            barmode='relative', barnorm='percent', # Alterado para percentual
-            color_discrete_map=cores_azul, text_auto='.1f'
-        )
-        fig_r_bar.update_yaxes(title="Porcentagem (%)", tickmode='linear', tick0=0, dtick=10) # Escala de 10 em 10
-        st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
+        df_fig_r = pd.DataFrame(dados_m_r)
+        
+        # Validação robusta para evitar TypeError no Plotly
+        if not df_fig_r.empty and df_fig_r['Valor'].sum() > 0:
+            try:
+                fig_r_bar = px.bar(
+                    df_fig_r, x='Mês', y='Valor', color='Categoria', 
+                    barmode='relative', barnorm='percent', 
+                    color_discrete_map=cores_azul, text_auto='.1f'
+                )
+                fig_r_bar.update_yaxes(title="Porcentagem (%)", tickmode='linear', tick0=0, dtick=10, range=[0, 100])
+                st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
+            except Exception as e:
+                st.error(f"Erro ao gerar gráfico de receitas: {e}")
+        else:
+            st.info("Dados insuficientes para exibir o gráfico percentual de Receitas.")
 
         st.markdown("---")
         
@@ -176,15 +185,23 @@ if df_f_raw is not None and df_r is not None:
         for m in meses_ajustados:
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
                 val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
-                dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
+                dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": float(val)}) # Forçando float
         
-        fig_f_bar = px.bar(
-            pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', 
-            barmode='relative', barnorm='percent', # Alterado para percentual
-            color_discrete_map=cores_vermelho, text_auto='.1f'
-        )
-        fig_f_bar.update_yaxes(title="Porcentagem (%)", tickmode='linear', tick0=0, dtick=10) # Escala de 10 em 10
-        st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
+        df_fig_f = pd.DataFrame(dados_m_f)
+        
+        if not df_fig_f.empty and df_fig_f['Valor'].sum() > 0:
+            try:
+                fig_f_bar = px.bar(
+                    df_fig_f, x='Mês', y='Valor', color='Fonte', 
+                    barmode='relative', barnorm='percent', 
+                    color_discrete_map=cores_vermelho, text_auto='.1f'
+                )
+                fig_f_bar.update_yaxes(title="Porcentagem (%)", tickmode='linear', tick0=0, dtick=10, range=[0, 100])
+                st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
+            except Exception as e:
+                st.error(f"Erro ao gerar gráfico de despesas: {e}")
+        else:
+            st.info("Dados insuficientes para exibir o gráfico percentual de Despesas.")
 
         st.markdown("---")
         
@@ -192,7 +209,7 @@ if df_f_raw is not None and df_r is not None:
         st.subheader("🔹 3. Análise do Índice dos 70% (Acumulado Jan-Fev)")
         df_70_comp = pd.DataFrame({
             "Tipo": ["Receita Base (100%)", "Despesa Pessoal (Alvo 70%)"],
-            "Valor": [rec_base_70, desp_70_val],
+            "Valor": [float(rec_base_70), float(desp_70_val)],
             "Cor": ["Receita", "Despesa"]
         })
         fig_70 = px.bar(
