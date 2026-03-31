@@ -7,7 +7,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS (AJUSTADO PARA FIDELIDADE TOTAL À IMAGEM) ---
+# --- 2. CSS (FIDELIDADE ABSOLUTA À IMAGEM) ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
@@ -231,7 +231,7 @@ div[data-testid="stButton"] > button:hover {
 
 # --- 3. SESSION STATE ---
 if 'setor_selecionado' not in st.session_state:
-    st.session_state.setor_selecionado = "Educação"
+    st.session_state.setor_selecionado = "Saúde"
 
 # --- 4. HEADER ---
 st.markdown("""
@@ -325,7 +325,7 @@ for i in range(0, len(municipios), NUM_COLS):
     for j, (nome, path) in enumerate(chunk):
         with cols[j]:
             if st.button(nome, key=f"mun_{nome}_{i+j}"):
-                if path: st.switch_page(path)
+                if path: st.info(f"Navegando para {path}")
     
     # Adicionar o botão "VER TODOS" na última coluna da primeira linha disponível
     last_chunk_len = len(chunk)
