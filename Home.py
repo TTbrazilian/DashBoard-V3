@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -7,78 +8,86 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA CENTRALIZAÇÃO E ESTILO ---
+# --- 2. CAMINHO DO LOGO ---
+# Altere para o nome do arquivo que deseja usar (BRANCO ou OFICIAL)
+LOGO_PATH = "LOGOTIPO IG2P - OFICIAL.png" 
+
+# --- 3. CSS PARA REPLICAR O DESIGN DA CAPTURA ---
 st.markdown("""
 <style>
-    /* Fundo escuro padrão */
+    /* Fundo escuro conforme a imagem */
     .stApp {
-        background-color: #0E1117;
-    }
-    
-    /* Centralizar o conteúdo do seletor */
-    .main-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding-top: 50px;
+        background-color: #0E1117 !important;
     }
 
-    /* Ajuste para o Logo */
-    .logo-container {
-        text-align: left;
-        width: 100%;
-        margin-bottom: 40px;
+    /* Ocultar elementos nativos do Streamlit */
+    header[data-testid="stHeader"], 
+    .stDeployButton, 
+    footer { 
+        display: none !important; 
     }
 
-    /* Estilização do Selectbox para ficar mais limpo */
-    div[data-baseweb="select"] {
-        width: 300px !important;
-        margin: 0 auto;
+    /* Ajuste de margem superior para o logo */
+    [data-testid="stImage"] {
+        margin-top: 20px;
     }
-    
-    label[data-testid="stWidgetLabel"] {
+
+    /* Estilização do Label do Selectbox */
+    div[data-testid="stWidgetLabel"] p {
         color: white !important;
-        text-align: center;
-        display: block;
-        width: 100%;
-        font-weight: bold;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        margin-bottom: 8px !important;
+    }
+
+    /* Centralização visual do seletor */
+    div[data-baseweb="select"] {
+        background-color: #262730 !important;
+        border-radius: 8px !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. LOGO (Conforme a imagem capturada) ---
-# Se você tiver o arquivo local, use st.image("logo.png", width=150)
-# Aqui estou simulando o posicionamento da imagem
+# --- 4. LAYOUT DO LOGO (TOPO ESQUERDA) ---
 col_logo, _ = st.columns([1, 4])
 with col_logo:
-    # Simulando o logo iG2Py com HTML/CSS para manter o estilo visual
-    st.markdown("""
-        <div style="font-family: sans-serif; color: white; line-height: 1;">
-            <span style="font-size: 40px; font-weight: 800;">iG</span><br>
-            <span style="font-size: 40px; font-weight: 800;">2P</span><span style="color: #00FF00; font-size: 50px;">✓</span><br>
-            <span style="font-size: 14px; opacity: 0.8;">Inteligência em Gestão</span>
-        </div>
-    """, unsafe_allow_html=True)
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=180)
+    else:
+        # Fallback caso o arquivo não seja encontrado no diretório
+        st.error(f"Logo não encontrado: {LOGO_PATH}")
 
-st.write("---") # Linha divisória sutil
+# --- 5. SELETOR CENTRALIZADO (ESTILO SEPARADO) ---
+# Criamos um espaçamento vertical para centralizar como na foto
+st.markdown("<br><br><br><br>", unsafe_allow_html=True)
 
-# --- 4. SELEÇÃO DE SETOR (Lógica mantida, design simplificado) ---
-# Centralizando o seletor na tela
 _, col_center, _ = st.columns([1, 1, 1])
 
 with col_center:
+    # Lógica de seleção
+    opcoes = ["Educação", "Saúde"]
+    
+    # Se já houver algo no session_state, mantemos a sincronia
+    default_index = 0
+    if 'setor_selecionado' in st.session_state:
+        if st.session_state.setor_selecionado in opcoes:
+            default_index = opcoes.index(st.session_state.setor_selecionado)
+
     setor = st.selectbox(
         "Selecione o Setor",
-        ["Educação", "Saúde"],
-        index=0 if st.session_state.get('setor_selecionado') == "Educação" else 1,
+        opcoes,
+        index=default_index,
         placeholder="Clique para escolher...",
+        label_visibility="visible"
     )
+    
+    # Atualiza o estado global
     st.session_state.setor_selecionado = setor
 
-# --- 5. LÓGICA DE MUNICÍPIOS (Mantida do seu código) ---
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.subheader(f"Municípios do Setor: {setor}")
+# --- 6. GRID DE MUNICÍPIOS (LÓGICA MANTIDA) ---
+# Adicionamos um espaço para a lista não grudar no seletor
+st.markdown("<br><br><br>", unsafe_allow_html=True)
+st.markdown(f"<h3 style='color: white; font-size: 18px;'>Municípios do Setor: {setor}</h3>", unsafe_allow_html=True)
 
 if setor == "Saúde":
     municipios = [
@@ -97,10 +106,10 @@ else:
         ("Itaú de Minas", "pages/Itaú_de_Minas_Educação.py"),
     ]
 
-# Grid de botões para os municípios
-cols_mun = st.columns(5)
-for idx, (nome, path) in enumerate(municipios):
-    with cols_mun[idx % 5]:
-        if st.button(nome, key=f"btn_{nome}"):
+# Renderização dos botões em grid
+cols = st.columns(5)
+for i, (nome, path) in enumerate(municipios):
+    with cols[i % 5]:
+        if st.button(nome, key=f"btn_nav_{nome}"):
             if path:
                 st.switch_page(path)
