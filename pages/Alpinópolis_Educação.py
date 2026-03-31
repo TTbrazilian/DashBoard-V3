@@ -123,7 +123,8 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
 
-        meses_disponiveis = [c for c in df_r.columns if c in ['Janeiro', 'Fevereiro', 'Março']]
+        # AJUSTE: Período Jan-Fev conforme solicitado
+        meses_disponiveis = [c for c in df_r.columns if c in ['Janeiro', 'Fevereiro']]
         
         col_fonte_df = 'Fonte'
         df_df_fundeb = df_df_raw[(df_df_raw[col_fonte_df].astype(str).str.contains('15407|15403', na=False))].copy()
@@ -139,13 +140,18 @@ if df_f_raw is not None and df_r is not None:
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
 
+        # Formatação Condicional do Índice
+        cor_indice = "green" if perc_70 >= 70 else "red"
+        simbolo_indice = "✅" if perc_70 >= 70 else "⚠️"
+
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Previsão Orçamentária 2026", formar_real(tot_prev_2026))
+        # AJUSTE: Título Alterado
+        with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
         with m2: st.metric(f"Total Arrecadado ({meses_disponiveis[0]} - {meses_disponiveis[-1]})", formar_real(tot_rec_ano))
-        with m3: st.metric("Aplicação em Pessoal (70%)", f"{perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
+        with m3: st.markdown(f"**Aplicação em Pessoal (70%)** <br> <h2 style='color:{cor_indice};'>{simbolo_indice} {perc_70:.2f}%</h2>", unsafe_allow_html=True)
 
         st.markdown("---")
-        st.subheader("🔹 1. Receitas FUNDEB (Proporção Mensal)")
+        st.subheader("🔹 1. Receitas FUNDEB (Escala de Azul)")
         
         dados_m_r = []
         for m in meses_disponiveis:
@@ -154,19 +160,19 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
         
         df_plot_r = pd.DataFrame(dados_m_r)
-        fig_r_bar = px.bar(df_plot_r, x='Mês', y='Valor', color='Categoria', text='Valor',
-                           color_discrete_map={'Principal':'#636EFA', 'VAAR':'#00CC96', 'ETI':'#EF553B', 'Aplicação':'#AB63FA'})
+        # AJUSTE: Cores em escala de Azul e Barmode Stacked (Empilhado)
+        fig_r_bar = px.bar(df_plot_r, x='Mês', y='Valor', color='Valor', text='Categoria', barmode='stack',
+                           color_continuous_scale='Blues')
         
-        # AJUSTE: Remove títulos e números laterais, mas MANTÉM legenda
-        fig_r_bar.update_layout(barnorm='percent', separators=',.', showlegend=True)
-        fig_r_bar.update_yaxes(title_text="", showticklabels=False) # Remove "Valor" e os números (0, 20, 40...)
-        fig_r_bar.update_xaxes(title_text="") # Remove "Mês"
-        fig_r_bar.update_traces(texttemplate='%{text:.2s}', textposition='inside', 
-                                hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{text:,.2f}<extra></extra>")
+        fig_r_bar.update_layout(separators=',.', showlegend=False, coloraxis_showscale=False)
+        fig_r_bar.update_yaxes(title_text="", showticklabels=False) 
+        fig_r_bar.update_xaxes(title_text="") 
+        fig_r_bar.update_traces(texttemplate='%{y:.2s}', textposition='inside', 
+                                hovertemplate="<b>%{x}</b><br>%{text}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         st.plotly_chart(fig_r_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        st.subheader("🔹 2. Despesas FUNDEB (Parcela Liquidada - Proporção)")
+        st.subheader("🔹 2. Despesas FUNDEB (Escala de Vermelho)")
         
         dados_m_f = []
         for m in meses_disponiveis:
@@ -175,38 +181,37 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         
         df_plot_f = pd.DataFrame(dados_m_f)
-        fig_f_bar = px.bar(df_plot_f, x='Mês', y='Valor', color='Fonte', text='Valor',
-                           color_discrete_map={'FUNDEB 70%':'#4169E1', 'FUNDEB 30%':'#FF4500'})
+        # AJUSTE: Cores em escala de Vermelho e Barmode Stacked (Empilhado)
+        fig_f_bar = px.bar(df_plot_f, x='Mês', y='Valor', color='Valor', text='Fonte', barmode='stack',
+                           color_continuous_scale='Reds')
         
-        # AJUSTE: Remove títulos e números laterais, mas MANTÉM legenda
-        fig_f_bar.update_layout(barnorm='percent', separators=',.', showlegend=True)
+        fig_f_bar.update_layout(separators=',.', showlegend=False, coloraxis_showscale=False)
         fig_f_bar.update_yaxes(title_text="", showticklabels=False)
         fig_f_bar.update_xaxes(title_text="")
-        fig_f_bar.update_traces(texttemplate='%{text:.2s}', textposition='inside', 
-                                hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{text:,.2f}<extra></extra>")
+        fig_f_bar.update_traces(texttemplate='%{y:.2s}', textposition='inside', 
+                                hovertemplate="<b>%{x}</b><br>%{text}<br>Valor: R$ %{y:,.2f}<extra></extra>")
         st.plotly_chart(fig_f_bar, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        st.subheader("🔹 3. Análises e Equilíbrio")
-        total_desp_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'][meses_disponiveis].sum().sum()
-        df_comp = pd.DataFrame({"Tipo": ["Total Receitas", "Total Despesas (Liq.)"], "Valor": [tot_rec_ano, total_desp_liq]})
-        fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s')
+        # AJUSTE: Gráfico específico para Análise dos 70% (Acumulado)
+        st.subheader("🔹 3. Análise Acumulada do Índice 70%")
+        df_70_analise = pd.DataFrame({
+            "Tipo": ["Receita Base Cálculo", "Despesa Pessoal (15407)"],
+            "Valor": [rec_base_70, desp_70_val]
+        })
+        fig_70 = px.bar(df_70_analise, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
+                        color_discrete_map={"Receita Base Cálculo": "#1f77b4", "Despesa Pessoal (15407)": cor_indice})
         
-        # AJUSTE: Limpeza visual mantendo legenda
-        fig_comp.update_layout(separators=',.', showlegend=True)
-        fig_comp.update_yaxes(title_text="", showticklabels=False)
-        fig_comp.update_xaxes(title_text="")
-        fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
-        st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
+        fig_70.update_layout(separators=',.', showlegend=True)
+        fig_70.update_yaxes(title_text="", showticklabels=False)
+        fig_70.update_xaxes(title_text="")
+        st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
         col_liq_fichas = [c for c in df_f.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         
-        # --- A CORREÇÃO ENTRA AQUI ---
-        # 1. Criando a Fonte_Agrupada que faltava
         df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
-        # 2. Pegando o nome real das colunas caso o código do Nível 1 + Nível 0 tenha virado Orçado_Total
         col_orc = next((c for c in df_f_fundeb.columns if 'Orçado' in c), 'Orçado')
         col_sld = next((c for c in df_f_fundeb.columns if 'Saldo' in c), 'Saldo')
         
@@ -218,7 +223,6 @@ if df_f_raw is not None and df_r is not None:
     # --- PÁGINA: RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Próprios</h1>", unsafe_allow_html=True)
-        # Código de Recursos Próprios preservado sem as alterações de limpeza do FUNDEB
         df_r_imp = df_r[(df_r['Categoria'] == 'IMPOSTOS')].copy()
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'].astype(str) == '15001')].copy()
         tot_receita_imp = df_r_imp['Total'].sum()
@@ -243,8 +247,6 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
         df_f_15001_fichas = df_f[df_f['Fonte'].str.contains('15001', na=False)].copy()
-        
-        # --- A CORREÇÃO AQUI ---
         col_orc = next((c for c in df_f_15001_fichas.columns if 'Orçado' in c), 'Orçado')
         col_sld = next((c for c in df_f_15001_fichas.columns if 'Saldo' in c), 'Saldo')
         
@@ -270,7 +272,6 @@ if df_f_raw is not None and df_r is not None:
         fig_vinc_pie = px.pie(df_pie_r, values='Total', names='Descrição da Receita', hole=.4)
         st.plotly_chart(fig_vinc_pie, use_container_width=True, config=CONFIG_PT)
 
-        # --- A CORREÇÃO AQUI ---
         col_orc = next((c for c in df_f_vinc.columns if 'Orçado' in c), 'Orçado')
         col_sld = next((c for c in df_f_vinc.columns if 'Saldo' in c), 'Saldo')
         
