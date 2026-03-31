@@ -19,7 +19,7 @@ def get_image_base64(path):
 LOGO_PATH = "Logos/LOGOTIPO IG2P - OFICIAL - BRANCO.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# --- 3. CSS PARA IDENTIDADE VISUAL EXATA ---
+# --- 3. CSS PARA IDENTIDADE VISUAL, BLOQUEIO DE ESCRITA E CENTRALIZAÇÃO ---
 st.markdown(f"""
 <style>
     /* Remover Sidebar e UI nativa */
@@ -28,6 +28,17 @@ st.markdown(f"""
     .stDeployButton,
     footer {{
         display: none !important;
+    }}
+
+    /* IMPEDIR ESCRITA NO SELECTBOX (Apenas clique) */
+    div[data-baseweb="select"] input {{
+        caret-color: transparent !important;
+        cursor: pointer !important;
+    }}
+    
+    /* Bloqueia eventos de teclado no input para evitar busca/escrita */
+    div[data-baseweb="select"] input {{
+        pointer-events: none !important;
     }}
 
     /* Fundo escuro sólido */
@@ -39,6 +50,7 @@ st.markdown(f"""
     .block-container {{
         padding-top: 0rem !important;
         padding-left: 0rem !important;
+        padding-right: 0rem !important;
     }}
 
     /* Posicionamento do Logo e Texto no Canto Superior */
@@ -66,6 +78,15 @@ st.markdown(f"""
         padding: 0 !important;
         white-space: nowrap;
     }}
+
+    /* Centralização do título dos municípios */
+    .municipio-header {{
+        color: white; 
+        font-size: 18px; 
+        text-align: center;
+        width: 100%;
+        margin-top: 40px;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -86,7 +107,6 @@ else:
     """, unsafe_allow_html=True)
 
 # --- 5. SELETOR CENTRALIZADO ---
-# Espaçamento para centralizar o seletor conforme a foto
 st.markdown("<br><br><br><br><br><br><br>", unsafe_allow_html=True)
 
 _, col_center, _ = st.columns([1.2, 1, 1.2])
@@ -102,21 +122,23 @@ with col_center:
         label_visibility="visible"
     )
 
-# --- 6. LISTA DE MUNICÍPIOS (PRECISA E INSTANTÂNEA) ---
+# --- 6. GRID DE MUNICÍPIOS CENTRALIZADO ---
 if setor_escolhido:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown(f"<h3 style='color: white; font-size: 18px; margin-left: 20px;'>Municípios do Setor: {setor_escolhido}</h3>", unsafe_allow_html=True)
+    # Título centralizado
+    st.markdown(f'<p class="municipio-header">Municípios do Setor: {setor_escolhido}</p>', unsafe_allow_html=True)
     
     # Lógica de rotas
     suffix = "Saúde" if setor_escolhido == "Saúde" else "Educação"
     nomes = ["Alpinópolis", "Bom Jesus da Penha", "Cássia", "Delfinópolis", "Itaú de Minas"]
     
-    # Criar grid de botões
-    st.markdown('<div style="padding: 0 20px;">', unsafe_allow_html=True)
-    cols = st.columns(5)
-    for i, nome in enumerate(nomes):
-        with cols[i % 5]:
-            path = f"pages/{nome.replace(' ', '_')}_{suffix}.py"
-            if st.button(nome, key=f"btn_{nome}", use_container_width=True):
-                st.switch_page(path)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Centralização das caixas (botões)
+    # Usamos colunas laterais vazias para empurrar o conteúdo para o centro exato
+    _, col_buttons, _ = st.columns([0.15, 0.7, 0.15])
+    
+    with col_buttons:
+        cols = st.columns(5)
+        for i, nome in enumerate(nomes):
+            with cols[i % 5]:
+                path = f"pages/{nome.replace(' ', '_')}_{suffix}.py"
+                if st.button(nome, key=f"btn_{nome}", use_container_width=True):
+                    st.switch_page(path)
