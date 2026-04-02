@@ -29,7 +29,7 @@ st.markdown(
         
         .js-plotly-plot .point path {
             animation: subirBarra 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-            animation-delay: 0.3s; /* Delay para o scroll terminar antes da barra subir */
+            animation-delay: 0.3s; 
             clip-path: inset(100% 0 0 0);
         }
     </style>
@@ -155,6 +155,7 @@ if df_f_raw is not None and df_r is not None:
         fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
+        fig_r.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -168,6 +169,7 @@ if df_f_raw is not None and df_r is not None:
         fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                        color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
+        fig_f.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -178,6 +180,7 @@ if df_f_raw is not None and df_r is not None:
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
+            fig_comp.update_traces(hovertemplate='Tipo = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
@@ -187,6 +190,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
+            fig_comp.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
 
         fig_comp.update_layout(separators=",.")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
@@ -247,7 +251,6 @@ if df_f_raw is not None and df_r is not None:
                     st.rerun()
 
         if 'rp_ativo' in st.session_state:
-            # LÓGICA DE FOCO IDENTICA A BOM JESUS (VIA KEY)
             scroll_id = random.random()
             components.html(f"""
                 <script id="scroll_{scroll_id}">
@@ -275,6 +278,7 @@ if df_f_raw is not None and df_r is not None:
             fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
                                color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
             fig_r_prop.update_layout(separators=",.", height=500)
+            fig_r_prop.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
             st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT, key="grafico_rp_dinamico")
 
         st.markdown("---")
@@ -287,6 +291,7 @@ if df_f_raw is not None and df_r is not None:
         fig_d_prop = px.bar(pd.DataFrame(dados_d_mensal), x='Mês', y='Valor', color='Fase', barmode='group',
                            color_discrete_map={"Empenhado": "#660000", "Liquidado": "#cc0000", "Pago": "#ff4d4d"}, text_auto='.2s')
         fig_d_prop.update_layout(separators=",.")
+        fig_d_prop.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_d_prop, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -298,6 +303,7 @@ if df_f_raw is not None and df_r is not None:
                             color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_sel})": "#990000"})
         fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green", annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
         fig_indices.update_layout(separators=",.")
+        fig_indices.update_traces(hovertemplate='Categoria = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_indices, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Detalhamento de Fichas - Fonte 15001")
@@ -321,6 +327,7 @@ if df_f_raw is not None and df_r is not None:
         st.metric("Total Receitas Vinculadas", formar_real(df_r_vinc['Total'].sum()))
         fig_vinc = px.pie(df_r_vinc, values='Total', names='Descrição da Receita', hole=.4)
         fig_vinc.update_layout(separators=",.")
+        fig_vinc.update_traces(hovertemplate='<b>%{label}</b><br>Total = R$ %{value:,.2f}<extra></extra>')
         st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
