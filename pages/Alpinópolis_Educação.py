@@ -21,7 +21,7 @@ st.markdown(
             display: none !important;
         }
         
-        /* ANIMAÇÃO DOS GRÁFICOS - VELOCIDADE REDUZIDA PARA VISUALIZAÇÃO PÓS-FOCUS */
+        /* ANIMAÇÃO DOS GRÁFICOS */
         @keyframes subirBarra {
             from { clip-path: inset(100% 0 0 0); }
             to { clip-path: inset(0% 0 0 0); }
@@ -33,15 +33,13 @@ st.markdown(
             clip-path: inset(100% 0 0 0);
         }
 
-        /* Estilização para o menu de navegação de impostos */
-        .nav-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #f0f2f6;
-            border-radius: 50px;
-            padding: 5px 20px;
-            margin-bottom: 20px;
+        /* Estilização para botões de navegação e grade */
+        .stButton button {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 12px !important;
+            height: 3em !important;
         }
     </style>
     """,
@@ -64,6 +62,21 @@ def limpar_valor(valor):
 
 def formar_real(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+def abreviar_nome(nome):
+    if "📊" in nome: return nome
+    nome = nome.upper()
+    substituicoes = {
+        "IMPOSTO SOBRE A PROPRIEDADE PREDIAL E TERRITORIAL URBANA": "IPTU",
+        "IMPOSTO SOBRE TRANSMISSÃO DE BENS IMÓVEIS": "ITBI",
+        "IMPOSTO SOBRE SERVIÇOS DE QUALQUER NATUREZA": "ISS",
+        "DÍVIDA ATIVA": "D.A.",
+        "CONTRIBUIÇÃO": "CONTRIB.",
+        "PROPRIEDADE TERRITORIAL RURAL": "ITR"
+    }
+    for longo, curto in substituicoes.items():
+        nome = nome.replace(longo, curto)
+    return nome
 
 def buscar_arquivo(nome):
     caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome),
@@ -246,33 +259,30 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
         
-        # --- LÓGICA DE NAVEGAÇÃO DOS BOTÕES (CARROSSEL) ---
-        lista_completa = ["📊 Acumulado Geral"] + sorted(df_r_imp['Descrição da Receita'].unique().tolist())
+        # --- NAVEGAÇÃO DE IMPOSTOS ---
+        lista_crua = sorted(df_r_imp['Descrição da Receita'].unique().tolist())
+        lista_completa = ["📊 Acumulado Geral"] + lista_crua
         
-        if 'idx_nav' not in st.session_state:
-            st.session_state.idx_nav = 0
+        if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
             
-        # Layout da navegação (Seta Esq | 5 Botões | Seta Dir)
-        nav_cols = st.columns([0.5, 5, 0.5])
-        
+        nav_cols = st.columns([0.4, 5, 0.4])
         with nav_cols[0]:
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("⬅️", key="prev_nav"):
                 st.session_state.idx_nav = max(0, st.session_state.idx_nav - 5)
+                # Não realiza o scroll de foco aqui
                 st.rerun()
                 
         with nav_cols[1]:
-            # Pega a fatia de 5 itens baseada no index
             fim_idx = min(st.session_state.idx_nav + 5, len(lista_completa))
             fatia_botoes = lista_completa[st.session_state.idx_nav:fim_idx]
-            
             cols_fatia = st.columns(5)
             for i, item in enumerate(fatia_botoes):
                 with cols_fatia[i]:
-                    # Traduz "📊 Acumulado Geral" para a lógica interna de filtro
-                    label_botao = item.replace("📊 ", "")
-                    if st.button(item, use_container_width=True, key=f"btn_nav_{item}"):
-                        st.session_state['rp_ativo'] = label_botao
+                    label_exibicao = abreviar_nome(item)
+                    if st.button(label_exibicao, use_container_width=True, key=f"btn_nav_{item}", help=item):
+                        st.session_state['rp_ativo'] = item.replace("📊 ", "")
+                        st.session_state['trigger_scroll'] = True # Aciona o foco apenas na seleção
                         st.rerun()
                         
         with nav_cols[2]:
@@ -283,18 +293,19 @@ if df_f_raw is not None and df_r is not None:
                     st.rerun()
 
         if 'rp_ativo' in st.session_state:
-            scroll_id = random.random()
-            components.html(f"""
-                <script id="scroll_{scroll_id}">
-                    var scroll = () => {{
-                        const el = window.parent.document.querySelector('.st-key-grafico_rp_dinamico');
-                        if (el) {{
-                            el.scrollIntoView({{ behavior: "smooth", block: "center" }});
-                        }}
-                    }};
-                    setTimeout(scroll, 150);
-                </script>
-            """, height=0)
+            # Scroll de foco condicional (apenas se selecionou um imposto, não ao navegar setas)
+            if st.session_state.get('trigger_scroll', False):
+                scroll_id = random.random()
+                components.html(f"""
+                    <script id="scroll_{scroll_id}">
+                        var scroll = () => {{
+                            const el = window.parent.document.querySelector('.st-key-grafico_rp_dinamico');
+                            if (el) {{ el.scrollIntoView({{ behavior: "smooth", block: "center" }}); }}
+                        }};
+                        setTimeout(scroll, 150);
+                    </script>
+                """, height=0)
+                st.session_state['trigger_scroll'] = False
 
             ativo = st.session_state['rp_ativo']
             st.markdown(f"#### 📊 {ativo}")
