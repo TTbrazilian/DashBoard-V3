@@ -239,7 +239,7 @@ if df_f_raw is not None and df_r is not None:
 
         # --- 1. INDICADORES NO TOPO ---
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Total Receitas de Impostos", formar_real(total_impostos))
+        with m1: st.metric("Total Receitas de Impostos Jan - Fev", formar_real(total_impostos))
         with m2: st.metric("Total Despesas 15001 (Liq.)", formar_real(desp_fases['Liquidado']))
         with m3:
             if perc_25 >= 25:
