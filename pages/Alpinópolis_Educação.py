@@ -32,6 +32,17 @@ st.markdown(
             animation-delay: 0.3s; 
             clip-path: inset(100% 0 0 0);
         }
+
+        /* Estilização para o menu de navegação de impostos */
+        .nav-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f2f6;
+            border-radius: 50px;
+            padding: 5px 20px;
+            margin-bottom: 20px;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -234,20 +245,41 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
-        st.write("Selecione um imposto para detalhamento:")
         
-        impostos_disponiveis = sorted(df_r_imp['Descrição da Receita'].unique().tolist())
-        cols_botoes = st.columns(4)
+        # --- LÓGICA DE NAVEGAÇÃO DOS BOTÕES (CARROSSEL) ---
+        lista_completa = ["📊 Acumulado Geral"] + sorted(df_r_imp['Descrição da Receita'].unique().tolist())
         
-        with cols_botoes[0]:
-            if st.button("📊 Acumulado Geral", use_container_width=True, key="btn_rp_acumulado"):
-                st.session_state['rp_ativo'] = "Acumulado Geral"
+        if 'idx_nav' not in st.session_state:
+            st.session_state.idx_nav = 0
+            
+        # Layout da navegação (Seta Esq | 5 Botões | Seta Dir)
+        nav_cols = st.columns([0.5, 5, 0.5])
+        
+        with nav_cols[0]:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("⬅️", key="prev_nav"):
+                st.session_state.idx_nav = max(0, st.session_state.idx_nav - 5)
                 st.rerun()
-
-        for i, imp in enumerate(impostos_disponiveis):
-            with cols_botoes[(i + 1) % 4]:
-                if st.button(imp, use_container_width=True, key=f"btn_rp_imp_{i}"):
-                    st.session_state['rp_ativo'] = imp
+                
+        with nav_cols[1]:
+            # Pega a fatia de 5 itens baseada no index
+            fim_idx = min(st.session_state.idx_nav + 5, len(lista_completa))
+            fatia_botoes = lista_completa[st.session_state.idx_nav:fim_idx]
+            
+            cols_fatia = st.columns(5)
+            for i, item in enumerate(fatia_botoes):
+                with cols_fatia[i]:
+                    # Traduz "📊 Acumulado Geral" para a lógica interna de filtro
+                    label_botao = item.replace("📊 ", "")
+                    if st.button(item, use_container_width=True, key=f"btn_nav_{item}"):
+                        st.session_state['rp_ativo'] = label_botao
+                        st.rerun()
+                        
+        with nav_cols[2]:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("➡️", key="next_nav"):
+                if st.session_state.idx_nav + 5 < len(lista_completa):
+                    st.session_state.idx_nav += 5
                     st.rerun()
 
         if 'rp_ativo' in st.session_state:
