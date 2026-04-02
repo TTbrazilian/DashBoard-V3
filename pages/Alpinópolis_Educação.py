@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.io as pio
 import os
 import plotly.graph_objects as go
+import streamlit.components.v1 as components
+import random
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Alpinópolis - Gestão Educação", layout="wide")
@@ -17,6 +19,15 @@ st.markdown(
         [data-testid="stSidebarNav"] ul li:has(span:contains("Penha")),
         [data-testid="stSidebarNav"] ul li:has(span:contains("São José da Barra")) {
             display: none !important;
+        }
+        /* ANIMAÇÃO DOS GRÁFICOS */
+        @keyframes subirBarra {
+            from { clip-path: inset(100% 0 0 0); }
+            to { clip-path: inset(0% 0 0 0); }
+        }
+        .js-plotly-plot .point path {
+            animation: subirBarra 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            clip-path: inset(100% 0 0 0);
         }
     </style>
     """,
@@ -41,7 +52,7 @@ def formar_real(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def buscar_arquivo(nome):
-    caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome), 
+    caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome),
                 os.path.join(os.path.dirname(__file__), "..", nome)]
     for p in caminhos:
         if os.path.exists(p): return p
@@ -51,7 +62,7 @@ def buscar_arquivo(nome):
 def load_all_data():
     arquivo_f = "zEducação/Alpinópolis.csv"
     arquivo_r = "zEducação/Alpinópolis_R.csv"
-    arquivo_df = "zEducação/Alpinópolis_DF.csv" 
+    arquivo_df = "zEducação/Alpinópolis_DF.csv"
     
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
@@ -171,7 +182,7 @@ if df_f_raw is not None and df_r is not None:
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.update_traces(hovertemplate='Tipo=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
+            fig_comp.update_traces(hovertemplate='Tipo=%{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
@@ -181,7 +192,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.update_traces(hovertemplate='%{fullData.name}<br>Mês=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
+            fig_comp.update_traces(hovertemplate='%{fullData.name}<br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
 
         fig_comp.update_layout(separators=",.")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
@@ -207,12 +218,10 @@ if df_f_raw is not None and df_r is not None:
         
         meses_proprios = ['Janeiro', 'Fevereiro']
         
-        # Filtros robustos para os 3 arquivos
         df_r_imp = df_r[df_r['Categoria'].astype(str).str.upper().str.contains('IMPOSTO', na=False)].copy()
         df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
         df_f_15001 = df_f_raw[df_f_raw['Fonte'].str.contains('15001', na=False)].copy()
         
-        # Cálculos de Receitas
         if not df_r_imp.empty:
             total_impostos = df_r_imp[meses_proprios].sum().sum()
             cols_deducao = [c for c in df_r_imp.columns if 'Dedução' in c]
@@ -222,8 +231,6 @@ if df_f_raw is not None and df_r is not None:
             total_deducoes = 0.0
             
         base_calculo_25 = total_impostos - total_deducoes
-        
-        # Cálculos de Despesas por Fase
         desp_fases = {}
         for fase in ['Empenhado', 'Liquidado', 'Pago']:
             desp_fases[fase] = df_df_15001[df_df_15001['Tipo'] == fase][meses_proprios].sum().sum()
@@ -242,22 +249,61 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
 
-        # --- 2 & 3. GRÁFICOS (ORGANIZADOS UM ABAIXO DO OUTRO) ---
+        # --- 2. GRÁFICO DINÂMICO DE RECEITAS (PADRÃO BOM JESUS) ---
         st.subheader("🔹 Receitas de Impostos (Mensal)")
-        if not df_r_imp.empty:
+        st.write("Selecione um imposto para detalhamento ou veja o acumulado:")
+        
+        st.markdown('<div id="foco_grafico_proprio"></div>', unsafe_allow_html=True)
+        
+        impostos_disponiveis = sorted(df_r_imp['Descrição da Receita'].unique().tolist())
+        cols_botoes = st.columns(4)
+        
+        with cols_botoes[0]:
+            if st.button("📊 Acumulado Geral", use_container_width=True, key="btn_acumulado_rp"):
+                st.session_state['imposto_ativo'] = "Acumulado Geral"
+                st.rerun()
+
+        for i, imp in enumerate(impostos_disponiveis):
+            with cols_botoes[(i + 1) % 4]:
+                if st.button(imp, use_container_width=True, key=f"btn_rp_{i}"):
+                    st.session_state['imposto_ativo'] = imp
+                    st.rerun()
+
+        if 'imposto_ativo' in st.session_state:
+            # Script de Scroll
+            scroll_id = random.random()
+            components.html(f"""
+                <script>
+                    var el = window.parent.document.getElementById('foco_grafico_proprio');
+                    if (el) {{ el.scrollIntoView({{behavior: "smooth", block: "center"}}); }}
+                </script>
+            """, height=0)
+
+            ativo = st.session_state['imposto_ativo']
+            st.markdown(f"#### Exibindo: {ativo}")
+
+            if ativo == "Acumulado Geral":
+                df_aux = df_r_imp.copy()
+            else:
+                df_aux = df_r_imp[df_r_imp['Descrição da Receita'] == ativo].copy()
+
             dados_r_mensal = []
             for m in meses_proprios:
-                val_m = df_r_imp[m].sum()
-                ded_m = df_r_imp[[c for c in df_r_imp.columns if 'Dedução' in c and m in c]].sum().sum()
+                val_m = df_aux[m].sum()
+                ded_m = df_aux[[c for c in df_aux.columns if 'Dedução' in c and m in c]].sum().sum()
                 dados_r_mensal.append({"Mês": m, "Tipo": "Receita Mensal", "Valor": val_m})
                 dados_r_mensal.append({"Mês": m, "Tipo": "Dedução", "Valor": ded_m})
             
             fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
                                color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
-            fig_r_prop.update_layout(separators=",.")
+            
+            fig_r_prop.update_traces(
+                hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>"
+            )
+            fig_r_prop.update_layout(separators=",.", height=500)
             st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT)
         else:
-            st.warning("Verifique a coluna 'Categoria' no arquivo de Receitas.")
+            st.info("Selecione uma opção acima para visualizar o gráfico.")
 
         st.markdown("---")
 
@@ -285,8 +331,8 @@ if df_f_raw is not None and df_r is not None:
         })
         fig_indices = px.bar(df_comp_prop, x='Categoria', y='Valor', color='Categoria', text_auto='.3s',
                             color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_sel})": "#990000"})
-        fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green", 
-                             annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
+        fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green",
+                              annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
         fig_indices.update_layout(separators=",.")
         st.plotly_chart(fig_indices, use_container_width=True, config=CONFIG_PT)
 
