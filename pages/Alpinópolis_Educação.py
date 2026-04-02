@@ -20,7 +20,7 @@ st.markdown(
         [data-testid="stSidebarNav"] ul li:has(span:contains("São José da Barra")) {
             display: none !important;
         }
-        /* ANIMAÇÃO DOS GRÁFICOS */
+        /* ANIMAÇÃO DOS GRÁFICOS (PADRÃO BOM JESUS) */
         @keyframes subirBarra {
             from { clip-path: inset(100% 0 0 0); }
             to { clip-path: inset(0% 0 0 0); }
@@ -231,15 +231,12 @@ if df_f_raw is not None and df_r is not None:
             total_deducoes = 0.0
             
         base_calculo_25 = total_impostos - total_deducoes
-        desp_fases = {}
-        for fase in ['Empenhado', 'Liquidado', 'Pago']:
-            desp_fases[fase] = df_df_15001[df_df_15001['Tipo'] == fase][meses_proprios].sum().sum()
-        
+        desp_fases = {fase: df_df_15001[df_df_15001['Tipo'] == fase][meses_proprios].sum().sum() for fase in ['Empenhado', 'Liquidado', 'Pago']}
         perc_25 = (desp_fases['Liquidado'] / base_calculo_25 * 100) if base_calculo_25 > 0 else 0
 
         # --- 1. INDICADORES NO TOPO ---
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Total Receitas de Impostos Jan - Fev", formar_real(total_impostos))
+        with m1: st.metric("Total Receitas de Impostos", formar_real(total_impostos))
         with m2: st.metric("Total Despesas 15001 (Liq.)", formar_real(desp_fases['Liquidado']))
         with m3:
             if perc_25 >= 25:
@@ -249,43 +246,47 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
 
-        # --- 2. GRÁFICO DINÂMICO DE RECEITAS (PADRÃO BOM JESUS) ---
+        # --- 2. GRÁFICO DINÂMICO DE RECEITAS (LOGICA BOM JESUS APLICADA) ---
         st.subheader("🔹 Receitas de Impostos (Mensal)")
         st.write("Selecione um imposto para detalhamento ou veja o acumulado:")
         
-        st.markdown('<div id="foco_grafico_proprio"></div>', unsafe_allow_html=True)
+        # ID para Ancoragem do Scroll (Referência exata do padrão Bom Jesus)
+        st.markdown('<div id="foco_grafico_rp"></div>', unsafe_allow_html=True)
         
         impostos_disponiveis = sorted(df_r_imp['Descrição da Receita'].unique().tolist())
         cols_botoes = st.columns(4)
         
         with cols_botoes[0]:
-            if st.button("📊 Acumulado Geral", use_container_width=True, key="btn_acumulado_rp"):
-                st.session_state['imposto_ativo'] = "Acumulado Geral"
+            if st.button("📊 Acumulado Geral", use_container_width=True, key="btn_rp_acumulado"):
+                st.session_state['rp_ativo'] = "Acumulado Geral"
                 st.rerun()
 
         for i, imp in enumerate(impostos_disponiveis):
             with cols_botoes[(i + 1) % 4]:
-                if st.button(imp, use_container_width=True, key=f"btn_rp_{i}"):
-                    st.session_state['imposto_ativo'] = imp
+                if st.button(imp, use_container_width=True, key=f"btn_rp_imp_{i}"):
+                    st.session_state['rp_ativo'] = imp
                     st.rerun()
 
-        if 'imposto_ativo' in st.session_state:
-            # Script de Scroll
-            scroll_id = random.random()
+        # Renderização condicional do gráfico e gatilho de foco
+        if 'rp_ativo' in st.session_state:
+            # Script de Scroll (Cópia exata da lógica funcional de Bom Jesus)
+            scroll_sid = random.random()
             components.html(f"""
-                <script>
-                    var el = window.parent.document.getElementById('foco_grafico_proprio');
-                    if (el) {{ el.scrollIntoView({{behavior: "smooth", block: "center"}}); }}
+                <script id="scr_{scroll_sid}">
+                    var scroll = () => {{
+                        const el = window.parent.document.getElementById('foco_grafico_rp');
+                        if (el) {{
+                            el.scrollIntoView({{ behavior: "smooth", block: "center" }});
+                        }}
+                    }};
+                    setTimeout(scroll, 150);
                 </script>
             """, height=0)
 
-            ativo = st.session_state['imposto_ativo']
-            st.markdown(f"#### Exibindo: {ativo}")
+            ativo = st.session_state['rp_ativo']
+            st.markdown(f"#### 📊 {ativo}")
 
-            if ativo == "Acumulado Geral":
-                df_aux = df_r_imp.copy()
-            else:
-                df_aux = df_r_imp[df_r_imp['Descrição da Receita'] == ativo].copy()
+            df_aux = df_r_imp.copy() if ativo == "Acumulado Geral" else df_r_imp[df_r_imp['Descrição da Receita'] == ativo].copy()
 
             dados_r_mensal = []
             for m in meses_proprios:
@@ -301,9 +302,9 @@ if df_f_raw is not None and df_r is not None:
                 hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>"
             )
             fig_r_prop.update_layout(separators=",.", height=500)
-            st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT)
+            st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT, key="grafico_rp_dinamico")
         else:
-            st.info("Selecione uma opção acima para visualizar o gráfico.")
+            st.info("Utilize os botões acima para carregar o gráfico detalhado.")
 
         st.markdown("---")
 
@@ -321,7 +322,6 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
 
-        # --- 4. ANÁLISE COMPARATIVA ---
         st.subheader("🔹 4. Análise Comparativa e Meta (25%)")
         fase_sel = st.radio("Fase para índice:", ["Liquidado", "Empenhado", "Pago"], horizontal=True, key="fase_prop")
         valor_meta = base_calculo_25 * 0.25
