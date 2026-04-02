@@ -33,13 +33,21 @@ st.markdown(
             clip-path: inset(100% 0 0 0);
         }
 
-        /* Estilização para botões de navegação e grade */
+        /* Padronização da Grade e Botões */
         .stButton button {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-size: 12px !important;
-            height: 3em !important;
+            width: 100%;
+            height: 3.5em !important;
+            padding: 0px 5px !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            text-transform: uppercase;
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            line-height: 1.1 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
         }
     </style>
     """,
@@ -63,20 +71,34 @@ def limpar_valor(valor):
 def formar_real(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def abreviar_nome(nome):
+def abreviar_nome_curto(nome):
     if "📊" in nome: return nome
-    nome = nome.upper()
-    substituicoes = {
-        "IMPOSTO SOBRE A PROPRIEDADE PREDIAL E TERRITORIAL URBANA": "IPTU",
-        "IMPOSTO SOBRE TRANSMISSÃO DE BENS IMÓVEIS": "ITBI",
-        "IMPOSTO SOBRE SERVIÇOS DE QUALQUER NATUREZA": "ISS",
+    n = nome.upper()
+    # Mapeamento de siglas principais
+    n = n.replace("IMPOSTO SOBRE A PROPRIEDADE PREDIAL E TERRITORIAL URBANA", "IPTU")
+    n = n.replace("IMPOSTO SOBRE TRANSMISSÃO DE BENS IMÓVEIS", "ITBI")
+    n = n.replace("IMPOSTO SOBRE SERVIÇOS DE QUALQUER NATUREZA", "ISS")
+    n = n.replace("IMPOSTO SOBRE A RENDA", "IR")
+    n = n.replace("IMPOSTO TERRITORIAL RURAL", "ITR")
+    n = n.replace("DÍVIDA ATIVA", "D.A.")
+    n = n.replace("CONTRIBUIÇÃO PARA O CUSTEIO DO SERVIÇO DE ILUMINAÇÃO PÚBLICA", "COSIP")
+    n = n.replace("CONTRIBUIÇÃO", "CONTRIB.")
+    
+    # Preservar as variáveis
+    sub_vars = {
+        "PRINCIPAL": "PRINC.",
+        "MULTAS E JUROS": "M/J",
         "DÍVIDA ATIVA": "D.A.",
-        "CONTRIBUIÇÃO": "CONTRIB.",
-        "PROPRIEDADE TERRITORIAL RURAL": "ITR"
+        "OUTRAS RECEITAS": "OUTRAS"
     }
-    for longo, curto in substituicoes.items():
-        nome = nome.replace(longo, curto)
-    return nome
+    for longo, curto in sub_vars.items():
+        if longo in n:
+            # Tenta isolar a sigla do imposto e a variável
+            partes = n.split("-")
+            if len(partes) > 1:
+                return f"{partes[0].strip()} - {curto}"
+            return n.replace(longo, curto)
+    return n
 
 def buscar_arquivo(nome):
     caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome),
@@ -259,18 +281,16 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
         
-        # --- NAVEGAÇÃO DE IMPOSTOS ---
+        # --- NAVEGAÇÃO PADRONIZADA ---
         lista_crua = sorted(df_r_imp['Descrição da Receita'].unique().tolist())
         lista_completa = ["📊 Acumulado Geral"] + lista_crua
         
         if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
             
-        nav_cols = st.columns([0.4, 5, 0.4])
+        nav_cols = st.columns([0.5, 5, 0.5])
         with nav_cols[0]:
-            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("⬅️", key="prev_nav"):
                 st.session_state.idx_nav = max(0, st.session_state.idx_nav - 5)
-                # Não realiza o scroll de foco aqui
                 st.rerun()
                 
         with nav_cols[1]:
@@ -279,21 +299,22 @@ if df_f_raw is not None and df_r is not None:
             cols_fatia = st.columns(5)
             for i, item in enumerate(fatia_botoes):
                 with cols_fatia[i]:
-                    label_exibicao = abreviar_nome(item)
-                    if st.button(label_exibicao, use_container_width=True, key=f"btn_nav_{item}", help=item):
+                    label_curto = abreviar_nome_curto(item)
+                    if st.button(label_curto, use_container_width=True, key=f"btn_nav_{item}", help=item):
                         st.session_state['rp_ativo'] = item.replace("📊 ", "")
-                        st.session_state['trigger_scroll'] = True # Aciona o foco apenas na seleção
+                        st.session_state['trigger_scroll'] = True
                         st.rerun()
+            # Preenche colunas vazias para manter a grade
+            for i in range(len(fatia_botoes), 5):
+                cols_fatia[i].empty()
                         
         with nav_cols[2]:
-            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("➡️", key="next_nav"):
                 if st.session_state.idx_nav + 5 < len(lista_completa):
                     st.session_state.idx_nav += 5
                     st.rerun()
 
         if 'rp_ativo' in st.session_state:
-            # Scroll de foco condicional (apenas se selecionou um imposto, não ao navegar setas)
             if st.session_state.get('trigger_scroll', False):
                 scroll_id = random.random()
                 components.html(f"""
