@@ -265,7 +265,7 @@ if df_f_raw is not None and df_r is not None:
         lista_completa = ["📊 Acumulado Geral"] + sorted(df_r_imp['Descrição da Receita'].unique().tolist())
         if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
             
-        # Pesos iguais para as colunas das setas (0.5 cada) para garantir simetria de distância aos botões
+        # Pesos exatamente iguais (0.5) para as colunas das setas garante a simetria de distância para o botão
         grid = st.columns([0.5, 1.2, 1.2, 1.2, 1.2, 1.2, 0.5])
         
         with grid[0]:
@@ -279,7 +279,6 @@ if df_f_raw is not None and df_r is not None:
         for i, item in enumerate(fatia):
             with grid[i+1]:
                 label = abreviar_extremo(item)
-                # Botões com animação definida no CSS no topo
                 if st.button(label, key=f"btn_{item}", help=item, use_container_width=True):
                     st.session_state['rp_ativo'] = item.replace("📊 ", "")
                     st.session_state['trigger_scroll'] = True
