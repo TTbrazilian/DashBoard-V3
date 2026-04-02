@@ -51,7 +51,6 @@ st.markdown(
             align-items: center !important;
             justify-content: center !important;
             text-align: center;
-            /* Aplica a animação nos botões de imposto */
             animation: slideIn 0.4s ease-out;
         }
         
@@ -60,7 +59,6 @@ st.markdown(
             box-shadow: none !important;
         }
 
-        /* Garante que o container das colunas não tenha gaps assimétricos */
         [data-testid="column"] {
             display: flex;
             align-items: center;
@@ -261,7 +259,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
         
-        # ORDEM ORIGINAL DA BASE (Removido o sorted())
         lista_completa = ["📊 Acumulado Geral"] + df_r_imp['Descrição da Receita'].unique().tolist()
         if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
             
@@ -290,9 +287,22 @@ if df_f_raw is not None and df_r is not None:
                     st.rerun()
 
         if 'rp_ativo' in st.session_state:
+            # Lógica de foco do modelo Bom Jesus aplicada aqui
             if st.session_state.get('trigger_scroll', False):
-                components.html(f"""<script>window.parent.document.querySelector('.st-key-grafico_rp_dinamico').scrollIntoView({{behavior: 'smooth', block: 'center'}});</script>""", height=0)
+                scroll_id = random.random()
+                components.html(f"""
+                    <script id="scroll_{scroll_id}">
+                        var scroll = () => {{
+                            const el = window.parent.document.querySelector('.st-key-grafico_rp_dinamico');
+                            if (el) {{
+                                el.scrollIntoView({{ behavior: "smooth", block: "center" }});
+                            }}
+                        }};
+                        setTimeout(scroll, 150);
+                    </script>
+                """, height=0)
                 st.session_state['trigger_scroll'] = False
+
             ativo = st.session_state['rp_ativo']
             st.markdown(f"#### 📈 {ativo}")
             df_aux = df_r_imp.copy() if ativo == "Acumulado Geral" else df_r_imp[df_r_imp['Descrição da Receita'] == ativo].copy()
@@ -302,8 +312,14 @@ if df_f_raw is not None and df_r is not None:
                 ded_m = df_aux[[c for c in df_aux.columns if 'Dedução' in c and m in c]].sum().sum()
                 dados_r_mensal.append({"Mês": m, "Tipo": "Receita Mensal", "Valor": val_m})
                 dados_r_mensal.append({"Mês": m, "Tipo": "Dedução", "Valor": abs(ded_m)})
+            
             fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
                                color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
+            
+            # Hover configurado conforme ordem para não usar o design antigo
+            fig_r_prop.update_traces(
+                hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+            )
             fig_r_prop.update_layout(separators=",.", height=450)
             st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT, key="grafico_rp_dinamico")
 
