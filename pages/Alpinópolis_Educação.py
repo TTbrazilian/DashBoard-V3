@@ -143,7 +143,7 @@ if df_f_raw is not None and df_r is not None:
         
         fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
-        fig_r.update_layout(separators=",.")
+        fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
         fig_r.update_traces(hovertemplate='%{fullData.name}<br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
@@ -158,7 +158,7 @@ if df_f_raw is not None and df_r is not None:
         
         fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                        color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
-        fig_f.update_layout(separators=",.")
+        fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         fig_f.update_traces(hovertemplate='%{fullData.name}<br>Mês=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
