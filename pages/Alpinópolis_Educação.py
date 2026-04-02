@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import px as px
 import plotly.io as pio
 import os
 import plotly.graph_objects as go
@@ -143,7 +143,7 @@ if df_f_raw is not None and df_r is not None:
         
         fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
-        fig_r.update_layout(separators=",.")
+        fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
         fig_r.update_traces(hovertemplate='%{fullData.name}<br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
@@ -158,7 +158,7 @@ if df_f_raw is not None and df_r is not None:
         
         fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                        color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
-        fig_f.update_layout(separators=",.")
+        fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         fig_f.update_traces(hovertemplate='%{fullData.name}<br>Mês=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
@@ -201,18 +201,16 @@ if df_f_raw is not None and df_r is not None:
             df_f_final[col] = df_f_final[col].apply(formar_real)
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
-    # --- ABA RECURSOS PRÓPRIOS (INTEGRADA E VERTICALIZADA) ---
+    # --- ABA RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>🏛️ Alpinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
         meses_proprios = ['Janeiro', 'Fevereiro']
         
-        # Filtros robustos para os 3 arquivos
         df_r_imp = df_r[df_r['Categoria'].astype(str).str.upper().str.contains('IMPOSTO', na=False)].copy()
         df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
         df_f_15001 = df_f_raw[df_f_raw['Fonte'].str.contains('15001', na=False)].copy()
         
-        # Cálculos de Receitas
         if not df_r_imp.empty:
             total_impostos = df_r_imp[meses_proprios].sum().sum()
             cols_deducao = [c for c in df_r_imp.columns if 'Dedução' in c]
@@ -223,14 +221,12 @@ if df_f_raw is not None and df_r is not None:
             
         base_calculo_25 = total_impostos - total_deducoes
         
-        # Cálculos de Despesas por Fase
         desp_fases = {}
         for fase in ['Empenhado', 'Liquidado', 'Pago']:
             desp_fases[fase] = df_df_15001[df_df_15001['Tipo'] == fase][meses_proprios].sum().sum()
         
         perc_25 = (desp_fases['Liquidado'] / base_calculo_25 * 100) if base_calculo_25 > 0 else 0
 
-        # --- 1. INDICADORES NO TOPO ---
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Total Receitas de Impostos", formar_real(total_impostos))
         with m2: st.metric("Total Despesas 15001 (Liq.)", formar_real(desp_fases['Liquidado']))
@@ -242,7 +238,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
 
-        # --- 2 & 3. GRÁFICOS (ORGANIZADOS UM ABAIXO DO OUTRO) ---
+        # GRÁFICOS VERTICAIS
         st.subheader("🔹 Receitas de Impostos (Mensal)")
         if not df_r_imp.empty:
             dados_r_mensal = []
@@ -275,7 +271,6 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
 
-        # --- 4. ANÁLISE COMPARATIVA ---
         st.subheader("🔹 4. Análise Comparativa e Meta (25%)")
         fase_sel = st.radio("Fase para índice:", ["Liquidado", "Empenhado", "Pago"], horizontal=True, key="fase_prop")
         valor_meta = base_calculo_25 * 0.25
