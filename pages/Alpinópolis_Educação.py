@@ -51,7 +51,6 @@ st.markdown(
             align-items: center !important;
             justify-content: center !important;
             text-align: center;
-            /* Aplica a animação nos botões de imposto */
             animation: slideIn 0.4s ease-out;
         }
         
@@ -60,7 +59,6 @@ st.markdown(
             box-shadow: none !important;
         }
 
-        /* Garante que o container das colunas não tenha gaps assimétricos */
         [data-testid="column"] {
             display: flex;
             align-items: center;
@@ -186,6 +184,7 @@ if df_f_raw is not None and df_r is not None:
         with m3:
             if perc_70 >= 70: st.metric("Aplicação em Pessoal (Mín. 70%)", f"✅ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
             else: st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%", delta_color="inverse")
+        
         st.markdown("---")
         st.subheader("🔹 1. Receitas FUNDEB ")
         dados_m_r = []
@@ -195,8 +194,14 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
         fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
+        
+        # CORREÇÃO HOVER: Receitas FUNDEB
+        fig_r.update_traces(
+            hovertemplate="<b>Categoria:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+        )
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
+
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB ")
         dados_m_f = []
@@ -206,8 +211,14 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                        color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
+        
+        # CORREÇÃO HOVER: Despesas FUNDEB
+        fig_f.update_traces(
+            hovertemplate="<b>Fonte:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+        )
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
+
         st.markdown("---")
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
         tipo_grafico = st.segmented_control("Visualização:", ["Total Acumulado", "Mensal"], default="Total Acumulado")
@@ -215,6 +226,11 @@ if df_f_raw is not None and df_r is not None:
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
+            
+            # CORREÇÃO HOVER: Comparativo Acumulado
+            fig_comp.update_traces(
+                hovertemplate="<b>Tipo:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+            )
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
@@ -224,8 +240,15 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
+            
+            # CORREÇÃO HOVER: Comparativo Mensal
+            fig_comp.update_traces(
+                hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+            )
+
         fig_comp.update_layout(separators=",.")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
+        
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
         col_liq_fichas = [c for c in df_f_fundeb.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
@@ -261,7 +284,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
         
-        # ORDEM ORIGINAL DA BASE
         lista_completa = ["📊 Acumulado Geral"] + df_r_imp['Descrição da Receita'].unique().tolist()
         if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
             
@@ -290,7 +312,6 @@ if df_f_raw is not None and df_r is not None:
                     st.rerun()
 
         if 'rp_ativo' in st.session_state:
-            # CORREÇÃO: Foco no gráfico com lógica do modelo Bom Jesus
             if st.session_state.get('trigger_scroll', False):
                 scroll_id = random.random()
                 components.html(f"""
@@ -319,7 +340,6 @@ if df_f_raw is not None and df_r is not None:
             fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
                                color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
             
-            # CORREÇÃO: Hover configurado
             fig_r_prop.update_traces(
                 hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
             )
@@ -336,7 +356,6 @@ if df_f_raw is not None and df_r is not None:
         fig_d_prop = px.bar(pd.DataFrame(dados_d_mensal), x='Mês', y='Valor', color='Fase', barmode='group',
                            color_discrete_map={"Empenhado": "#660000", "Liquidado": "#cc0000", "Pago": "#ff4d4d"}, text_auto='.2s')
         
-        # CORREÇÃO: Hover configurado
         fig_d_prop.update_traces(
             hovertemplate="<b>Fase:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
         )
@@ -352,7 +371,6 @@ if df_f_raw is not None and df_r is not None:
                             color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_sel})": "#990000"})
         fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green", annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
         
-        # CORREÇÃO: Hover configurado
         fig_indices.update_traces(
             hovertemplate="<b>Categoria:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
         )
