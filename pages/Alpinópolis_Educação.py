@@ -51,6 +51,7 @@ st.markdown(
             align-items: center !important;
             justify-content: center !important;
             text-align: center;
+            /* Aplica a animação nos botões de imposto */
             animation: slideIn 0.4s ease-out;
         }
         
@@ -59,6 +60,7 @@ st.markdown(
             box-shadow: none !important;
         }
 
+        /* Garante que o container das colunas não tenha gaps assimétricos */
         [data-testid="column"] {
             display: flex;
             align-items: center;
@@ -259,6 +261,7 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
         
+        # ORDEM ORIGINAL DA BASE
         lista_completa = ["📊 Acumulado Geral"] + df_r_imp['Descrição da Receita'].unique().tolist()
         if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
             
@@ -287,7 +290,7 @@ if df_f_raw is not None and df_r is not None:
                     st.rerun()
 
         if 'rp_ativo' in st.session_state:
-            # Lógica de foco do modelo Bom Jesus aplicada aqui
+            # CORREÇÃO: Foco no gráfico com lógica do modelo Bom Jesus
             if st.session_state.get('trigger_scroll', False):
                 scroll_id = random.random()
                 components.html(f"""
@@ -316,7 +319,7 @@ if df_f_raw is not None and df_r is not None:
             fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
                                color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
             
-            # Hover configurado conforme ordem para não usar o design antigo
+            # CORREÇÃO: Hover configurado
             fig_r_prop.update_traces(
                 hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
             )
@@ -332,6 +335,11 @@ if df_f_raw is not None and df_r is not None:
                 dados_d_mensal.append({"Mês": m, "Fase": fase, "Valor": val_f})
         fig_d_prop = px.bar(pd.DataFrame(dados_d_mensal), x='Mês', y='Valor', color='Fase', barmode='group',
                            color_discrete_map={"Empenhado": "#660000", "Liquidado": "#cc0000", "Pago": "#ff4d4d"}, text_auto='.2s')
+        
+        # CORREÇÃO: Hover configurado
+        fig_d_prop.update_traces(
+            hovertemplate="<b>Fase:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+        )
         fig_d_prop.update_layout(separators=",.")
         st.plotly_chart(fig_d_prop, use_container_width=True, config=CONFIG_PT)
 
@@ -343,6 +351,11 @@ if df_f_raw is not None and df_r is not None:
         fig_indices = px.bar(df_comp_prop, x='Categoria', y='Valor', color='Categoria', text_auto='.3s',
                             color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_sel})": "#990000"})
         fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green", annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
+        
+        # CORREÇÃO: Hover configurado
+        fig_indices.update_traces(
+            hovertemplate="<b>Categoria:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+        )
         fig_indices.update_layout(separators=",.")
         st.plotly_chart(fig_indices, use_container_width=True, config=CONFIG_PT)
 
