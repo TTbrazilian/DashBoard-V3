@@ -20,7 +20,7 @@ st.markdown(
         [data-testid="stSidebarNav"] ul li:has(span:contains("São José da Barra")) {
             display: none !important;
         }
-        /* ANIMAÇÃO DOS GRÁFICOS (PADRÃO BOM JESUS) */
+        /* ANIMAÇÃO DOS GRÁFICOS */
         @keyframes subirBarra {
             from { clip-path: inset(100% 0 0 0); }
             to { clip-path: inset(0% 0 0 0); }
@@ -212,46 +212,31 @@ if df_f_raw is not None and df_r is not None:
             df_f_final[col] = df_f_final[col].apply(formar_real)
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
-    # --- ABA RECURSOS PRÓPRIOS (INTEGRADA E VERTICALIZADA) ---
+    # --- ABA RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>🏛️ Alpinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
         meses_proprios = ['Janeiro', 'Fevereiro']
-        
         df_r_imp = df_r[df_r['Categoria'].astype(str).str.upper().str.contains('IMPOSTO', na=False)].copy()
         df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
         df_f_15001 = df_f_raw[df_f_raw['Fonte'].str.contains('15001', na=False)].copy()
         
-        if not df_r_imp.empty:
-            total_impostos = df_r_imp[meses_proprios].sum().sum()
-            cols_deducao = [c for c in df_r_imp.columns if 'Dedução' in c]
-            total_deducoes = df_r_imp[cols_deducao].sum().sum()
-        else:
-            total_impostos = 0.0
-            total_deducoes = 0.0
-            
+        total_impostos = df_r_imp[meses_proprios].sum().sum() if not df_r_imp.empty else 0.0
+        total_deducoes = df_r_imp[[c for c in df_r_imp.columns if 'Dedução' in c]].sum().sum() if not df_r_imp.empty else 0.0
         base_calculo_25 = total_impostos - total_deducoes
         desp_fases = {fase: df_df_15001[df_df_15001['Tipo'] == fase][meses_proprios].sum().sum() for fase in ['Empenhado', 'Liquidado', 'Pago']}
         perc_25 = (desp_fases['Liquidado'] / base_calculo_25 * 100) if base_calculo_25 > 0 else 0
 
-        # --- 1. INDICADORES NO TOPO ---
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Total Receitas de Impostos", formar_real(total_impostos))
         with m2: st.metric("Total Despesas 15001 (Liq.)", formar_real(desp_fases['Liquidado']))
         with m3:
-            if perc_25 >= 25:
-                st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
-            else:
-                st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
+            if perc_25 >= 25: st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
+            else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
 
         st.markdown("---")
-
-        # --- 2. GRÁFICO DINÂMICO DE RECEITAS (LOGICA BOM JESUS APLICADA) ---
         st.subheader("🔹 Receitas de Impostos (Mensal)")
-        st.write("Selecione um imposto para detalhamento ou veja o acumulado:")
-        
-        # ID para Ancoragem do Scroll (Referência exata do padrão Bom Jesus)
-        st.markdown('<div id="foco_grafico_rp"></div>', unsafe_allow_html=True)
+        st.write("Selecione um imposto para detalhamento:")
         
         impostos_disponiveis = sorted(df_r_imp['Descrição da Receita'].unique().tolist())
         cols_botoes = st.columns(4)
@@ -267,14 +252,13 @@ if df_f_raw is not None and df_r is not None:
                     st.session_state['rp_ativo'] = imp
                     st.rerun()
 
-        # Renderização condicional do gráfico e gatilho de foco
         if 'rp_ativo' in st.session_state:
-            # Script de Scroll (Cópia exata da lógica funcional de Bom Jesus)
-            scroll_sid = random.random()
+            # LÓGICA DE FOCO IDENTICA A BOM JESUS
+            scroll_id = random.random()
             components.html(f"""
-                <script id="scr_{scroll_sid}">
+                <script id="scroll_{scroll_id}">
                     var scroll = () => {{
-                        const el = window.parent.document.getElementById('foco_grafico_rp');
+                        const el = window.parent.document.querySelector('.st-key-grafico_rp_dinamico');
                         if (el) {{
                             el.scrollIntoView({{ behavior: "smooth", block: "center" }});
                         }}
@@ -285,7 +269,6 @@ if df_f_raw is not None and df_r is not None:
 
             ativo = st.session_state['rp_ativo']
             st.markdown(f"#### 📊 {ativo}")
-
             df_aux = df_r_imp.copy() if ativo == "Acumulado Geral" else df_r_imp[df_r_imp['Descrição da Receita'] == ativo].copy()
 
             dados_r_mensal = []
@@ -297,57 +280,37 @@ if df_f_raw is not None and df_r is not None:
             
             fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
                                color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
-            
-            fig_r_prop.update_traces(
-                hovertemplate="<b>%{x}</b><br>%{fullData.name}<br>Valor: R$ %{y:,.2f}<extra></extra>"
-            )
             fig_r_prop.update_layout(separators=",.", height=500)
             st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT, key="grafico_rp_dinamico")
-        else:
-            st.info("Utilize os botões acima para carregar o gráfico detalhado.")
 
         st.markdown("---")
-
         st.subheader("🔹 Despesas Fonte 15001 (Mensal)")
         dados_d_mensal = []
         for m in meses_proprios:
             for fase in ['Empenhado', 'Liquidado', 'Pago']:
                 val_f = df_df_15001[df_df_15001['Tipo'] == fase][m].sum()
                 dados_d_mensal.append({"Mês": m, "Fase": fase, "Valor": val_f})
-        
         fig_d_prop = px.bar(pd.DataFrame(dados_d_mensal), x='Mês', y='Valor', color='Fase', barmode='group',
                            color_discrete_map={"Empenhado": "#660000", "Liquidado": "#cc0000", "Pago": "#ff4d4d"}, text_auto='.2s')
         fig_d_prop.update_layout(separators=",.")
         st.plotly_chart(fig_d_prop, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-
         st.subheader("🔹 4. Análise Comparativa e Meta (25%)")
         fase_sel = st.radio("Fase para índice:", ["Liquidado", "Empenhado", "Pago"], horizontal=True, key="fase_prop")
         valor_meta = base_calculo_25 * 0.25
-        df_comp_prop = pd.DataFrame({
-            "Categoria": ["Receita Base", f"Despesa ({fase_sel})"],
-            "Valor": [base_calculo_25, desp_fases[fase_sel]]
-        })
+        df_comp_prop = pd.DataFrame({"Categoria": ["Receita Base", f"Despesa ({fase_sel})"], "Valor": [base_calculo_25, desp_fases[fase_sel]]})
         fig_indices = px.bar(df_comp_prop, x='Categoria', y='Valor', color='Categoria', text_auto='.3s',
                             color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_sel})": "#990000"})
-        fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green",
-                              annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
+        fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green", annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
         fig_indices.update_layout(separators=",.")
         st.plotly_chart(fig_indices, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Detalhamento de Fichas - Fonte 15001")
         col_liq_f_prop = [c for c in df_f_15001.columns if any(m in c for m in meses_proprios) and 'Liquidado' in c]
         df_f_15001['Total_Periodo'] = df_f_15001[col_liq_f_prop].sum(axis=1)
-        c_orc = next((c for c in df_f_15001.columns if 'Orçado' in c), None)
-        c_sld = next((c for c in df_f_15001.columns if 'Saldo' in c), None)
-        show_cols = ['Atividade', 'Ficha']
-        if c_orc: show_cols.append(c_orc)
-        if c_sld: show_cols.append(c_sld)
-        show_cols.append('Total_Periodo')
-        df_rp_final = df_f_15001[show_cols].copy()
-        for col in [c for c in [c_orc, c_sld, 'Total_Periodo'] if c]:
-            df_rp_final[col] = df_rp_final[col].apply(formar_real)
+        df_rp_final = df_f_15001[['Atividade', 'Ficha', 'Total_Periodo']].copy()
+        df_rp_final['Total_Periodo'] = df_rp_final['Total_Periodo'].apply(formar_real)
         st.dataframe(df_rp_final, use_container_width=True, hide_index=True)
 
     elif st.session_state.setor == 'Recursos Vinculados':
@@ -357,7 +320,6 @@ if df_f_raw is not None and df_r is not None:
         st.metric("Total Receitas Vinculadas", formar_real(df_r_vinc['Total'].sum()))
         fig_vinc = px.pie(df_r_vinc, values='Total', names='Descrição da Receita', hole=.4)
         fig_vinc.update_layout(separators=",.")
-        fig_vinc.update_traces(hovertemplate='%{label}<br>Valor=%{value:,.2f}<extra></extra>')
         st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
