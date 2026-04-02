@@ -261,11 +261,10 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
         
-        # --- NAVEGAÇÃO REESTRUTURADA PARA SIMETRIA E ANIMAÇÃO ---
-        lista_completa = ["📊 Acumulado Geral"] + sorted(df_r_imp['Descrição da Receita'].unique().tolist())
+        # ORDEM ORIGINAL DA BASE (Removido o sorted())
+        lista_completa = ["📊 Acumulado Geral"] + df_r_imp['Descrição da Receita'].unique().tolist()
         if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
             
-        # Pesos exatamente iguais (0.5) para as colunas das setas garante a simetria de distância para o botão
         grid = st.columns([0.5, 1.2, 1.2, 1.2, 1.2, 1.2, 0.5])
         
         with grid[0]:
@@ -292,7 +291,6 @@ if df_f_raw is not None and df_r is not None:
 
         if 'rp_ativo' in st.session_state:
             if st.session_state.get('trigger_scroll', False):
-                scroll_id = random.random()
                 components.html(f"""<script>window.parent.document.querySelector('.st-key-grafico_rp_dinamico').scrollIntoView({{behavior: 'smooth', block: 'center'}});</script>""", height=0)
                 st.session_state['trigger_scroll'] = False
             ativo = st.session_state['rp_ativo']
