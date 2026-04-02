@@ -33,7 +33,12 @@ st.markdown(
             clip-path: inset(100% 0 0 0);
         }
 
-        /* PADRONIZAÇÃO TOTAL DOS BOTÕES E GRADE */
+        /* ANIMAÇÃO DE ROLAGEM/DESLIZE DO MENU */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
         .stButton button {
             width: 100% !important;
             height: 45px !important;
@@ -45,12 +50,21 @@ st.markdown(
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+            text-align: center;
+            /* Aplica a animação nos botões de imposto */
+            animation: slideIn 0.4s ease-out;
         }
         
-        /* Remove o foco visual/animação de scroll indesejada nas setas */
         .stButton button:focus {
             outline: none !important;
             box-shadow: none !important;
+        }
+
+        /* Garante que o container das colunas não tenha gaps assimétricos */
+        [data-testid="column"] {
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
     </style>
     """,
@@ -77,7 +91,6 @@ def formar_real(valor):
 def abreviar_extremo(nome):
     if "📊" in nome: return "GERAL"
     n = nome.upper()
-    # Siglas de Impostos
     mapeamento = {
         "IMPOSTO SOBRE A PROPRIEDADE PREDIAL E TERRITORIAL URBANA": "IPTU",
         "IMPOSTO SOBRE TRANSMISSÃO DE BENS IMÓVEIS": "ITBI",
@@ -90,13 +103,9 @@ def abreviar_extremo(nome):
     }
     for longo, curto in mapeamento.items():
         n = n.replace(longo, curto)
-    
-    # Siglas de Variáveis
     n = n.replace("PRINCIPAL", "PRIN.")
     n = n.replace("MULTAS E JUROS", "M/J")
     n = n.replace("OUTRAS RECEITAS", "OUTR.")
-    
-    # Limpeza final para garantir que caiba
     if "-" in n:
         partes = n.split("-")
         return f"{partes[0].strip()[:6]} {partes[1].strip()[:5]}"
@@ -114,23 +123,18 @@ def load_all_data():
     arquivo_f = "zEducação/Alpinópolis.csv"
     arquivo_r = "zEducação/Alpinópolis_R.csv"
     arquivo_df = "zEducação/Alpinópolis_DF.csv"
-    
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
-    
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
         if "Unnamed" in col[0]: new_cols.append(col[1].strip())
         else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
-
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
-
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
-
     meses_limpeza = ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
@@ -141,7 +145,6 @@ def load_all_data():
     for col in df_df.columns:
         if any(k in col for k in meses_limpeza):
             df_df[col] = df_df[col].apply(limpar_valor)
-            
     if 'Fonte' in df_f.columns:
         df_f['Fonte'] = df_f['Fonte'].astype(str)
     return df_f, df_r, df_df
@@ -158,7 +161,6 @@ if df_f_raw is not None and df_r is not None:
     if st.sidebar.button("Recursos Próprios", use_container_width=True): st.session_state.setor = 'Recursos Próprios'
     if st.sidebar.button("Recursos Vinculados", use_container_width=True): st.session_state.setor = 'Recursos Vinculados'
 
-    # --- ABA FUNDEB --- (Mantida sem alterações conforme solicitado)
     if st.session_state.setor == 'FUNDEB':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
         def cat_receita(desc):
@@ -194,7 +196,6 @@ if df_f_raw is not None and df_r is not None:
         fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
-        fig_r.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
         st.subheader("🔹 2. Despesas FUNDEB ")
@@ -206,7 +207,6 @@ if df_f_raw is not None and df_r is not None:
         fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                        color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
-        fig_f.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
@@ -215,7 +215,6 @@ if df_f_raw is not None and df_r is not None:
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.update_traces(hovertemplate='Tipo = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
@@ -225,7 +224,6 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         fig_comp.update_layout(separators=",.")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
@@ -243,51 +241,45 @@ if df_f_raw is not None and df_r is not None:
             df_f_final[col] = df_f_final[col].apply(formar_real)
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
-    # --- ABA RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>🏛️ Alpinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
-        
         meses_proprios = ['Janeiro', 'Fevereiro']
         df_r_imp = df_r[df_r['Categoria'].astype(str).str.upper().str.contains('IMPOSTO', na=False)].copy()
         df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
         df_f_15001 = df_f_raw[df_f_raw['Fonte'].str.contains('15001', na=False)].copy()
-        
         total_impostos = df_r_imp[meses_proprios].sum().sum()
         total_deducoes = df_r_imp[[c for c in df_r_imp.columns if 'Dedução' in c]].sum().sum()
         base_calculo_25 = total_impostos - total_deducoes
         desp_fases = {fase: df_df_15001[df_df_15001['Tipo'] == fase][meses_proprios].sum().sum() for fase in ['Empenhado', 'Liquidado', 'Pago']}
         perc_25 = (desp_fases['Liquidado'] / base_calculo_25 * 100) if base_calculo_25 > 0 else 0
-
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Total Receitas de Impostos", formar_real(total_impostos))
         with m2: st.metric("Total Despesas 15001 (Liq.)", formar_real(desp_fases['Liquidado']))
         with m3:
             if perc_25 >= 25: st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
             else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
-
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
         
-        # --- LÓGICA DE NAVEGAÇÃO REESTRUTURADA ---
+        # --- NAVEGAÇÃO REESTRUTURADA PARA SIMETRIA E ANIMAÇÃO ---
         lista_completa = ["📊 Acumulado Geral"] + sorted(df_r_imp['Descrição da Receita'].unique().tolist())
-        
         if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
             
-        # Grade fixa de 7 colunas (Seta | 5 Botões | Seta)
-        grid = st.columns([0.6, 1.2, 1.2, 1.2, 1.2, 1.2, 0.6])
+        # Pesos iguais para as colunas das setas (0.5 cada) para garantir simetria de distância aos botões
+        grid = st.columns([0.5, 1.2, 1.2, 1.2, 1.2, 1.2, 0.5])
         
         with grid[0]:
             if st.button("◀", key="nav_left"):
                 st.session_state.idx_nav = max(0, st.session_state.idx_nav - 5)
                 st.rerun()
                 
-        # Fatiamento e exibição dos 5 botões centrais
         fim_idx = min(st.session_state.idx_nav + 5, len(lista_completa))
         fatia = lista_completa[st.session_state.idx_nav:fim_idx]
         
         for i, item in enumerate(fatia):
             with grid[i+1]:
                 label = abreviar_extremo(item)
+                # Botões com animação definida no CSS no topo
                 if st.button(label, key=f"btn_{item}", help=item, use_container_width=True):
                     st.session_state['rp_ativo'] = item.replace("📊 ", "")
                     st.session_state['trigger_scroll'] = True
@@ -304,7 +296,6 @@ if df_f_raw is not None and df_r is not None:
                 scroll_id = random.random()
                 components.html(f"""<script>window.parent.document.querySelector('.st-key-grafico_rp_dinamico').scrollIntoView({{behavior: 'smooth', block: 'center'}});</script>""", height=0)
                 st.session_state['trigger_scroll'] = False
-
             ativo = st.session_state['rp_ativo']
             st.markdown(f"#### 📈 {ativo}")
             df_aux = df_r_imp.copy() if ativo == "Acumulado Geral" else df_r_imp[df_r_imp['Descrição da Receita'] == ativo].copy()
