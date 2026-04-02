@@ -353,7 +353,7 @@ if df_f_raw is not None and df_r is not None:
             for fase in ['Empenhado', 'Liquidado', 'Pago']:
                 val_f = df_df_15001[df_df_15001['Tipo'] == fase][m].sum()
                 dados_d_mensal.append({"Mês": m, "Fase": fase, "Valor": val_f})
-        fig_d_prop = px.bar(pd.DataFrame(dados_d_mensal), x='Mês', y='Valor', color='Fase', barmode='group',
+        fig_d_prop = px.bar(pd.DataFrame(dados_d_mensal), x='Mês', y='Valor', color='white', barmode='group',
                            color_discrete_map={"Empenhado": "#660000", "Liquidado": "#cc0000", "Pago": "#ff4d4d"}, text_auto='.2s')
         
         fig_d_prop.update_traces(
