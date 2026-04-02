@@ -10,7 +10,7 @@ import random
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Alpinópolis - Gestão Educação", layout="wide")
 
-# --- FILTRO DO MENU LATERAL ---
+# --- FILTRO DO MENU LATERAL E AJUSTE DE ANIMAÇÃO ---
 st.markdown(
     """
     <style>
@@ -20,13 +20,16 @@ st.markdown(
         [data-testid="stSidebarNav"] ul li:has(span:contains("São José da Barra")) {
             display: none !important;
         }
-        /* ANIMAÇÃO DOS GRÁFICOS */
+        
+        /* ANIMAÇÃO DOS GRÁFICOS - VELOCIDADE REDUZIDA PARA VISUALIZAÇÃO PÓS-FOCUS */
         @keyframes subirBarra {
             from { clip-path: inset(100% 0 0 0); }
             to { clip-path: inset(0% 0 0 0); }
         }
+        
         .js-plotly-plot .point path {
-            animation: subirBarra 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            animation: subirBarra 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            animation-delay: 0.3s; /* Delay para o scroll terminar antes da barra subir */
             clip-path: inset(100% 0 0 0);
         }
     </style>
@@ -138,13 +141,10 @@ if df_f_raw is not None and df_r is not None:
         with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
         with m2: st.metric(f"Total Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(tot_rec_ano))
         with m3:
-            if perc_70 >= 70:
-                st.metric("Aplicação em Pessoal (Mín. 70%)", f"✅ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
-            else:
-                st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%", delta_color="inverse")
+            if perc_70 >= 70: st.metric("Aplicação em Pessoal (Mín. 70%)", f"✅ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
+            else: st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%", delta_color="inverse")
 
         st.markdown("---")
-        
         st.subheader("🔹 1. Receitas FUNDEB ")
         dados_m_r = []
         for m in meses_disponiveis:
@@ -155,11 +155,9 @@ if df_f_raw is not None and df_r is not None:
         fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
-        fig_r.update_traces(hovertemplate='%{fullData.name}<br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        
         st.subheader("🔹 2. Despesas FUNDEB ")
         dados_m_f = []
         for m in meses_disponiveis:
@@ -170,11 +168,9 @@ if df_f_raw is not None and df_r is not None:
         fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                        color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
-        fig_f.update_traces(hovertemplate='%{fullData.name}<br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
         tipo_grafico = st.segmented_control("Visualização:", ["Total Acumulado", "Mensal"], default="Total Acumulado")
 
@@ -182,7 +178,6 @@ if df_f_raw is not None and df_r is not None:
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.update_traces(hovertemplate='Tipo=%{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
@@ -192,7 +187,6 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.update_traces(hovertemplate='%{fullData.name}<br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
 
         fig_comp.update_layout(separators=",.")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
@@ -253,7 +247,7 @@ if df_f_raw is not None and df_r is not None:
                     st.rerun()
 
         if 'rp_ativo' in st.session_state:
-            # LÓGICA DE FOCO IDENTICA A BOM JESUS
+            # LÓGICA DE FOCO IDENTICA A BOM JESUS (VIA KEY)
             scroll_id = random.random()
             components.html(f"""
                 <script id="scroll_{scroll_id}">
@@ -309,8 +303,15 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("### 📋 Detalhamento de Fichas - Fonte 15001")
         col_liq_f_prop = [c for c in df_f_15001.columns if any(m in c for m in meses_proprios) and 'Liquidado' in c]
         df_f_15001['Total_Periodo'] = df_f_15001[col_liq_f_prop].sum(axis=1)
-        df_rp_final = df_f_15001[['Atividade', 'Ficha', 'Total_Periodo']].copy()
-        df_rp_final['Total_Periodo'] = df_rp_final['Total_Periodo'].apply(formar_real)
+        c_orc = next((c for c in df_f_15001.columns if 'Orçado' in c), None)
+        c_sld = next((c for c in df_f_15001.columns if 'Saldo' in c), None)
+        cols_fin = ['Atividade', 'Ficha']
+        if c_orc: cols_fin.append(c_orc)
+        if c_sld: cols_fin.append(c_sld)
+        cols_fin.append('Total_Periodo')
+        df_rp_final = df_f_15001[cols_fin].copy()
+        for col in [c for c in [c_orc, c_sld, 'Total_Periodo'] if c]:
+            df_rp_final[col] = df_rp_final[col].apply(formar_real)
         st.dataframe(df_rp_final, use_container_width=True, hide_index=True)
 
     elif st.session_state.setor == 'Recursos Vinculados':
