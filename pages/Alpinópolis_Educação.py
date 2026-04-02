@@ -171,7 +171,7 @@ if df_f_raw is not None and df_r is not None:
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.update_traces(hovertemplate='Tipo=%{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
+            fig_comp.update_traces(hovertemplate='Tipo=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
@@ -181,7 +181,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.update_traces(hovertemplate='%{fullData.name}<br>Mês = %{x}<br>Valor = R$ %{y:,.2f}<extra></extra>')
+            fig_comp.update_traces(hovertemplate='%{fullData.name}<br>Mês=%{x}<br>Valor=%{y:,.2f}<extra></extra>')
 
         fig_comp.update_layout(separators=",.")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
