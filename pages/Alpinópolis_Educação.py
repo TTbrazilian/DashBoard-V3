@@ -158,7 +158,6 @@ if df_f_raw is not None and df_r is not None:
     if st.sidebar.button("FUNDEB", use_container_width=True): st.session_state.setor = 'FUNDEB'
     if st.sidebar.button("Recursos Próprios", use_container_width=True): st.session_state.setor = 'Recursos Próprios'
     if st.sidebar.button("Recursos Vinculados", use_container_width=True): st.session_state.setor = 'Recursos Vinculados'
-    if st.sidebar.button("Visão Macro da Educação", use_container_width=True): st.session_state.setor = 'Visão Macro da Educação'
 
     if st.session_state.setor == 'FUNDEB':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
@@ -400,100 +399,5 @@ if df_f_raw is not None and df_r is not None:
         fig_vinc = px.pie(df_r_vinc, values='Total', names='Descrição da Receita', hole=.4)
         fig_vinc.update_layout(separators=",.")
         st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
-
-    elif st.session_state.setor == 'Visão Macro da Educação':
-        st.markdown("<h1 style='text-align: left;'>🌐 Alpinópolis - Visão Macro da Educação</h1>", unsafe_allow_html=True)
-        meses_macro = ['Janeiro', 'Fevereiro']
-        
-        # --- 1. ANÁLISE GERAL ---
-        st.subheader("🔹 1. Análise Geral")
-        
-        # 1.1 Receitas
-        tags_receitas = {'Impostos': 'IMPOSTO', 'FUNDEB': 'FUNDEB', 'QESE': 'QESE', 'PNAE': 'PNAE', 'PNAT': 'PNAT', 'PTE': 'PTE'}
-        dados_rec_macro = []
-        for rotulo, busca in tags_receitas.items():
-            df_temp = df_r[df_r['Descrição da Receita'].str.contains(busca, case=False, na=False)].copy()
-            val_mes = df_temp[meses_macro].sum().sum()
-            val_total = df_temp['Total'].sum()
-            dados_rec_macro.append({"Fonte": rotulo, "Mensal": val_mes, "Acumulado": val_total})
-        
-        df_rec_macro = pd.DataFrame(dados_rec_macro)
-        c1, c2 = st.columns(2)
-        with c1:
-            st.write("**Receitas (Mensal)**")
-            st.dataframe(df_rec_macro[['Fonte', 'Mensal']].assign(Mensal=df_rec_macro['Mensal'].apply(formar_real)), use_container_width=True, hide_index=True)
-        with c2:
-            st.write("**Receitas (Acumulado)**")
-            st.dataframe(df_rec_macro[['Fonte', 'Acumulado']].assign(Acumulado=df_rec_macro['Acumulado'].apply(formar_real)), use_container_width=True, hide_index=True)
-
-        # 1.2 Despesas
-        st.markdown("#### Detalhamento de Despesas")
-        tab1, tab2, tab3 = st.tabs(["Por Fonte", "Por Elemento", "Por Categoria"])
-        
-        with tab1:
-            df_fonte = df_df_raw[df_df_raw['Tipo'] == 'Liquidado'].groupby('Fonte')[meses_macro].sum().sum(axis=1).reset_index()
-            df_fonte.columns = ['Fonte', 'Valor']
-            st.dataframe(df_fonte.assign(Valor=df_fonte['Valor'].apply(formar_real)), use_container_width=True, hide_index=True)
-        
-        with tab2:
-            # Elemento costuma estar no campo 'Atividade' ou extraído da 'Ficha' no CSV original
-            if 'Atividade' in df_f_raw.columns:
-                df_elem = df_f_raw.groupby('Atividade')[[c for c in df_f_raw.columns if 'Liquidado' in c]].sum().sum(axis=1).reset_index()
-                df_elem.columns = ['Elemento', 'Valor']
-                st.dataframe(df_elem.assign(Valor=df_elem['Valor'].apply(formar_real)), use_container_width=True, hide_index=True)
-        
-        with tab3:
-            st.info("Agrupamento por Categoria de Despesa (Corrente/Capital)")
-            # Simulação por lógica de código contábil se disponível
-        
-        # 1.3 e 1.4 Alimentação e Transporte
-        st.markdown("#### Investimentos Específicos")
-        col_inv1, col_inv2 = st.columns(2)
-        with col_inv1:
-            st.write("**🍎 Alimentação Escolar**")
-            df_alim = df_f_raw[df_f_raw['Atividade'].str.contains('ALIMENTAÇÃO|MERENDA', case=False, na=False)]
-            res_alim = df_alim.groupby('Fonte')[[c for c in df_alim.columns if 'Liquidado' in c]].sum().sum(axis=1).reset_index()
-            res_alim.columns = ['Fonte', 'Total']
-            st.dataframe(res_alim.assign(Total=res_alim['Total'].apply(formar_real)), use_container_width=True, hide_index=True)
-        
-        with col_inv2:
-            st.write("**🚌 Transporte Escolar**")
-            df_transp = df_f_raw[df_f_raw['Atividade'].str.contains('TRANSPORTE', case=False, na=False)]
-            res_transp = df_transp.groupby('Fonte')[[c for c in df_transp.columns if 'Liquidado' in c]].sum().sum(axis=1).reset_index()
-            res_transp.columns = ['Fonte', 'Total']
-            st.dataframe(res_transp.assign(Total=res_transp['Total'].apply(formar_real)), use_container_width=True, hide_index=True)
-
-        # --- 2. ANÁLISE COMPARATIVA (GRÁFICOS) ---
-        st.markdown("---")
-        st.subheader("🔹 2. Análise Comparativa")
-        
-        g1, g2 = st.columns(2)
-        with g1:
-            st.write("**Distribuição das Receitas (Acumulado)**")
-            fig_pie_rec = px.pie(df_rec_macro, values='Acumulado', names='Fonte', hole=0.4, color_discrete_sequence=px.colors.qualitative.Prism)
-            st.plotly_chart(fig_pie_rec, use_container_width=True, config=CONFIG_PT)
-        
-        with g2:
-            st.write("**Acompanhamento Mensal de Receitas**")
-            df_rec_mensal_melt = []
-            for rotulo, busca in tags_receitas.items():
-                df_t = df_r[df_r['Descrição da Receita'].str.contains(busca, case=False, na=False)]
-                for m in meses_macro:
-                    df_rec_mensal_melt.append({"Mês": m, "Fonte": rotulo, "Valor": df_t[m].sum()})
-            fig_stack_rec = px.bar(pd.DataFrame(df_rec_mensal_melt), x='Mês', y='Valor', color='Fonte', barmode='relative', text_auto='.2s')
-            st.plotly_chart(fig_stack_rec, use_container_width=True, config=CONFIG_PT)
-
-        g3, g4 = st.columns(2)
-        with g3:
-            st.write("**Despesas por Fonte (Acumulado)**")
-            fig_pie_desp = px.pie(df_fonte, values='Valor', names='Fonte', hole=0.4)
-            st.plotly_chart(fig_pie_desp, use_container_width=True, config=CONFIG_PT)
-        
-        with g4:
-            st.write("**Despesas por Elemento (Top 5)**")
-            top_elem = df_elem.nlargest(5, 'Valor')
-            fig_pie_elem = px.pie(top_elem, values='Valor', names='Elemento', hole=0.4)
-            st.plotly_chart(fig_pie_elem, use_container_width=True, config=CONFIG_PT)
-
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
