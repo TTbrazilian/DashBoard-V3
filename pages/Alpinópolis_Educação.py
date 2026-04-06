@@ -158,6 +158,7 @@ if df_f_raw is not None and df_r is not None:
     if st.sidebar.button("FUNDEB", use_container_width=True): st.session_state.setor = 'FUNDEB'
     if st.sidebar.button("Recursos Próprios", use_container_width=True): st.session_state.setor = 'Recursos Próprios'
     if st.sidebar.button("Recursos Vinculados", use_container_width=True): st.session_state.setor = 'Recursos Vinculados'
+    if st.sidebar.button("Visão Macro da Educação", use_container_width=True): st.session_state.setor = 'Visão Macro da Educação'
 
     if st.session_state.setor == 'FUNDEB':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
@@ -194,11 +195,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
         fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
-        
-        # CORREÇÃO HOVER: Receitas FUNDEB
-        fig_r.update_traces(
-            hovertemplate="<b>Categoria:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-        )
+        fig_r.update_traces(hovertemplate="<b>Categoria:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
@@ -211,11 +208,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                        color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
-        
-        # CORREÇÃO HOVER: Despesas FUNDEB
-        fig_f.update_traces(
-            hovertemplate="<b>Fonte:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-        )
+        fig_f.update_traces(hovertemplate="<b>Fonte:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
@@ -226,11 +219,7 @@ if df_f_raw is not None and df_r is not None:
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            
-            # CORREÇÃO HOVER: Comparativo Acumulado
-            fig_comp.update_traces(
-                hovertemplate="<b>Tipo:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-            )
+            fig_comp.update_traces(hovertemplate="<b>Tipo:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
@@ -240,12 +229,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            
-            # CORREÇÃO HOVER: Comparativo Mensal
-            fig_comp.update_traces(
-                hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-            )
-
+            fig_comp.update_traces(hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_comp.update_layout(separators=",.")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
         
@@ -253,8 +237,7 @@ if df_f_raw is not None and df_r is not None:
         col_liq_fichas = [c for c in df_f_fundeb.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
-        col_orc = next((c for c in df_f_fundeb.columns if 'Orçado' in c), None)
-        col_sld = next((c for c in df_f_fundeb.columns if 'Saldo' in c), None)
+        col_orc, col_sld = next((c for c in df_f_fundeb.columns if 'Orçado' in c), None), next((c for c in df_f_fundeb.columns if 'Saldo' in c), None)
         cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
         if col_orc: cols_show.append(col_orc)
         if col_sld: cols_show.append(col_sld)
@@ -270,8 +253,7 @@ if df_f_raw is not None and df_r is not None:
         df_r_imp = df_r[df_r['Categoria'].astype(str).str.upper().str.contains('IMPOSTO', na=False)].copy()
         df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
         df_f_15001 = df_f_raw[df_f_raw['Fonte'].str.contains('15001', na=False)].copy()
-        total_impostos = df_r_imp[meses_proprios].sum().sum()
-        total_deducoes = df_r_imp[[c for c in df_r_imp.columns if 'Dedução' in c]].sum().sum()
+        total_impostos, total_deducoes = df_r_imp[meses_proprios].sum().sum(), df_r_imp[[c for c in df_r_imp.columns if 'Dedução' in c]].sum().sum()
         base_calculo_25 = total_impostos - total_deducoes
         desp_fases = {fase: df_df_15001[df_df_15001['Tipo'] == fase][meses_proprios].sum().sum() for fase in ['Empenhado', 'Liquidado', 'Pago']}
         perc_25 = (desp_fases['Liquidado'] / base_calculo_25 * 100) if base_calculo_25 > 0 else 0
@@ -283,67 +265,33 @@ if df_f_raw is not None and df_r is not None:
             else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
-        
         lista_completa = ["📊 Acumulado Geral"] + df_r_imp['Descrição da Receita'].unique().tolist()
         if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
-            
         grid = st.columns([0.5, 1.2, 1.2, 1.2, 1.2, 1.2, 0.5])
-        
         with grid[0]:
-            if st.button("◀", key="nav_left"):
-                st.session_state.idx_nav = max(0, st.session_state.idx_nav - 5)
-                st.rerun()
-                
+            if st.button("◀", key="nav_left"): st.session_state.idx_nav = max(0, st.session_state.idx_nav - 5); st.rerun()
         fim_idx = min(st.session_state.idx_nav + 5, len(lista_completa))
         fatia = lista_completa[st.session_state.idx_nav:fim_idx]
-        
         for i, item in enumerate(fatia):
             with grid[i+1]:
-                label = abreviar_extremo(item)
-                if st.button(label, key=f"btn_{item}", help=item, use_container_width=True):
-                    st.session_state['rp_ativo'] = item.replace("📊 ", "")
-                    st.session_state['trigger_scroll'] = True
-                    st.rerun()
-        
+                if st.button(abreviar_extremo(item), key=f"btn_{item}", help=item, use_container_width=True):
+                    st.session_state['rp_ativo'] = item.replace("📊 ", ""); st.session_state['trigger_scroll'] = True; st.rerun()
         with grid[6]:
             if st.button("▶", key="nav_right"):
-                if st.session_state.idx_nav + 5 < len(lista_completa):
-                    st.session_state.idx_nav += 5
-                    st.rerun()
+                if st.session_state.idx_nav + 5 < len(lista_completa): st.session_state.idx_nav += 5; st.rerun()
 
         if 'rp_ativo' in st.session_state:
             if st.session_state.get('trigger_scroll', False):
-                scroll_id = random.random()
-                components.html(f"""
-                    <script id="scroll_{scroll_id}">
-                        var scroll = () => {{
-                            const el = window.parent.document.querySelector('.st-key-grafico_rp_dinamico');
-                            if (el) {{
-                                el.scrollIntoView({{ behavior: "smooth", block: "center" }});
-                            }}
-                        }};
-                        setTimeout(scroll, 150);
-                    </script>
-                """, height=0)
+                components.html(f"""<script>setTimeout(() => {{ window.parent.document.querySelector('.st-key-grafico_rp_dinamico')?.scrollIntoView({{ behavior: "smooth", block: "center" }}); }}, 150);</script>""", height=0)
                 st.session_state['trigger_scroll'] = False
-
             ativo = st.session_state['rp_ativo']
-            st.markdown(f"#### 📈 {ativo}")
             df_aux = df_r_imp.copy() if ativo == "Acumulado Geral" else df_r_imp[df_r_imp['Descrição da Receita'] == ativo].copy()
             dados_r_mensal = []
             for m in meses_proprios:
-                val_m = df_aux[m].sum()
-                ded_m = df_aux[[c for c in df_aux.columns if 'Dedução' in c and m in c]].sum().sum()
-                dados_r_mensal.append({"Mês": m, "Tipo": "Receita Mensal", "Valor": val_m})
-                dados_r_mensal.append({"Mês": m, "Tipo": "Dedução", "Valor": abs(ded_m)})
-            
-            fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
-                               color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
-            
-            fig_r_prop.update_traces(
-                hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-            )
-            fig_r_prop.update_layout(separators=",.", height=450)
+                dados_r_mensal.append({"Mês": m, "Tipo": "Receita Mensal", "Valor": df_aux[m].sum()})
+                dados_r_mensal.append({"Mês": m, "Tipo": "Dedução", "Valor": abs(df_aux[[c for c in df_aux.columns if 'Dedução' in c and m in c]].sum().sum())})
+            fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group', color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
+            fig_r_prop.update_traces(hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
             st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT, key="grafico_rp_dinamico")
 
         st.markdown("---")
@@ -351,45 +299,19 @@ if df_f_raw is not None and df_r is not None:
         dados_d_mensal = []
         for m in meses_proprios:
             for fase in ['Empenhado', 'Liquidado', 'Pago']:
-                val_f = df_df_15001[df_df_15001['Tipo'] == fase][m].sum()
-                dados_d_mensal.append({"Mês": m, "Fase": fase, "Valor": val_f})
-        fig_d_prop = px.bar(pd.DataFrame(dados_d_mensal), x='Mês', y='Valor', color='Fase', barmode='group',
-                           color_discrete_map={"Empenhado": "#660000", "Liquidado": "#cc0000", "Pago": "#ff4d4d"}, text_auto='.2s')
-        
-        fig_d_prop.update_traces(
-            hovertemplate="<b>Fase:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-        )
-        fig_d_prop.update_layout(separators=",.")
+                dados_d_mensal.append({"Mês": m, "Fase": fase, "Valor": df_df_15001[df_df_15001['Tipo'] == fase][m].sum()})
+        fig_d_prop = px.bar(pd.DataFrame(dados_d_mensal), x='Mês', y='Valor', color='Fase', barmode='group', color_discrete_map={"Empenhado": "#660000", "Liquidado": "#cc0000", "Pago": "#ff4d4d"}, text_auto='.2s')
+        fig_d_prop.update_traces(hovertemplate="<b>Fase:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         st.plotly_chart(fig_d_prop, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
         st.subheader("🔹 4. Análise Comparativa e Meta (25%)")
         fase_sel = st.radio("Fase para índice:", ["Liquidado", "Empenhado", "Pago"], horizontal=True, key="fase_prop")
-        valor_meta = base_calculo_25 * 0.25
         df_comp_prop = pd.DataFrame({"Categoria": ["Receita Base", f"Despesa ({fase_sel})"], "Valor": [base_calculo_25, desp_fases[fase_sel]]})
-        fig_indices = px.bar(df_comp_prop, x='Categoria', y='Valor', color='Categoria', text_auto='.3s',
-                            color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_sel})": "#990000"})
-        fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green", annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
-        
-        fig_indices.update_traces(
-            hovertemplate="<b>Categoria:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-        )
-        fig_indices.update_layout(separators=",.")
+        fig_indices = px.bar(df_comp_prop, x='Categoria', y='Valor', color='Categoria', text_auto='.3s', color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_sel})": "#990000"})
+        fig_indices.add_hline(y=base_calculo_25 * 0.25, line_dash="dot", line_color="green", annotation_text=f"Meta 25%")
+        fig_indices.update_traces(hovertemplate="<b>Categoria:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         st.plotly_chart(fig_indices, use_container_width=True, config=CONFIG_PT)
-
-        st.markdown("### 📋 Detalhamento de Fichas - Fonte 15001")
-        col_liq_f_prop = [c for c in df_f_15001.columns if any(m in c for m in meses_proprios) and 'Liquidado' in c]
-        df_f_15001['Total_Periodo'] = df_f_15001[col_liq_f_prop].sum(axis=1)
-        c_orc = next((c for c in df_f_15001.columns if 'Orçado' in c), None)
-        c_sld = next((c for c in df_f_15001.columns if 'Saldo' in c), None)
-        cols_fin = ['Atividade', 'Ficha']
-        if c_orc: cols_fin.append(c_orc)
-        if c_sld: cols_fin.append(c_sld)
-        cols_fin.append('Total_Periodo')
-        df_rp_final = df_f_15001[cols_fin].copy()
-        for col in [c for c in [c_orc, c_sld, 'Total_Periodo'] if c]:
-            df_rp_final[col] = df_rp_final[col].apply(formar_real)
-        st.dataframe(df_rp_final, use_container_width=True, hide_index=True)
 
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
@@ -399,5 +321,103 @@ if df_f_raw is not None and df_r is not None:
         fig_vinc = px.pie(df_r_vinc, values='Total', names='Descrição da Receita', hole=.4)
         fig_vinc.update_layout(separators=",.")
         st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
+
+    elif st.session_state.setor == 'Visão Macro da Educação':
+        st.markdown("<h1 style='text-align: left;'>🌐 Alpinópolis - Visão Macro da Educação</h1>", unsafe_allow_html=True)
+        meses_macro = ['Janeiro', 'Fevereiro']
+        
+        # --- 1. ANÁLISE GERAL ---
+        st.subheader("🔹 1. Análise Geral")
+        
+        # 1.1 Receitas
+        tags_receitas = {'Impostos': 'IMPOSTO', 'FUNDEB': 'FUNDEB', 'QESE': 'QESE', 'PNAE': 'PNAE', 'PNAT': 'PNAT', 'PTE': 'PTE'}
+        dados_rec_macro = []
+        for rotulo, busca in tags_receitas.items():
+            df_temp = df_r[df_r['Descrição da Receita'].str.contains(busca, case=False, na=False)].copy()
+            val_mes = df_temp[meses_macro].sum().sum()
+            val_total = df_temp['Total'].sum()
+            dados_rec_macro.append({"Fonte": rotulo, "Mensal": val_mes, "Acumulado": val_total})
+        
+        df_rec_macro = pd.DataFrame(dados_rec_macro)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("**Receitas (Mensal)**")
+            st.dataframe(df_rec_macro[['Fonte', 'Mensal']].assign(Mensal=df_rec_macro['Mensal'].apply(formar_real)), use_container_width=True, hide_index=True)
+        with c2:
+            st.markdown("**Receitas (Acumulado)**")
+            st.dataframe(df_rec_macro[['Fonte', 'Acumulado']].assign(Acumulado=df_rec_macro['Acumulado'].apply(formar_real)), use_container_width=True, hide_index=True)
+
+        # 1.2 Despesas
+        st.markdown("---")
+        st.subheader("🔹 Despesas Gerais (Mensal e Acumulado)")
+        d_m1, d_m2 = st.columns(2)
+        with d_m1:
+            st.markdown("**Por Fonte**")
+            df_desp_fonte = df_df_raw[df_df_raw['Tipo'] == 'Liquidado'].groupby('Fonte').agg(Mensal=(meses_macro, 'sum'), Acumulado=('Total', 'sum')).reset_index()
+            st.dataframe(df_desp_fonte.assign(Mensal=df_desp_fonte['Mensal'].apply(formar_real), Acumulado=df_desp_fonte['Acumulado'].apply(formar_real)), use_container_width=True, hide_index=True)
+        with d_m2:
+            st.markdown("**Por Categoria (Atividade)**")
+            df_desp_cat = df_f_raw.groupby('Atividade').agg(Mensal=([c for c in df_f_raw.columns if 'Liquidado' in c and any(m in c for m in meses_macro)], 'sum'), Acumulado=([c for c in df_f_raw.columns if 'Liquidado' in c], 'sum')).reset_index()
+            st.dataframe(df_desp_cat.nlargest(10, 'Acumulado').assign(Mensal=lambda x: x['Mensal'].apply(formar_real), Acumulado=lambda x: x['Acumulado'].apply(formar_real)), use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+        # 1.3 e 1.4 Alimentação e Transporte
+        st.subheader("🔹 Investimentos Estratégicos")
+        col_inv1, col_inv2 = st.columns(2)
+        with col_inv1:
+            st.markdown("#### 🍎 Alimentação Escolar")
+            df_alim = df_f_raw[df_f_raw['Atividade'].str.contains('ALIMENTAÇÃO|MERENDA', case=False, na=False)].copy()
+            res_alim = df_alim.groupby('Fonte')[[c for c in df_alim.columns if 'Liquidado' in c]].sum().sum(axis=1).reset_index()
+            res_alim.columns = ['Fonte', 'Total']
+            st.dataframe(res_alim.assign(Total=res_alim['Total'].apply(formar_real)), use_container_width=True, hide_index=True)
+        
+        with col_inv2:
+            st.markdown("#### 🚌 Transporte Escolar")
+            df_transp = df_f_raw[df_f_raw['Atividade'].str.contains('TRANSPORTE', case=False, na=False)].copy()
+            res_transp = df_transp.groupby('Fonte')[[c for c in df_transp.columns if 'Liquidado' in c]].sum().sum(axis=1).reset_index()
+            res_transp.columns = ['Fonte', 'Total']
+            st.dataframe(res_transp.assign(Total=res_transp['Total'].apply(formar_real)), use_container_width=True, hide_index=True)
+
+        # --- 2. ANÁLISE COMPARATIVA (GRÁFICOS) ---
+        st.markdown("---")
+        st.subheader("🔹 2. Análise Comparativa")
+        
+        g1, g2 = st.columns(2)
+        with g1:
+            st.markdown("<p style='text-align:center;'><b>Distribuição das Receitas (Acumulado)</b></p>", unsafe_allow_html=True)
+            fig_pie_rec = px.pie(df_rec_macro, values='Acumulado', names='Fonte', hole=0.4, color_discrete_sequence=px.colors.qualitative.Prism)
+            fig_pie_rec.update_traces(textposition='inside', textinfo='percent+label', hovertemplate="<b>Fonte:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<extra></extra>")
+            fig_pie_rec.update_layout(separators=",.", showlegend=False)
+            st.plotly_chart(fig_pie_rec, use_container_width=True, config=CONFIG_PT)
+        
+        with g2:
+            st.markdown("<p style='text-align:center;'><b>Acompanhamento Mensal de Receitas</b></p>", unsafe_allow_html=True)
+            df_rec_mensal_melt = []
+            for rotulo, busca in tags_receitas.items():
+                df_t = df_r[df_r['Descrição da Receita'].str.contains(busca, case=False, na=False)]
+                for m in meses_macro:
+                    df_rec_mensal_melt.append({"Mês": m, "Fonte": rotulo, "Valor": df_t[m].sum()})
+            fig_stack_rec = px.bar(pd.DataFrame(df_rec_mensal_melt), x='Mês', y='Valor', color='Fonte', barmode='stack', text_auto='.2s')
+            fig_stack_rec.update_traces(hovertemplate="<b>Fonte:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
+            fig_stack_rec.update_layout(separators=",.", yaxis={'showticklabels': False})
+            st.plotly_chart(fig_stack_rec, use_container_width=True, config=CONFIG_PT)
+
+        g3, g4 = st.columns(2)
+        with g3:
+            st.markdown("<p style='text-align:center;'><b>Despesas por Fonte (Acumulado)</b></p>", unsafe_allow_html=True)
+            df_fonte_res = df_df_raw[df_df_raw['Tipo'] == 'Liquidado'].groupby('Fonte')['Total'].sum().reset_index()
+            fig_pie_desp = px.pie(df_fonte_res, values='Total', names='Fonte', hole=0.4, color_discrete_sequence=px.colors.sequential.Reds_r)
+            fig_pie_desp.update_traces(textposition='inside', textinfo='percent+label', hovertemplate="<b>Fonte:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<extra></extra>")
+            fig_pie_desp.update_layout(separators=",.", showlegend=False)
+            st.plotly_chart(fig_pie_desp, use_container_width=True, config=CONFIG_PT)
+        
+        with g4:
+            st.markdown("<p style='text-align:center;'><b>Despesas por Categoria (Top 5)</b></p>", unsafe_allow_html=True)
+            df_elem = df_f_raw.groupby('Atividade')[[c for c in df_f_raw.columns if 'Liquidado' in c]].sum().sum(axis=1).reset_index()
+            df_elem.columns = ['Categoria', 'Valor']
+            fig_pie_elem = px.pie(df_elem.nlargest(5, 'Valor'), values='Valor', names='Categoria', hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
+            fig_pie_elem.update_traces(textposition='inside', textinfo='percent+label', hovertemplate="<b>Categoria:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<extra></extra>")
+            fig_pie_elem.update_layout(separators=",.", showlegend=False)
+            st.plotly_chart(fig_pie_elem, use_container_width=True, config=CONFIG_PT)
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
