@@ -21,7 +21,6 @@ st.markdown(
             display: none !important;
         }
         
-        /* ANIMAÇÃO DOS GRÁFICOS */
         @keyframes subirBarra {
             from { clip-path: inset(100% 0 0 0); }
             to { clip-path: inset(0% 0 0 0); }
@@ -33,7 +32,6 @@ st.markdown(
             clip-path: inset(100% 0 0 0);
         }
 
-        /* ANIMAÇÃO DE ROLAGEM/DESLIZE DO MENU */
         @keyframes slideIn {
             from { opacity: 0; transform: translateX(20px); }
             to { opacity: 1; transform: translateX(0); }
@@ -194,11 +192,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
         fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                        color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
-        
-        # CORREÇÃO HOVER: Receitas FUNDEB
-        fig_r.update_traces(
-            hovertemplate="<b>Categoria:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-        )
+        fig_r.update_traces(hovertemplate="<b>Categoria:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
@@ -211,11 +205,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
         fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                        color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
-        
-        # CORREÇÃO HOVER: Despesas FUNDEB
-        fig_f.update_traces(
-            hovertemplate="<b>Fonte:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-        )
+        fig_f.update_traces(hovertemplate="<b>Fonte:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
@@ -226,11 +216,7 @@ if df_f_raw is not None and df_r is not None:
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            
-            # CORREÇÃO HOVER: Comparativo Acumulado
-            fig_comp.update_traces(
-                hovertemplate="<b>Tipo:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-            )
+            fig_comp.update_traces(hovertemplate="<b>Tipo:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
@@ -240,12 +226,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            
-            # CORREÇÃO HOVER: Comparativo Mensal
-            fig_comp.update_traces(
-                hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-            )
-
+            fig_comp.update_traces(hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_comp.update_layout(separators=",.")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
         
@@ -283,20 +264,15 @@ if df_f_raw is not None and df_r is not None:
             else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
         st.markdown("---")
         st.subheader("🔹 Receitas de Impostos (Mensal)")
-        
         lista_completa = ["📊 Acumulado Geral"] + df_r_imp['Descrição da Receita'].unique().tolist()
         if 'idx_nav' not in st.session_state: st.session_state.idx_nav = 0
-            
         grid = st.columns([0.5, 1.2, 1.2, 1.2, 1.2, 1.2, 0.5])
-        
         with grid[0]:
             if st.button("◀", key="nav_left"):
                 st.session_state.idx_nav = max(0, st.session_state.idx_nav - 5)
                 st.rerun()
-                
         fim_idx = min(st.session_state.idx_nav + 5, len(lista_completa))
         fatia = lista_completa[st.session_state.idx_nav:fim_idx]
-        
         for i, item in enumerate(fatia):
             with grid[i+1]:
                 label = abreviar_extremo(item)
@@ -304,29 +280,16 @@ if df_f_raw is not None and df_r is not None:
                     st.session_state['rp_ativo'] = item.replace("📊 ", "")
                     st.session_state['trigger_scroll'] = True
                     st.rerun()
-        
         with grid[6]:
             if st.button("▶", key="nav_right"):
                 if st.session_state.idx_nav + 5 < len(lista_completa):
                     st.session_state.idx_nav += 5
                     st.rerun()
-
         if 'rp_ativo' in st.session_state:
             if st.session_state.get('trigger_scroll', False):
                 scroll_id = random.random()
-                components.html(f"""
-                    <script id="scroll_{scroll_id}">
-                        var scroll = () => {{
-                            const el = window.parent.document.querySelector('.st-key-grafico_rp_dinamico');
-                            if (el) {{
-                                el.scrollIntoView({{ behavior: "smooth", block: "center" }});
-                            }}
-                        }};
-                        setTimeout(scroll, 150);
-                    </script>
-                """, height=0)
+                components.html(f"""<script id="scroll_{scroll_id}">setTimeout(() => {{ const el = window.parent.document.querySelector('.st-key-grafico_rp_dinamico'); if (el) el.scrollIntoView({{ behavior: "smooth", block: "center" }}); }}, 150);</script>""", height=0)
                 st.session_state['trigger_scroll'] = False
-
             ativo = st.session_state['rp_ativo']
             st.markdown(f"#### 📈 {ativo}")
             df_aux = df_r_imp.copy() if ativo == "Acumulado Geral" else df_r_imp[df_r_imp['Descrição da Receita'] == ativo].copy()
@@ -336,16 +299,11 @@ if df_f_raw is not None and df_r is not None:
                 ded_m = df_aux[[c for c in df_aux.columns if 'Dedução' in c and m in c]].sum().sum()
                 dados_r_mensal.append({"Mês": m, "Tipo": "Receita Mensal", "Valor": val_m})
                 dados_r_mensal.append({"Mês": m, "Tipo": "Dedução", "Valor": abs(ded_m)})
-            
             fig_r_prop = px.bar(pd.DataFrame(dados_r_mensal), x='Mês', y='Valor', color='Tipo', barmode='group',
                                color_discrete_map={"Receita Mensal": "#003366", "Dedução": "#6699cc"}, text_auto='.2s')
-            
-            fig_r_prop.update_traces(
-                hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-            )
+            fig_r_prop.update_traces(hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
             fig_r_prop.update_layout(separators=",.", height=450)
             st.plotly_chart(fig_r_prop, use_container_width=True, config=CONFIG_PT, key="grafico_rp_dinamico")
-
         st.markdown("---")
         st.subheader("🔹 Despesas Fonte 15001 (Mensal)")
         dados_d_mensal = []
@@ -355,13 +313,9 @@ if df_f_raw is not None and df_r is not None:
                 dados_d_mensal.append({"Mês": m, "Fase": fase, "Valor": val_f})
         fig_d_prop = px.bar(pd.DataFrame(dados_d_mensal), x='Mês', y='Valor', color='Fase', barmode='group',
                            color_discrete_map={"Empenhado": "#660000", "Liquidado": "#cc0000", "Pago": "#ff4d4d"}, text_auto='.2s')
-        
-        fig_d_prop.update_traces(
-            hovertemplate="<b>Fase:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-        )
+        fig_d_prop.update_traces(hovertemplate="<b>Fase:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_d_prop.update_layout(separators=",.")
         st.plotly_chart(fig_d_prop, use_container_width=True, config=CONFIG_PT)
-
         st.markdown("---")
         st.subheader("🔹 4. Análise Comparativa e Meta (25%)")
         fase_sel = st.radio("Fase para índice:", ["Liquidado", "Empenhado", "Pago"], horizontal=True, key="fase_prop")
@@ -370,13 +324,9 @@ if df_f_raw is not None and df_r is not None:
         fig_indices = px.bar(df_comp_prop, x='Categoria', y='Valor', color='Categoria', text_auto='.3s',
                             color_discrete_map={"Receita Base": "#002147", f"Despesa ({fase_sel})": "#990000"})
         fig_indices.add_hline(y=valor_meta, line_dash="dot", line_color="green", annotation_text=f"Meta 25% ({formar_real(valor_meta)})")
-        
-        fig_indices.update_traces(
-            hovertemplate="<b>Categoria:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-        )
+        fig_indices.update_traces(hovertemplate="<b>Categoria:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_indices.update_layout(separators=",.")
         st.plotly_chart(fig_indices, use_container_width=True, config=CONFIG_PT)
-
         st.markdown("### 📋 Detalhamento de Fichas - Fonte 15001")
         col_liq_f_prop = [c for c in df_f_15001.columns if any(m in c for m in meses_proprios) and 'Liquidado' in c]
         df_f_15001['Total_Periodo'] = df_f_15001[col_liq_f_prop].sum(axis=1)
@@ -392,12 +342,100 @@ if df_f_raw is not None and df_r is not None:
         st.dataframe(df_rp_final, use_container_width=True, hide_index=True)
 
     elif st.session_state.setor == 'Recursos Vinculados':
-        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
-        programas = ['QESE', 'PTE', 'PNAE', 'PNATE']
-        df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains('|'.join(programas), case=False, na=False)].copy()
-        st.metric("Total Receitas Vinculadas", formar_real(df_r_vinc['Total'].sum()))
-        fig_vinc = px.pie(df_r_vinc, values='Total', names='Descrição da Receita', hole=.4)
-        fig_vinc.update_layout(separators=",.")
-        st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
+        st.markdown("<h1 style='text-align: left;'>🔗 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
+        
+        meses_vinc = ['Janeiro', 'Fevereiro']
+        
+        # --- DEFINIÇÃO DOS PROGRAMAS E FONTES ---
+        mapa_fontes = {
+            'PNAE': ['1552', '2552'],
+            'PNATE': ['1553', '2553'],
+            'PTE': ['1576', '2576'],
+            'QESE': ['1550', '2550']
+        }
+        todas_fontes = [f for lista in mapa_fontes.values() for f in lista]
+        
+        # Filtragem Receitas (por palavra-chave na descrição)
+        palavras_vinc = 'PNAE|PNATE|PTE|SALÁRIO EDUCAÇÃO|QESE'
+        df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains(palavras_vinc, case=False, na=False)].copy()
+        
+        # Filtragem Despesas
+        df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
+        
+        # --- MÉTRICAS ---
+        tot_prev_vinc = df_r_vinc['Orçado Receitas'].sum()
+        tot_rec_vinc = df_r_vinc[meses_vinc].sum().sum()
+        tot_desp_liq = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
+        
+        m1, m2, m3 = st.columns(3)
+        with m1: st.metric("Previsão Receitas 2026", formar_real(tot_prev_vinc))
+        with m2: st.metric(f"Total Recebido ({meses_vinc[0]}-{meses_vinc[-1]})", formar_real(tot_rec_vinc))
+        with m3: st.metric("Total Liquidado (Período)", formar_real(tot_desp_liq))
+        
+        st.markdown("---")
+        
+        # --- GRÁFICO MENSAL (RECEITAS X DESPESAS) ---
+        st.subheader("🔹 Evolução Mensal: Receitas vs Despesas")
+        dados_v_mensais = []
+        for m in meses_vinc:
+            r_m = df_r_vinc[m].sum()
+            d_m = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][m].sum()
+            dados_v_mensais.append({"Mês": m, "Tipo": "Receitas", "Valor": r_m})
+            dados_v_mensais.append({"Mês": m, "Tipo": "Despesas (Liq.)", "Valor": d_m})
+        
+        fig_v_evolucao = px.bar(pd.DataFrame(dados_v_mensais), x='Mês', y='Valor', color='Tipo', barmode='group',
+                                text_auto='.2s', color_discrete_map={"Receitas": "#003366", "Despesas (Liq.)": "#cc0000"})
+        fig_v_evolucao.update_traces(hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
+        fig_v_evolucao.update_layout(separators=",.", yaxis={'showticklabels': False})
+        st.plotly_chart(fig_v_evolucao, use_container_width=True, config=CONFIG_PT)
+        
+        st.markdown("---")
+        
+        # --- DETALHAMENTO POR PROGRAMA ---
+        st.subheader("🔹 Detalhamento por Programa e Fonte")
+        tab1, tab2, tab3, tab4 = st.tabs(["🍎 PNAE", "🚌 PNATE", "🚍 PTE", "📚 QESE"])
+        abas = [tab1, tab2, tab3, tab4]
+        
+        for i, programa in enumerate(mapa_fontes.keys()):
+            with abas[i]:
+                fontes_prog = mapa_fontes[programa]
+                col_p1, col_p2 = st.columns(2)
+                df_prog = df_df_vinc[df_df_vinc['Fonte'].astype(str).isin(fontes_prog)].copy()
+                
+                with col_p1:
+                    resumo_fontes = []
+                    for f in fontes_prog:
+                        tipo_f = "Investimento (Superávit)" if f.startswith('2') else "Recurso Corrente"
+                        val_f = df_prog[(df_prog['Fonte'].astype(str) == f) & (df_prog['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
+                        resumo_fontes.append({"Fonte": f, "Tipo": tipo_f, "Total Liquidado": formar_real(val_f)})
+                    st.markdown(f"**Análise de Fontes - {programa}**")
+                    st.table(pd.DataFrame(resumo_fontes))
+                
+                with col_p2:
+                    df_f_prog = df_f_raw[df_f_raw['Fonte'].astype(str).isin(fontes_prog)].copy()
+                    col_liq_f = [c for c in df_f_prog.columns if any(m in c for m in meses_vinc) and 'Liquidado' in c]
+                    df_f_prog['Total'] = df_f_prog[col_liq_f].sum(axis=1)
+                    df_setor_fig = df_f_prog[df_f_prog['Total'] > 0].nlargest(5, 'Total')
+                    if not df_setor_fig.empty:
+                        fig_prog = px.pie(df_setor_fig, values='Total', names='Atividade', title=f"Distribuição: {programa}", hole=.3)
+                        st.plotly_chart(fig_prog, use_container_width=True, config=CONFIG_PT)
+                    else:
+                        st.info("Sem despesas no período.")
+
+        st.markdown("### 📋 Relatório Geral de Fichas (Vinculados)")
+        df_f_vinc = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
+        col_liq_v = [c for c in df_f_vinc.columns if any(m in c for m in meses_vinc) and 'Liquidado' in c]
+        df_f_vinc['Soma_Liquidado'] = df_f_vinc[col_liq_v].sum(axis=1)
+        c_orc_v = next((c for c in df_f_vinc.columns if 'Orçado' in c), None)
+        c_sld_v = next((c for c in df_f_vinc.columns if 'Saldo' in c), None)
+        cols_v_show = ['Atividade', 'Ficha', 'Fonte']
+        if c_orc_v: cols_v_show.append(c_orc_v)
+        if c_sld_v: cols_v_show.append(c_sld_v)
+        cols_v_show.append('Soma_Liquidado')
+        df_vinc_final = df_f_vinc[cols_v_show].copy()
+        for col in [c for c in [c_orc_v, c_sld_v, 'Soma_Liquidado'] if c]:
+            df_vinc_final[col] = df_vinc_final[col].apply(formar_real)
+        st.dataframe(df_vinc_final, use_container_width=True, hide_index=True)
+
 else:
     st.error("Erro ao carregar as bases de dados de Alpinópolis.")
