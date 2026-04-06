@@ -355,22 +355,27 @@ if df_f_raw is not None and df_r is not None:
         }
         todas_fontes = [f for lista in mapa_fontes.values() for f in lista]
         
-        # Filtragem Receitas (por palavra-chave na descrição)
+        # Filtragem Receitas
         palavras_vinc = 'PNAE|PNATE|PTE|SALÁRIO EDUCAÇÃO|QESE'
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains(palavras_vinc, case=False, na=False)].copy()
         
         # Filtragem Despesas
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
         
-        # --- MÉTRICAS ---
+        # --- MÉTRICAS SOLICITADAS ---
         tot_prev_vinc = df_r_vinc['Orçado Receitas'].sum()
-        tot_rec_vinc = df_r_vinc[meses_vinc].sum().sum()
-        tot_desp_liq = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
+        # Receitas Acumulado e Mensal (considerando Fevereiro como o mensal atual)
+        tot_rec_acum = df_r_vinc[meses_vinc].sum().sum()
+        tot_rec_mensal = df_r_vinc['Fevereiro'].sum()
+        
+        # Despesas Acumulado e Mensal
+        tot_desp_liq_acum = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
+        tot_desp_liq_mensal = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Fevereiro'].sum()
         
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Receitas 2026", formar_real(tot_prev_vinc))
-        with m2: st.metric(f"Total Recebido ({meses_vinc[0]}-{meses_vinc[-1]})", formar_real(tot_rec_vinc))
-        with m3: st.metric("Total Liquidado (Período)", formar_real(tot_desp_liq))
+        with m2: st.metric("Receitas Recebidas (Acum.)", formar_real(tot_rec_acum), delta=f"Mensal: {formar_real(tot_rec_mensal)}")
+        with m3: st.metric("Despesas Liquidadas (Acum.)", formar_real(tot_desp_liq_acum), delta=f"Mensal: {formar_real(tot_desp_liq_mensal)}")
         
         st.markdown("---")
         
@@ -385,7 +390,6 @@ if df_f_raw is not None and df_r is not None:
         
         fig_v_evolucao = px.bar(pd.DataFrame(dados_v_mensais), x='Mês', y='Valor', color='Tipo', barmode='group',
                                 text_auto='.2s', color_discrete_map={"Receitas": "#003366", "Despesas (Liq.)": "#cc0000"})
-        fig_v_evolucao.update_traces(hovertemplate="<b>Tipo:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_v_evolucao.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_v_evolucao, use_container_width=True, config=CONFIG_PT)
         
@@ -405,6 +409,7 @@ if df_f_raw is not None and df_r is not None:
                 with col_p1:
                     resumo_fontes = []
                     for f in fontes_prog:
+                        # Observação: Fonte inicia com "2" = Superávit (Investimento)
                         tipo_f = "Investimento (Superávit)" if f.startswith('2') else "Recurso Corrente"
                         val_f = df_prog[(df_prog['Fonte'].astype(str) == f) & (df_prog['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
                         resumo_fontes.append({"Fonte": f, "Tipo": tipo_f, "Total Liquidado": formar_real(val_f)})
