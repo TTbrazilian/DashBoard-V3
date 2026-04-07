@@ -257,8 +257,8 @@ if df_f_raw is not None and df_r is not None:
         desp_fases = {fase: df_df_15001[df_df_15001['Tipo'] == fase][meses_proprios].sum().sum() for fase in ['Empenhado', 'Liquidado', 'Pago']}
         perc_25 = (desp_fases['Liquidado'] / base_calculo_25 * 100) if base_calculo_25 > 0 else 0
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Total Receitas de Impostos (Jan - Fev)", formar_real(total_impostos))
-        with m2: st.metric("Total Despesas 15001 (Liq.)", formar_real(desp_fases['Liquidado']))
+        with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(df_r_imp['Orçado Receitas'].sum()))
+        with m2: st.metric("Total Receitas de Impostos (Jan - Fev)", formar_real(total_impostos))
         with m3:
             if perc_25 >= 25: st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
             else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
@@ -357,6 +357,18 @@ if df_f_raw is not None and df_r is not None:
         
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().isin(programas)].copy()
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
+
+        # --- MÉTRICAS DE TOPO ---
+        prev_vinc = df_r_vinc['Orçado Receitas'].sum()
+        arrec_vinc = df_r_vinc[meses_vinc].sum().sum()
+        liq_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
+
+        m1, m2, m3 = st.columns(3)
+        with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(prev_vinc))
+        with m2: st.metric(f"Total Arrecadado ({meses_vinc[0]}-{meses_vinc[-1]})", formar_real(arrec_vinc))
+        with m3: st.metric(f"Total Liquidado ({meses_vinc[0]}-{meses_vinc[-1]})", formar_real(liq_vinc))
+        
+        st.markdown("---")
 
         # --- GRÁFICO 1: RECEITAS RECEBIDAS ---
         st.subheader("🔹 1. Total de Receitas Recebidas")
