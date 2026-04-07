@@ -352,15 +352,21 @@ if df_f_raw is not None and df_r is not None:
             'QESE': ['1550', '2550']
         }
         todas_fontes = [f for lista in mapa_fontes.values() for f in lista]
+        
+        # Leitura e filtragem dos 3 arquivos para evitar omissões
         palavras_vinc = 'PNAE|PNATE|PTE|SALÁRIO EDUCAÇÃO|QESE'
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains(palavras_vinc, case=False, na=False)].copy()
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
+        df_f_vinc_base = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
         
+        # --- MÉTRICAS ---
         tot_prev_vinc = df_r_vinc['Orçado Receitas'].sum()
         tot_rec_acum = df_r_vinc[meses_vinc].sum().sum()
-        tot_rec_mensal = df_r_vinc['Fevereiro'].sum()
+        tot_rec_mensal = df_r_vinc['Fevereiro'].sum() if 'Fevereiro' in df_r_vinc.columns else 0
+        
+        # Despesas vêm do DF para precisão cronológica
         tot_desp_liq_acum = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
-        tot_desp_liq_mensal = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Fevereiro'].sum()
+        tot_desp_liq_mensal = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Fevereiro'].sum() if 'Fevereiro' in df_df_vinc.columns else 0
         
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Receitas 2026", formar_real(tot_prev_vinc))
@@ -373,7 +379,9 @@ if df_f_raw is not None and df_r is not None:
         dados_grafico_prog = []
         for prog, fontes in mapa_fontes.items():
             for f in fontes:
+                # Regra: Inicia com "2" = Superávit (Investimento)
                 tipo_v = "Investimento (Superávit)" if f.startswith('2') else "Recurso Corrente"
+                # Soma liquidado para a fonte específica
                 val_v = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
                 if val_v >= 0:
                     dados_grafico_prog.append({"Programa": prog, "Fonte": f, "Tipo": tipo_v, "Valor": val_v})
@@ -384,8 +392,9 @@ if df_f_raw is not None and df_r is not None:
                 df_fig_vinc, x='Programa', y='Valor', color='Tipo', barmode='group',
                 text_auto='.2s', color_discrete_map={"Recurso Corrente": "#003366", "Investimento (Superávit)": "#cc0000"}
             )
+            # Customdata para garantir que o Hover mostre a Fonte e o Programa corretamente
             fig_vinc_bar.update_traces(
-                hovertemplate="<b>Programa:</b> %{x}<br><b>Fonte:</b> %{customdata[0]}<br><b>Tipo:</b> %{fullData.name}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
+                hovertemplate="<b>Programa:</b> %{x}<br><b>Fonte:</b> %{customdata[0]}<br><b>Classificação:</b> %{fullData.name}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
                 customdata=df_fig_vinc[['Fonte']]
             )
             fig_vinc_bar.update_layout(separators=",.", yaxis={'title': 'Total Liquidado (Jan-Fev)'})
@@ -394,18 +403,21 @@ if df_f_raw is not None and df_r is not None:
             st.info("Sem dados de despesas para os programas vinculados no período.")
 
         st.markdown("### 📋 Relatório Geral de Fichas (Vinculados)")
-        df_f_vinc = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
-        col_liq_v = [c for c in df_f_vinc.columns if any(m in c for m in meses_vinc) and 'Liquidado' in c]
-        df_f_vinc['Soma_Liquidado'] = df_f_vinc[col_liq_v].sum(axis=1)
-        c_orc_v = next((c for c in df_f_vinc.columns if 'Orçado' in c), None)
-        c_sld_v = next((c for c in df_f_vinc.columns if 'Saldo' in c), None)
+        # Detalhamento vindo do Alpinópolis.csv (df_f_raw) filtrado
+        col_liq_v = [c for c in df_f_vinc_base.columns if any(m in c for m in meses_vinc) and 'Liquidado' in c]
+        df_f_vinc_base['Soma_Liquidado'] = df_f_vinc_base[col_liq_v].sum(axis=1)
+        c_orc_v = next((c for c in df_f_vinc_base.columns if 'Orçado' in c), None)
+        c_sld_v = next((c for c in df_f_vinc_base.columns if 'Saldo' in c), None)
+        
         cols_v_show = ['Atividade', 'Ficha', 'Fonte']
         if c_orc_v: cols_v_show.append(c_orc_v)
         if c_sld_v: cols_v_show.append(c_sld_v)
         cols_v_show.append('Soma_Liquidado')
-        df_vinc_final = df_f_vinc[cols_v_show].copy()
+        
+        df_vinc_final = df_f_vinc_base[cols_v_show].copy()
         for col in [c for c in [c_orc_v, c_sld_v, 'Soma_Liquidado'] if c]:
             df_vinc_final[col] = df_vinc_final[col].apply(formar_real)
+        
         st.dataframe(df_vinc_final, use_container_width=True, hide_index=True)
 
 else:
