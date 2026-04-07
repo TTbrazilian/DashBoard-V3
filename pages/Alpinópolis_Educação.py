@@ -345,8 +345,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("<h1 style='text-align: left;'>🔗 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
         meses_vinc = ['Janeiro', 'Fevereiro']
-        
-        # --- DEFINIÇÃO DOS PROGRAMAS E FONTES ---
         mapa_fontes = {
             'PNAE': ['1552', '2552'],
             'PNATE': ['1553', '2553'],
@@ -354,21 +352,13 @@ if df_f_raw is not None and df_r is not None:
             'QESE': ['1550', '2550']
         }
         todas_fontes = [f for lista in mapa_fontes.values() for f in lista]
-        
-        # Filtragem Receitas
         palavras_vinc = 'PNAE|PNATE|PTE|SALÁRIO EDUCAÇÃO|QESE'
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains(palavras_vinc, case=False, na=False)].copy()
-        
-        # Filtragem Despesas
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
         
-        # --- MÉTRICAS SOLICITADAS ---
         tot_prev_vinc = df_r_vinc['Orçado Receitas'].sum()
-        # Receitas Acumulado e Mensal (considerando Fevereiro como o mensal atual)
         tot_rec_acum = df_r_vinc[meses_vinc].sum().sum()
         tot_rec_mensal = df_r_vinc['Fevereiro'].sum()
-        
-        # Despesas Acumulado e Mensal
         tot_desp_liq_acum = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
         tot_desp_liq_mensal = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Fevereiro'].sum()
         
@@ -378,54 +368,30 @@ if df_f_raw is not None and df_r is not None:
         with m3: st.metric("Despesas Liquidadas (Acum.)", formar_real(tot_desp_liq_acum), delta=f"Mensal: {formar_real(tot_desp_liq_mensal)}")
         
         st.markdown("---")
+        st.subheader("📊 Aplicação por Programa e Fonte")
         
-        # --- GRÁFICO MENSAL (RECEITAS X DESPESAS) ---
-        st.subheader("🔹 Evolução Mensal: Receitas vs Despesas")
-        dados_v_mensais = []
-        for m in meses_vinc:
-            r_m = df_r_vinc[m].sum()
-            d_m = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][m].sum()
-            dados_v_mensais.append({"Mês": m, "Tipo": "Receitas", "Valor": r_m})
-            dados_v_mensais.append({"Mês": m, "Tipo": "Despesas (Liq.)", "Valor": d_m})
+        dados_grafico_prog = []
+        for prog, fontes in mapa_fontes.items():
+            for f in fontes:
+                tipo_v = "Investimento (Superávit)" if f.startswith('2') else "Recurso Corrente"
+                val_v = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
+                if val_v >= 0:
+                    dados_grafico_prog.append({"Programa": prog, "Fonte": f, "Tipo": tipo_v, "Valor": val_v})
         
-        fig_v_evolucao = px.bar(pd.DataFrame(dados_v_mensais), x='Mês', y='Valor', color='Tipo', barmode='group',
-                                text_auto='.2s', color_discrete_map={"Receitas": "#003366", "Despesas (Liq.)": "#cc0000"})
-        fig_v_evolucao.update_layout(separators=",.", yaxis={'showticklabels': False})
-        st.plotly_chart(fig_v_evolucao, use_container_width=True, config=CONFIG_PT)
-        
-        st.markdown("---")
-        
-        # --- DETALHAMENTO POR PROGRAMA ---
-        st.subheader("🔹 Detalhamento por Programa e Fonte")
-        tab1, tab2, tab3, tab4 = st.tabs(["🍎 PNAE", "🚌 PNATE", "🚍 PTE", "📚 QESE"])
-        abas = [tab1, tab2, tab3, tab4]
-        
-        for i, programa in enumerate(mapa_fontes.keys()):
-            with abas[i]:
-                fontes_prog = mapa_fontes[programa]
-                col_p1, col_p2 = st.columns(2)
-                df_prog = df_df_vinc[df_df_vinc['Fonte'].astype(str).isin(fontes_prog)].copy()
-                
-                with col_p1:
-                    resumo_fontes = []
-                    for f in fontes_prog:
-                        # Observação: Fonte inicia com "2" = Superávit (Investimento)
-                        tipo_f = "Investimento (Superávit)" if f.startswith('2') else "Recurso Corrente"
-                        val_f = df_prog[(df_prog['Fonte'].astype(str) == f) & (df_prog['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
-                        resumo_fontes.append({"Fonte": f, "Tipo": tipo_f, "Total Liquidado": formar_real(val_f)})
-                    st.markdown(f"**Análise de Fontes - {programa}**")
-                    st.table(pd.DataFrame(resumo_fontes))
-                
-                with col_p2:
-                    df_f_prog = df_f_raw[df_f_raw['Fonte'].astype(str).isin(fontes_prog)].copy()
-                    col_liq_f = [c for c in df_f_prog.columns if any(m in c for m in meses_vinc) and 'Liquidado' in c]
-                    df_f_prog['Total'] = df_f_prog[col_liq_f].sum(axis=1)
-                    df_setor_fig = df_f_prog[df_f_prog['Total'] > 0].nlargest(5, 'Total')
-                    if not df_setor_fig.empty:
-                        fig_prog = px.pie(df_setor_fig, values='Total', names='Atividade', title=f"Distribuição: {programa}", hole=.3)
-                        st.plotly_chart(fig_prog, use_container_width=True, config=CONFIG_PT)
-                    else:
-                        st.info("Sem despesas no período.")
+        df_fig_vinc = pd.DataFrame(dados_grafico_prog)
+        if not df_fig_vinc.empty:
+            fig_vinc_bar = px.bar(
+                df_fig_vinc, x='Programa', y='Valor', color='Tipo', barmode='group',
+                text_auto='.2s', color_discrete_map={"Recurso Corrente": "#003366", "Investimento (Superávit)": "#cc0000"}
+            )
+            fig_vinc_bar.update_traces(
+                hovertemplate="<b>Programa:</b> %{x}<br><b>Fonte:</b> %{customdata[0]}<br><b>Tipo:</b> %{fullData.name}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
+                customdata=df_fig_vinc[['Fonte']]
+            )
+            fig_vinc_bar.update_layout(separators=",.", yaxis={'title': 'Total Liquidado (Jan-Fev)'})
+            st.plotly_chart(fig_vinc_bar, use_container_width=True, config=CONFIG_PT)
+        else:
+            st.info("Sem dados de despesas para os programas vinculados no período.")
 
         st.markdown("### 📋 Relatório Geral de Fichas (Vinculados)")
         df_f_vinc = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
