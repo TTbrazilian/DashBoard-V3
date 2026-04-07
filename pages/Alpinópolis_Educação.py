@@ -364,7 +364,7 @@ if df_f_raw is not None and df_r is not None:
         liq_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
 
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Previsão Das Receitas 2026", formar_real(prev_vinc))
+        with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(prev_vinc))
         with m2: st.metric(f"Total Arrecadado ({meses_vinc[0]}-{meses_vinc[-1]})", formar_real(arrec_vinc))
         with m3: st.metric(f"Total Liquidado ({meses_vinc[0]}-{meses_vinc[-1]})", formar_real(liq_vinc))
         
