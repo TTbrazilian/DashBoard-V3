@@ -121,20 +121,16 @@ def load_all_data():
     arquivo_df = "zEducação/Alpinópolis_DF.csv"
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
-    
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
         if "Unnamed" in col[0]: new_cols.append(col[1].strip())
         else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
-    
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
-    
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
-    
     meses_limpeza = ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
@@ -145,7 +141,6 @@ def load_all_data():
     for col in df_df.columns:
         if any(k in col for k in meses_limpeza):
             df_df[col] = df_df[col].apply(limpar_valor)
-            
     if 'Fonte' in df_f.columns:
         df_f['Fonte'] = df_f['Fonte'].astype(str)
     return df_f, df_r, df_df
@@ -162,7 +157,6 @@ if df_f_raw is not None and df_r is not None:
     if st.sidebar.button("Recursos Próprios", use_container_width=True): st.session_state.setor = 'Recursos Próprios'
     if st.sidebar.button("Recursos Vinculados", use_container_width=True): st.session_state.setor = 'Recursos Vinculados'
 
-    # --- SETOR: FUNDEB ---
     if st.session_state.setor == 'FUNDEB':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
         def cat_receita(desc):
@@ -251,7 +245,6 @@ if df_f_raw is not None and df_r is not None:
             df_f_final[col] = df_f_final[col].apply(formar_real)
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
-    # --- SETOR: RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>🏛️ Alpinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         meses_proprios = ['Janeiro', 'Fevereiro']
@@ -348,91 +341,82 @@ if df_f_raw is not None and df_r is not None:
             df_rp_final[col] = df_rp_final[col].apply(formar_real)
         st.dataframe(df_rp_final, use_container_width=True, hide_index=True)
 
-    # --- SETOR: RECURSOS VINCULADOS (ATUALIZADO) ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>🔗 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
         meses_vinc = ['Janeiro', 'Fevereiro']
+        programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
         
-        # Mapeamento de fontes (1xxx = Corrente, 2xxx = Superávit/Investimento)
-        mapa_fontes = {
+        # Mapeamento estrito de fontes de DESPESA
+        mapa_desp = {
             'PNAE': ['1552', '2552'],
             'PNATE': ['1553', '2553'],
             'PTE': ['1576', '2576'],
             'QESE': ['1550', '2550']
         }
-        todas_fontes = [f for lista in mapa_fontes.values() for f in lista]
+        todas_fontes_desp = [f for lista in mapa_desp.values() for f in lista]
         
-        # --- BUSCA DE DADOS CONSOLIDADA ---
-        # 1. Filtro em Receitas pelas categorias solicitadas (Federais e Estaduais)
-        categorias_alvo = ['TRANSFERÊNCIA PROGRAMAS FEDERAIS', 'TRANSFERÊNCIA PROGRAMAS ESTADUAIS', 
-                           'TRANSFERENCIA PROGRAMAS FEDERAIS', 'TRANSFERENCIA PROGRAMAS ESTADUAIS']
-        df_r_vinc = df_r[df_r['Categoria'].str.upper().isin(categorias_alvo)].copy()
+        # --- FILTRAGEM DE RECEITAS ---
+        # Filtra apenas as linhas onde a descrição da receita contém exatamente os nomes dos programas
+        df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().isin(programas)].copy()
         
-        # 2. Filtro em Despesas Diárias (DF) para precisão cronológica
-        df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
-        
-        # 3. Filtro em Fichas (F) para o relatório técnico
-        df_f_vinc_base = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
-        
-        # --- MÉTRICAS ---
-        tot_prev_vinc = df_r_vinc['Orçado Receitas'].sum()
-        tot_rec_acum = df_r_vinc[meses_vinc].sum().sum()
-        tot_desp_liq_acum = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
-        
-        m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Previsão Receitas 2026", formar_real(tot_prev_vinc))
-        with m2: st.metric("Receitas Recebidas (Acum.)", formar_real(tot_rec_acum))
-        with m3: st.metric("Despesas Liquidadas (Acum.)", formar_real(tot_desp_liq_acum))
-        
-        st.markdown("---")
-        st.subheader("📊 Aplicação por Programa e Fonte")
-        
-        dados_grafico_prog = []
-        for prog, fontes in mapa_fontes.items():
-            for f in fontes:
-                # Regra: Se a fonte inicia com "2", é Superávit (Investimento)
-                tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
-                
-                # Busca valor liquidado específico no DF
-                val_v = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & 
-                                   (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
-                
-                if val_v > 0:
-                    dados_grafico_prog.append({"Programa": prog, "Fonte": f, "Tipo": tipo_v, "Valor": val_v})
-        
-        if dados_grafico_prog:
-            df_fig_vinc = pd.DataFrame(dados_grafico_prog)
-            fig_vinc_bar = px.bar(
-                df_fig_vinc, x='Programa', y='Valor', color='Tipo', barmode='group',
-                text_auto='.2s', color_discrete_map={"Recurso Corrente": "#003366", "Investimento (Superávit)": "#cc0000"}
-            )
-            fig_vinc_bar.update_traces(
-                hovertemplate="<b>Programa:</b> %{x}<br><b>Fonte:</b> %{customdata[0]}<br><b>Classificação:</b> %{fullData.name}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
-                customdata=df_fig_vinc[['Fonte']]
-            )
-            fig_vinc_bar.update_layout(separators=",.", yaxis={'title': 'Total Liquidado (Jan-Fev)'})
-            st.plotly_chart(fig_vinc_bar, use_container_width=True, config=CONFIG_PT)
-        else:
-            st.info("Nenhuma despesa liquidada encontrada para os programas vinculados nas categorias Federais/Estaduais.")
+        # --- FILTRAGEM DE DESPESAS (DF e Fichas) ---
+        df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
+        df_f_vinc_base = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
 
-        st.markdown("### 📋 Relatório Detalhado de Fichas (Vinculados)")
-        col_liq_v = [c for c in df_f_vinc_base.columns if any(m in c for m in meses_vinc) and 'Liquidado' in c]
-        df_f_vinc_base['Soma_Liquidado'] = df_f_vinc_base[col_liq_v].sum(axis=1)
+        # --- GRÁFICO 1: RECEITAS RECEBIDAS (Mensal e Acumulado) ---
+        st.subheader("🔹 1. Total de Receitas Recebidas")
+        dados_r = []
+        for m in meses_vinc:
+            for prog in programas:
+                val = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper() == prog][m].sum()
+                dados_r.append({"Mês": m, "Programa": prog, "Valor": val})
         
-        c_orc_v = next((c for c in df_f_vinc_base.columns if 'Orçado' in c), None)
-        c_sld_v = next((c for c in df_f_vinc_base.columns if 'Saldo' in c), None)
+        fig_rec = px.bar(pd.DataFrame(dados_r), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
+                        color_discrete_map={'PNAE':'#002147', 'PNATE':'#00509d', 'PTE':'#6699cc', 'QESE':'#99ccff'})
+        fig_rec.update_layout(separators=",.", yaxis={'title': 'Arrecadado'})
+        st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
+
+        # --- GRÁFICO 2: DESPESAS LIQUIDADAS (Mensal e Acumulado) ---
+        st.subheader("🔹 2. Total de Despesas Liquidadas")
+        dados_d = []
+        for m in meses_vinc:
+            for prog, fontes in mapa_desp.items():
+                for f in fontes:
+                    # Identifica se é investimento (Superávit) para o hover
+                    tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
+                    val_d = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][m].sum()
+                    if val_d > 0:
+                        dados_d.append({"Mês": m, "Programa": prog, "Fonte": f, "Classificação": tipo_v, "Valor": val_d})
         
-        cols_v_show = ['Atividade', 'Ficha', 'Fonte']
-        if c_orc_v: cols_v_show.append(c_orc_v)
-        if c_sld_v: cols_v_show.append(c_sld_v)
-        cols_v_show.append('Soma_Liquidado')
+        if dados_d:
+            df_d_fig = pd.DataFrame(dados_d)
+            fig_desp = px.bar(df_d_fig, x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
+                             color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
+            # Hover apenas mostra a fonte e classificação
+            fig_desp.update_traces(
+                hovertemplate="<b>Programa:</b> %{fullData.name}<br><b>Fonte:</b> %{customdata[0]}<br><b>Tipo:</b> %{customdata[1]}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
+                customdata=df_d_fig[['Fonte', 'Classificação']]
+            )
+            fig_desp.update_layout(separators=",.", yaxis={'title': 'Liquidado'})
+            st.plotly_chart(fig_desp, use_container_width=True, config=CONFIG_PT)
+        else:
+            st.info("Nenhuma despesa liquidada encontrada para as fontes vinculadas no período.")
+
+        # --- DETALHAMENTO POR PROGRAMA E FONTE DE DESPESA ---
+        st.markdown("---")
+        st.subheader("📋 Detalhamento por Programa e Fonte de Despesa")
         
-        df_vinc_final = df_f_vinc_base[cols_v_show].copy()
-        for col in [c for c in [c_orc_v, c_sld_v, 'Soma_Liquidado'] if c]:
-            df_vinc_final[col] = df_vinc_final[col].apply(formar_real)
-        
-        st.dataframe(df_vinc_final, use_container_width=True, hide_index=True)
+        abas_vinc = st.tabs(["🍎 PNAE", "🚌 PNATE", "🚍 PTE", "📑 QESE"])
+        for i, prog in enumerate(programas):
+            with abas_vinc[i]:
+                fontes_vinc = mapa_desp[prog]
+                dados_tab = []
+                for f in fontes_vinc:
+                    tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
+                    val_tab = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
+                    dados_tab.append({"Fonte": f, "Tipo": tipo_v, "Total Liquidado (Jan-Fev)": formar_real(val_tab)})
+                st.table(pd.DataFrame(dados_tab))
 
 else:
-    st.error("Erro ao carregar as bases de dados (CSV). Verifique os arquivos na pasta zEducação.")
+    st.error("Erro ao carregar os arquivos CSV. Verifique a pasta zEducação.")
