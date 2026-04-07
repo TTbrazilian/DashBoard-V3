@@ -358,7 +358,7 @@ if df_f_raw is not None and df_r is not None:
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().isin(programas)].copy()
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
 
-        # --- GRÁFICO 1: RECEITAS RECEBIDAS ---
+        # --- GRÁFICO 1: RECEITAS RECEBIDAS (Ajustado layout e hover) ---
         st.subheader("🔹 1. Total de Receitas Recebidas")
         dados_r = []
         for m in meses_vinc:
@@ -370,8 +370,14 @@ if df_f_raw is not None and df_r is not None:
         if dados_r:
             fig_rec = px.bar(pd.DataFrame(dados_r), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
                             color_discrete_map={'PNAE':'#002147', 'PNATE':'#00509d', 'PTE':'#6699cc', 'QESE':'#99ccff'})
-            fig_rec.update_layout(separators=",.", yaxis={'title': 'Arrecadado'})
-            fig_rec.update_traces(hovertemplate="<b>Programa:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
+            fig_rec.update_layout(
+                separators=",.", 
+                yaxis={'title': 'Arrecadado'},
+                xaxis={'categoryorder': 'array', 'categoryarray': meses_vinc}
+            )
+            fig_rec.update_traces(
+                hovertemplate="<b>Programa:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+            )
             st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
 
         # --- GRÁFICO 2: DESPESAS LIQUIDADAS ---
@@ -396,25 +402,28 @@ if df_f_raw is not None and df_r is not None:
             fig_desp.update_layout(separators=",.", yaxis={'title': 'Liquidado'})
             st.plotly_chart(fig_desp, use_container_width=True, config=CONFIG_PT)
 
-        # --- DETALHAMENTO CORRIDO ---
+        # --- DETALHAMENTO CORRIDO COM COLUNA DE RECEITAS ---
         st.markdown("---")
-        st.subheader("📋 Detalhamento por Programa e Fonte de Despesa")
+        st.subheader("📋 Detalhamento Consolidado (Receitas vs Despesas)")
         
-        # Gera uma lista consolidada para exibição única
         dados_consolidados = []
         for prog in programas:
+            receita_acum = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper() == prog][meses_vinc].sum().sum()
             fontes_vinc = mapa_desp[prog]
-            for f in fontes_vinc:
+            for i, f in enumerate(fontes_vinc):
                 tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
-                val_tab = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
+                val_liq = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
+                receita_display = formar_real(receita_acum) if i == 0 else "-"
+                
                 dados_consolidados.append({
                     "Programa": prog,
                     "Fonte": f,
-                    "Tipo": tipo_v,
-                    "Total Liquidado (Jan-Fev)": formar_real(val_tab)
+                    "Tipo de Recurso": tipo_v,
+                    "Receita Acumulada": receita_display,
+                    "Total Liquidado (Jan-Fev)": formar_real(val_liq)
                 })
         
-        st.table(pd.DataFrame(dados_consolidados))
+        st.dataframe(pd.DataFrame(dados_consolidados), use_container_width=True, hide_index=True)
 
 else:
     st.error("Erro ao carregar os arquivos CSV. Verifique a pasta zEducação.")
