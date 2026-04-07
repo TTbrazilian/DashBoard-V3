@@ -357,36 +357,24 @@ if df_f_raw is not None and df_r is not None:
         
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().isin(programas)].copy()
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
-        df_f_vinc_base = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
 
-        # --- GRÁFICO 1: RECEITAS RECEBIDAS (Mensal e Acumulado) ---
+        # --- GRÁFICO 1: RECEITAS RECEBIDAS ---
         st.subheader("🔹 1. Total de Receitas Recebidas")
         dados_r = []
         for m in meses_vinc:
             for prog in programas:
                 val = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper() == prog][m].sum()
-                if val > 0: # Filtra para remover gaps de programas sem valores
+                if val > 0:
                     dados_r.append({"Mês": m, "Programa": prog, "Valor": val})
         
         if dados_r:
-            df_r_fig = pd.DataFrame(dados_r)
-            fig_rec = px.bar(df_r_fig, x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
+            fig_rec = px.bar(pd.DataFrame(dados_r), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
                             color_discrete_map={'PNAE':'#002147', 'PNATE':'#00509d', 'PTE':'#6699cc', 'QESE':'#99ccff'})
-            
-            # Ajuste de Layout: Remove espaços de barras vazias e padroniza Hover
-            fig_rec.update_layout(
-                separators=",.", 
-                yaxis={'title': 'Arrecadado'},
-                xaxis={'categoryorder': 'array', 'categoryarray': meses_vinc}
-            )
-            fig_rec.update_traces(
-                hovertemplate="<b>Programa:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-            )
+            fig_rec.update_layout(separators=",.", yaxis={'title': 'Arrecadado'})
+            fig_rec.update_traces(hovertemplate="<b>Programa:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
             st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
-        else:
-            st.info("Nenhuma receita encontrada para os programas selecionados no período.")
 
-        # --- GRÁFICO 2: DESPESAS LIQUIDADAS (Mensal e Acumulado) ---
+        # --- GRÁFICO 2: DESPESAS LIQUIDADAS ---
         st.subheader("🔹 2. Total de Despesas Liquidadas")
         dados_d = []
         for m in meses_vinc:
@@ -407,22 +395,26 @@ if df_f_raw is not None and df_r is not None:
             )
             fig_desp.update_layout(separators=",.", yaxis={'title': 'Liquidado'})
             st.plotly_chart(fig_desp, use_container_width=True, config=CONFIG_PT)
-        else:
-            st.info("Nenhuma despesa liquidada encontrada para as fontes vinculadas no período.")
 
+        # --- DETALHAMENTO CORRIDO ---
         st.markdown("---")
         st.subheader("📋 Detalhamento por Programa e Fonte de Despesa")
         
-        abas_vinc = st.tabs(["🍎 PNAE", "🚌 PNATE", "🚍 PTE", "📑 QESE"])
-        for i, prog in enumerate(programas):
-            with abas_vinc[i]:
-                fontes_vinc = mapa_desp[prog]
-                dados_tab = []
-                for f in fontes_vinc:
-                    tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
-                    val_tab = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
-                    dados_tab.append({"Fonte": f, "Tipo": tipo_v, "Total Liquidado (Jan-Fev)": formar_real(val_tab)})
-                st.table(pd.DataFrame(dados_tab))
+        # Gera uma lista consolidada para exibição única
+        dados_consolidados = []
+        for prog in programas:
+            fontes_vinc = mapa_desp[prog]
+            for f in fontes_vinc:
+                tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
+                val_tab = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
+                dados_consolidados.append({
+                    "Programa": prog,
+                    "Fonte": f,
+                    "Tipo": tipo_v,
+                    "Total Liquidado (Jan-Fev)": formar_real(val_tab)
+                })
+        
+        st.table(pd.DataFrame(dados_consolidados))
 
 else:
     st.error("Erro ao carregar os arquivos CSV. Verifique a pasta zEducação.")
