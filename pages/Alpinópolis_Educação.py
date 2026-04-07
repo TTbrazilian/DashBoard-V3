@@ -158,7 +158,7 @@ if df_f_raw is not None and df_r is not None:
     if st.sidebar.button("Recursos Vinculados", use_container_width=True): st.session_state.setor = 'Recursos Vinculados'
 
     if st.session_state.setor == 'FUNDEB':
-        st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: left;'>📖 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
         def cat_receita(desc):
             desc = desc.upper()
             if 'VAAR' in desc: return 'VAAR'
@@ -246,7 +246,7 @@ if df_f_raw is not None and df_r is not None:
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
     elif st.session_state.setor == 'Recursos Próprios':
-        st.markdown("<h1 style='text-align: left;'>🏛️ Alpinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: left;'>📖 Alpinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         meses_proprios = ['Janeiro', 'Fevereiro']
         df_r_imp = df_r[df_r['Categoria'].astype(str).str.upper().str.contains('IMPOSTO', na=False)].copy()
         df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
@@ -342,7 +342,7 @@ if df_f_raw is not None and df_r is not None:
         st.dataframe(df_rp_final, use_container_width=True, hide_index=True)
 
     elif st.session_state.setor == 'Recursos Vinculados':
-        st.markdown("<h1 style='text-align: left;'>🔗 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: left;'>📖 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
         meses_vinc = ['Janeiro', 'Fevereiro']
         programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
@@ -358,7 +358,7 @@ if df_f_raw is not None and df_r is not None:
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().isin(programas)].copy()
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
 
-        # --- GRÁFICO 1: RECEITAS RECEBIDAS (Ajustado layout e hover) ---
+        # --- GRÁFICO 1: RECEITAS RECEBIDAS ---
         st.subheader("🔹 1. Total de Receitas Recebidas")
         dados_r = []
         for m in meses_vinc:
