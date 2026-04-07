@@ -121,16 +121,20 @@ def load_all_data():
     arquivo_df = "zEducação/Alpinópolis_DF.csv"
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
+    
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
         if "Unnamed" in col[0]: new_cols.append(col[1].strip())
         else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
+    
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
+    
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
+    
     meses_limpeza = ['Janeiro', 'Fevereiro', 'Março', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
@@ -141,6 +145,7 @@ def load_all_data():
     for col in df_df.columns:
         if any(k in col for k in meses_limpeza):
             df_df[col] = df_df[col].apply(limpar_valor)
+            
     if 'Fonte' in df_f.columns:
         df_f['Fonte'] = df_f['Fonte'].astype(str)
     return df_f, df_r, df_df
@@ -157,6 +162,7 @@ if df_f_raw is not None and df_r is not None:
     if st.sidebar.button("Recursos Próprios", use_container_width=True): st.session_state.setor = 'Recursos Próprios'
     if st.sidebar.button("Recursos Vinculados", use_container_width=True): st.session_state.setor = 'Recursos Vinculados'
 
+    # --- SETOR: FUNDEB ---
     if st.session_state.setor == 'FUNDEB':
         st.markdown("<h1 style='text-align: left;'>📘 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
         def cat_receita(desc):
@@ -245,6 +251,7 @@ if df_f_raw is not None and df_r is not None:
             df_f_final[col] = df_f_final[col].apply(formar_real)
         st.dataframe(df_f_final, use_container_width=True, hide_index=True)
 
+    # --- SETOR: RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>🏛️ Alpinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         meses_proprios = ['Janeiro', 'Fevereiro']
@@ -341,10 +348,13 @@ if df_f_raw is not None and df_r is not None:
             df_rp_final[col] = df_rp_final[col].apply(formar_real)
         st.dataframe(df_rp_final, use_container_width=True, hide_index=True)
 
+    # --- SETOR: RECURSOS VINCULADOS (ATUALIZADO) ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>🔗 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
         
         meses_vinc = ['Janeiro', 'Fevereiro']
+        
+        # Mapeamento de fontes (1xxx = Corrente, 2xxx = Superávit/Investimento)
         mapa_fontes = {
             'PNAE': ['1552', '2552'],
             'PNATE': ['1553', '2553'],
@@ -353,25 +363,27 @@ if df_f_raw is not None and df_r is not None:
         }
         todas_fontes = [f for lista in mapa_fontes.values() for f in lista]
         
-        # Leitura e filtragem dos 3 arquivos para evitar omissões
-        palavras_vinc = 'PNAE|PNATE|PTE|SALÁRIO EDUCAÇÃO|QESE'
-        df_r_vinc = df_r[df_r['Descrição da Receita'].str.contains(palavras_vinc, case=False, na=False)].copy()
+        # --- BUSCA DE DADOS CONSOLIDADA ---
+        # 1. Filtro em Receitas pelas categorias solicitadas (Federais e Estaduais)
+        categorias_alvo = ['TRANSFERÊNCIA PROGRAMAS FEDERAIS', 'TRANSFERÊNCIA PROGRAMAS ESTADUAIS', 
+                           'TRANSFERENCIA PROGRAMAS FEDERAIS', 'TRANSFERENCIA PROGRAMAS ESTADUAIS']
+        df_r_vinc = df_r[df_r['Categoria'].str.upper().isin(categorias_alvo)].copy()
+        
+        # 2. Filtro em Despesas Diárias (DF) para precisão cronológica
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
+        
+        # 3. Filtro em Fichas (F) para o relatório técnico
         df_f_vinc_base = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes)].copy()
         
         # --- MÉTRICAS ---
         tot_prev_vinc = df_r_vinc['Orçado Receitas'].sum()
         tot_rec_acum = df_r_vinc[meses_vinc].sum().sum()
-        tot_rec_mensal = df_r_vinc['Fevereiro'].sum() if 'Fevereiro' in df_r_vinc.columns else 0
-        
-        # Despesas vêm do DF para precisão cronológica
         tot_desp_liq_acum = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
-        tot_desp_liq_mensal = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado']['Fevereiro'].sum() if 'Fevereiro' in df_df_vinc.columns else 0
         
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Receitas 2026", formar_real(tot_prev_vinc))
-        with m2: st.metric("Receitas Recebidas (Acum.)", formar_real(tot_rec_acum), delta=f"Mensal: {formar_real(tot_rec_mensal)}")
-        with m3: st.metric("Despesas Liquidadas (Acum.)", formar_real(tot_desp_liq_acum), delta=f"Mensal: {formar_real(tot_desp_liq_mensal)}")
+        with m2: st.metric("Receitas Recebidas (Acum.)", formar_real(tot_rec_acum))
+        with m3: st.metric("Despesas Liquidadas (Acum.)", formar_real(tot_desp_liq_acum))
         
         st.markdown("---")
         st.subheader("📊 Aplicação por Programa e Fonte")
@@ -379,20 +391,22 @@ if df_f_raw is not None and df_r is not None:
         dados_grafico_prog = []
         for prog, fontes in mapa_fontes.items():
             for f in fontes:
-                # Regra: Inicia com "2" = Superávit (Investimento)
-                tipo_v = "Investimento (Superávit)" if f.startswith('2') else "Recurso Corrente"
-                # Soma liquidado para a fonte específica
-                val_v = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
-                if val_v >= 0:
+                # Regra: Se a fonte inicia com "2", é Superávit (Investimento)
+                tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
+                
+                # Busca valor liquidado específico no DF
+                val_v = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & 
+                                   (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
+                
+                if val_v > 0:
                     dados_grafico_prog.append({"Programa": prog, "Fonte": f, "Tipo": tipo_v, "Valor": val_v})
         
-        df_fig_vinc = pd.DataFrame(dados_grafico_prog)
-        if not df_fig_vinc.empty:
+        if dados_grafico_prog:
+            df_fig_vinc = pd.DataFrame(dados_grafico_prog)
             fig_vinc_bar = px.bar(
                 df_fig_vinc, x='Programa', y='Valor', color='Tipo', barmode='group',
                 text_auto='.2s', color_discrete_map={"Recurso Corrente": "#003366", "Investimento (Superávit)": "#cc0000"}
             )
-            # Customdata para garantir que o Hover mostre a Fonte e o Programa corretamente
             fig_vinc_bar.update_traces(
                 hovertemplate="<b>Programa:</b> %{x}<br><b>Fonte:</b> %{customdata[0]}<br><b>Classificação:</b> %{fullData.name}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
                 customdata=df_fig_vinc[['Fonte']]
@@ -400,12 +414,12 @@ if df_f_raw is not None and df_r is not None:
             fig_vinc_bar.update_layout(separators=",.", yaxis={'title': 'Total Liquidado (Jan-Fev)'})
             st.plotly_chart(fig_vinc_bar, use_container_width=True, config=CONFIG_PT)
         else:
-            st.info("Sem dados de despesas para os programas vinculados no período.")
+            st.info("Nenhuma despesa liquidada encontrada para os programas vinculados nas categorias Federais/Estaduais.")
 
-        st.markdown("### 📋 Relatório Geral de Fichas (Vinculados)")
-        # Detalhamento vindo do Alpinópolis.csv (df_f_raw) filtrado
+        st.markdown("### 📋 Relatório Detalhado de Fichas (Vinculados)")
         col_liq_v = [c for c in df_f_vinc_base.columns if any(m in c for m in meses_vinc) and 'Liquidado' in c]
         df_f_vinc_base['Soma_Liquidado'] = df_f_vinc_base[col_liq_v].sum(axis=1)
+        
         c_orc_v = next((c for c in df_f_vinc_base.columns if 'Orçado' in c), None)
         c_sld_v = next((c for c in df_f_vinc_base.columns if 'Saldo' in c), None)
         
@@ -421,4 +435,4 @@ if df_f_raw is not None and df_r is not None:
         st.dataframe(df_vinc_final, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro ao carregar as bases de dados de Alpinópolis.")
+    st.error("Erro ao carregar as bases de dados (CSV). Verifique os arquivos na pasta zEducação.")
