@@ -347,7 +347,6 @@ if df_f_raw is not None and df_r is not None:
         meses_vinc = ['Janeiro', 'Fevereiro']
         programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
         
-        # Mapeamento estrito de fontes de DESPESA
         mapa_desp = {
             'PNAE': ['1552', '2552'],
             'PNATE': ['1553', '2553'],
@@ -356,11 +355,7 @@ if df_f_raw is not None and df_r is not None:
         }
         todas_fontes_desp = [f for lista in mapa_desp.values() for f in lista]
         
-        # --- FILTRAGEM DE RECEITAS ---
-        # Filtra apenas as linhas onde a descrição da receita contém exatamente os nomes dos programas
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().isin(programas)].copy()
-        
-        # --- FILTRAGEM DE DESPESAS (DF e Fichas) ---
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
         df_f_vinc_base = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
 
@@ -370,12 +365,26 @@ if df_f_raw is not None and df_r is not None:
         for m in meses_vinc:
             for prog in programas:
                 val = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper() == prog][m].sum()
-                dados_r.append({"Mês": m, "Programa": prog, "Valor": val})
+                if val > 0: # Filtra para remover gaps de programas sem valores
+                    dados_r.append({"Mês": m, "Programa": prog, "Valor": val})
         
-        fig_rec = px.bar(pd.DataFrame(dados_r), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
-                        color_discrete_map={'PNAE':'#002147', 'PNATE':'#00509d', 'PTE':'#6699cc', 'QESE':'#99ccff'})
-        fig_rec.update_layout(separators=",.", yaxis={'title': 'Arrecadado'})
-        st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
+        if dados_r:
+            df_r_fig = pd.DataFrame(dados_r)
+            fig_rec = px.bar(df_r_fig, x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
+                            color_discrete_map={'PNAE':'#002147', 'PNATE':'#00509d', 'PTE':'#6699cc', 'QESE':'#99ccff'})
+            
+            # Ajuste de Layout: Remove espaços de barras vazias e padroniza Hover
+            fig_rec.update_layout(
+                separators=",.", 
+                yaxis={'title': 'Arrecadado'},
+                xaxis={'categoryorder': 'array', 'categoryarray': meses_vinc}
+            )
+            fig_rec.update_traces(
+                hovertemplate="<b>Programa:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
+            )
+            st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
+        else:
+            st.info("Nenhuma receita encontrada para os programas selecionados no período.")
 
         # --- GRÁFICO 2: DESPESAS LIQUIDADAS (Mensal e Acumulado) ---
         st.subheader("🔹 2. Total de Despesas Liquidadas")
@@ -383,7 +392,6 @@ if df_f_raw is not None and df_r is not None:
         for m in meses_vinc:
             for prog, fontes in mapa_desp.items():
                 for f in fontes:
-                    # Identifica se é investimento (Superávit) para o hover
                     tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
                     val_d = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][m].sum()
                     if val_d > 0:
@@ -393,7 +401,6 @@ if df_f_raw is not None and df_r is not None:
             df_d_fig = pd.DataFrame(dados_d)
             fig_desp = px.bar(df_d_fig, x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
                              color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
-            # Hover apenas mostra a fonte e classificação
             fig_desp.update_traces(
                 hovertemplate="<b>Programa:</b> %{fullData.name}<br><b>Fonte:</b> %{customdata[0]}<br><b>Tipo:</b> %{customdata[1]}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
                 customdata=df_d_fig[['Fonte', 'Classificação']]
@@ -403,7 +410,6 @@ if df_f_raw is not None and df_r is not None:
         else:
             st.info("Nenhuma despesa liquidada encontrada para as fontes vinculadas no período.")
 
-        # --- DETALHAMENTO POR PROGRAMA E FONTE DE DESPESA ---
         st.markdown("---")
         st.subheader("📋 Detalhamento por Programa e Fonte de Despesa")
         
