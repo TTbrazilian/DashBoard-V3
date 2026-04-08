@@ -317,7 +317,7 @@ if df_f_raw is not None and df_r is not None:
         fig_d_prop.update_layout(separators=",.")
         st.plotly_chart(fig_d_prop, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
-        st.subheader("🔹 4. Análise Comparativa e Meta (25%)")
+        st.subheader("🔹 Análise Comparativa e Meta (25%)")
         fase_sel = st.radio("Fase para índice:", ["Liquidado", "Empenhado", "Pago"], horizontal=True, key="fase_prop")
         valor_meta = base_calculo_25 * 0.25
         df_comp_prop = pd.DataFrame({"Categoria": ["Receita Base", f"Despesa ({fase_sel})"], "Valor": [base_calculo_25, desp_fases[fase_sel]]})
