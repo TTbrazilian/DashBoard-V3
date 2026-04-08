@@ -188,7 +188,7 @@ if df_f_raw is not None and df_r is not None:
             else: st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%", delta_color="inverse")
         
         st.markdown("---")
-        # --- 1. RECEITAS ---
+        # --- 1. RECEITAS FUNDEB ---
         col_r_h, col_r_b = st.columns([3, 1])
         with col_r_h: st.subheader("🔹 1. Receitas FUNDEB")
         with col_r_b: tipo_r = st.segmented_control("Visualização Receita:", ["Acumulado", "Mensal"], default="Acumulado", key="r_btn")
@@ -198,6 +198,8 @@ if df_f_raw is not None and df_r is not None:
             df_r_plot.columns = ['Categoria', 'Valor']
             fig_r = px.bar(df_r_plot, x='Categoria', y='Valor', color='Categoria', text_auto='.2s',
                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
+            # Correção do Hover para modo Acumulado
+            fig_r.update_traces(hovertemplate="<b>Categoria:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         else:
             dados_m_r = []
             for m in meses_disponiveis:
@@ -206,8 +208,9 @@ if df_f_raw is not None and df_r is not None:
                     dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
             fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
+            # Correção do Hover para modo Mensal
+            fig_r.update_traces(hovertemplate="<b>Categoria:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         
-        fig_r.update_traces(hovertemplate="<b>Categoria:</b> %{fullData.name if hasattr(fullData, 'name') else x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
@@ -221,7 +224,6 @@ if df_f_raw is not None and df_r is not None:
             df_f_plot = []
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
                 val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
-                # Proporção: Despesa da Fonte / Total de Receitas Arrecadadas
                 prop = (val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
                 df_f_plot.append({"Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
             
