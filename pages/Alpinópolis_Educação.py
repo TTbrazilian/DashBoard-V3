@@ -89,7 +89,7 @@ def abreviar_extremo(nome):
     n = nome.upper()
     mapeamento = {
         "IMPOSTO SOBRE A PROPRIEDADE PREDIAL E TERRITORIAL URBANA": "IPTU",
-        "IMPOSTO SOBRE TRANSMISSÃO DE BENS IMÓVEI S": "ITBI",
+        "IMPOSTO SOBRE TRANSMISSÃO DE BENS IMÓVEIS": "ITBI",
         "IMPOSTO SOBRE SERVIÇOS DE QUALQUER NATUREZA": "ISS",
         "IMPOSTO SOBRE A RENDA": "IR",
         "IMPOSTO TERRITORIAL RURAL": "ITR",
@@ -165,6 +165,7 @@ if df_f_raw is not None and df_r is not None:
             if 'ETI' in desc or 'TEMPO INTEGRAL' in desc: return 'ETI'
             if 'APLICAÇÃO' in desc or 'APLICACAO' in desc: return 'Aplicação'
             return 'Principal'
+            
         meses_disponiveis = ['Janeiro', 'Fevereiro']
         df_df_fundeb = df_df_raw[(df_df_raw['Fonte'].astype(str).str.contains('15407|15403', na=False))].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
@@ -172,38 +173,30 @@ if df_f_raw is not None and df_r is not None:
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('540|546', na=False)].copy()
         
-        tot_rec_ano = df_r_fundeb[meses_disponiveis].sum().sum()
+        tot_rec_periodo = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR'][meses_disponiveis].sum().sum()
-        
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
-        desp_30_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 30%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
-        tot_desp_fundeb = desp_70_val + desp_30_val
         
         perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
-        prop_rec_desp = (tot_desp_fundeb / tot_rec_ano * 100) if tot_rec_ano > 0 else 0
-        prop_70_30 = (desp_70_val / tot_desp_fundeb * 100) if tot_desp_fundeb > 0 else 0
-
+        
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Previsão Orçamentária 2026", formar_real(tot_prev_2026))
-        with m2: st.metric(f"Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(tot_rec_ano))
+        with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
+        with m2: st.metric(f"Total Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(tot_rec_periodo))
         with m3:
             if perc_70 >= 70: st.metric("Aplicação em Pessoal (Mín. 70%)", f"✅ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
             else: st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%", delta_color="inverse")
         
-        c1, c2 = st.columns(2)
-        with c1: st.metric("Comprometimento da Receita", f"{prop_rec_desp:.2f}%", help="Proporção do total gasto em relação ao total arrecadado")
-        with c2: st.metric("Proporção Pessoal (70%) vs Outros (30%)", f"{prop_70_30:.2f}% / {100-prop_70_30:.2f}%")
-
         st.markdown("---")
-        col_r_title, col_r_btn = st.columns([3, 1])
-        with col_r_title: st.subheader("🔹 1. Receitas FUNDEB")
-        with col_r_btn: tipo_r = st.segmented_control("Ver Receita:", ["Acumulado", "Mensal"], default="Acumulado", key="tipo_r")
+        # --- 1. RECEITAS ---
+        col_r_h, col_r_b = st.columns([3, 1])
+        with col_r_h: st.subheader("🔹 1. Receitas FUNDEB")
+        with col_r_b: tipo_r = st.segmented_control("Visualização Receita:", ["Acumulado", "Mensal"], default="Acumulado", key="r_btn")
         
         if tipo_r == "Acumulado":
-            df_r_fig = df_r_fundeb.groupby('Subcategoria')[meses_disponiveis].sum().sum(axis=1).reset_index()
-            df_r_fig.columns = ['Categoria', 'Valor']
-            fig_r = px.bar(df_r_fig, x='Categoria', y='Valor', color='Categoria', text_auto='.2s',
+            df_r_plot = df_r_fundeb.groupby('Subcategoria')[meses_disponiveis].sum().sum(axis=1).reset_index()
+            df_r_plot.columns = ['Categoria', 'Valor']
+            fig_r = px.bar(df_r_plot, x='Categoria', y='Valor', color='Categoria', text_auto='.2s',
                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         else:
             dados_m_r = []
@@ -219,33 +212,43 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        col_f_title, col_f_btn = st.columns([3, 1])
-        with col_f_title: st.subheader("🔹 2. Despesas FUNDEB")
-        with col_f_btn: tipo_f = st.segmented_control("Ver Despesa:", ["Acumulado", "Mensal"], default="Acumulado", key="tipo_f")
-
+        # --- 2. DESPESAS COM PORCENTAGEM S/ RECEITA NO HOVER ---
+        col_f_h, col_f_b = st.columns([3, 1])
+        with col_f_h: st.subheader("🔹 2. Despesas FUNDEB")
+        with col_f_b: tipo_f = st.segmented_control("Visualização Despesa:", ["Acumulado", "Mensal"], default="Acumulado", key="f_btn")
+        
         if tipo_f == "Acumulado":
-            df_f_fig = pd.DataFrame({
-                "Fonte": ["FUNDEB 70%", "FUNDEB 30%"],
-                "Valor": [desp_70_val, desp_30_val]
-            })
-            fig_f = px.bar(df_f_fig, x='Fonte', y='Valor', color='Fonte', text_auto='.2s',
+            df_f_plot = []
+            for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
+                val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
+                # Proporção: Despesa da Fonte / Total de Receitas Arrecadadas
+                prop = (val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
+                df_f_plot.append({"Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
+            
+            fig_f = px.bar(pd.DataFrame(df_f_plot), x='Fonte', y='Valor', color='Fonte', text_auto='.2s',
+                           custom_data=['Proporção'],
                            color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
+            fig_f.update_traces(hovertemplate="<b>Fonte:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<br><b>% sobre Receita Total:</b> %{customdata[0]}<extra></extra>")
         else:
             dados_m_f = []
             for m in meses_disponiveis:
+                rec_mes = df_r_fundeb[m].sum()
                 for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
                     val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
-                    dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val})
+                    prop = (val / rec_mes * 100) if rec_mes > 0 else 0
+                    dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
+            
             fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
+                           custom_data=['Proporção'],
                            color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
+            fig_f.update_traces(hovertemplate="<b>Fonte:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<br><b>% sobre Receita do Mês:</b> %{customdata[0]}<extra></extra>")
         
-        fig_f.update_traces(hovertemplate="<b>Fonte:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
-        tipo_grafico = st.segmented_control("Visualização:", ["Total Acumulado", "Mensal"], default="Total Acumulado")
+        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Total Acumulado")
         
         if tipo_grafico == "Total Acumulado":
             df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
@@ -379,99 +382,43 @@ if df_f_raw is not None and df_r is not None:
 
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>📖 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
-        
         meses_vinc = ['Janeiro', 'Fevereiro']
         programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
-        
-        mapa_desp = {
-            'PNAE': ['1552', '2552'],
-            'PNATE': ['1553', '2553'],
-            'PTE': ['1576', '2576'],
-            'QESE': ['1550', '2550']
-        }
+        mapa_desp = {'PNAE': ['1552', '2552'], 'PNATE': ['1553', '2553'], 'PTE': ['1576', '2576'], 'QESE': ['1550', '2550']}
         todas_fontes_desp = [f for lista in mapa_desp.values() for f in lista]
-        
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().isin(programas)].copy()
         df_df_vinc = df_df_raw[df_df_raw['Fonte'].astype(str).isin(todas_fontes_desp)].copy()
-
-        # --- MÉTRICAS DE TOPO ---
         prev_vinc = df_r_vinc['Orçado Receitas'].sum()
         arrec_vinc = df_r_vinc[meses_vinc].sum().sum()
         liq_vinc = df_df_vinc[df_df_vinc['Tipo'] == 'Liquidado'][meses_vinc].sum().sum()
-
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(prev_vinc))
         with m2: st.metric(f"Total Arrecadado ({meses_vinc[0]}-{meses_vinc[-1]})", formar_real(arrec_vinc))
         with m3: st.metric(f"Total Liquidado ({meses_vinc[0]}-{meses_vinc[-1]})", formar_real(liq_vinc))
-        
         st.markdown("---")
-
-        # --- GRÁFICO 1: RECEITAS RECEBIDAS ---
         st.subheader("🔹 1. Total de Receitas Recebidas")
         dados_r = []
         for m in meses_vinc:
             for prog in programas:
                 val = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper() == prog][m].sum()
-                if val > 0:
-                    dados_r.append({"Mês": m, "Programa": prog, "Valor": val})
-        
+                if val > 0: dados_r.append({"Mês": m, "Programa": prog, "Valor": val})
         if dados_r:
             fig_rec = px.bar(pd.DataFrame(dados_r), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
                             color_discrete_map={'PNAE':'#002147', 'PNATE':'#00509d', 'PTE':'#6699cc', 'QESE':'#99ccff'})
-            fig_rec.update_layout(
-                separators=",.", 
-                yaxis={'title': 'Arrecadado'},
-                xaxis={'categoryorder': 'array', 'categoryarray': meses_vinc}
-            )
-            fig_rec.update_traces(
-                hovertemplate="<b>Programa:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>"
-            )
+            fig_rec.update_layout(separators=",.", yaxis={'title': 'Arrecadado'})
             st.plotly_chart(fig_rec, use_container_width=True, config=CONFIG_PT)
-
-        # --- GRÁFICO 2: DESPESAS LIQUIDADAS ---
         st.subheader("🔹 2. Total de Despesas Liquidadas")
         dados_d = []
         for m in meses_vinc:
             for prog, fontes in mapa_desp.items():
                 for f in fontes:
-                    tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
                     val_d = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][m].sum()
-                    if val_d > 0:
-                        dados_d.append({"Mês": m, "Programa": prog, "Fonte": f, "Classificação": tipo_v, "Valor": val_d})
-        
+                    if val_d > 0: dados_d.append({"Mês": m, "Programa": prog, "Fonte": f, "Valor": val_d})
         if dados_d:
-            df_d_fig = pd.DataFrame(dados_d)
-            fig_desp = px.bar(df_d_fig, x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
+            fig_desp = px.bar(pd.DataFrame(dados_d), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
                              color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
-            fig_desp.update_traces(
-                hovertemplate="<b>Programa:</b> %{fullData.name}<br><b>Fonte:</b> %{customdata[0]}<br><b>Tipo:</b> %{customdata[1]}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>",
-                customdata=df_d_fig[['Fonte', 'Classificação']]
-            )
             fig_desp.update_layout(separators=",.", yaxis={'title': 'Liquidado'})
             st.plotly_chart(fig_desp, use_container_width=True, config=CONFIG_PT)
-
-        # --- DETALHAMENTO CORRIDO COM COLUNA DE RECEITAS ---
-        st.markdown("---")
-        st.subheader("📋 Detalhamento Consolidado (Receitas vs Despesas)")
-        
-        dados_consolidados = []
-        for prog in programas:
-            receita_acum = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper() == prog][meses_vinc].sum().sum()
-            fontes_vinc = mapa_desp[prog]
-            for i, f in enumerate(fontes_vinc):
-                tipo_v = "Investimento (Superávit)" if str(f).startswith('2') else "Recurso Corrente"
-                val_liq = df_df_vinc[(df_df_vinc['Fonte'].astype(str) == f) & (df_df_vinc['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
-                receita_display = formar_real(receita_acum) if i == 0 else "-"
-                
-                dados_consolidados.append({
-                    "Programa": prog,
-                    "Fonte": f,
-                    "Tipo de Recurso": tipo_v,
-                    "Receita Acumulada": receita_display,
-                    "Total Liquidado (Jan-Fev)": formar_real(val_liq)
-                })
-        
-        st.dataframe(pd.DataFrame(dados_consolidados), use_container_width=True, hide_index=True)
 
 else:
     st.error("Erro ao carregar os arquivos CSV. Verifique a pasta zEducação.")
