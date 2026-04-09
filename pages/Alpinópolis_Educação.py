@@ -178,14 +178,14 @@ if df_f_raw is not None and df_r is not None:
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] != 'VAAR'][meses_disponiveis].sum().sum()
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
         
-        perc_70 = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
+        perc_70_indice = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
         
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
         with m2: st.metric(f"Total Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(tot_rec_periodo))
         with m3:
-            if perc_70 >= 70: st.metric("Aplicação em Pessoal (Mín. 70%)", f"✅ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%")
-            else: st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70:.2f}%", delta=f"{perc_70-70:.2f}%", delta_color="inverse")
+            if perc_70_indice >= 70: st.metric("Aplicação em Pessoal (Mín. 70%)", f"✅ {perc_70_indice:.2f}%", delta=f"{perc_70_indice-70:.2f}%")
+            else: st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70_indice:.2f}%", delta=f"{perc_70_indice-70:.2f}%", delta_color="inverse")
         
         st.markdown("---")
         # --- 1. RECEITAS FUNDEB ---
@@ -198,7 +198,6 @@ if df_f_raw is not None and df_r is not None:
             df_r_plot.columns = ['Categoria', 'Valor']
             fig_r = px.bar(df_r_plot, x='Categoria', y='Valor', color='Categoria', text_auto='.2s',
                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
-            # Correção do Hover para modo Acumulado
             fig_r.update_traces(hovertemplate="<b>Categoria:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         else:
             dados_m_r = []
@@ -208,42 +207,44 @@ if df_f_raw is not None and df_r is not None:
                     dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
             fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
-            # Correção do Hover para modo Mensal
             fig_r.update_traces(hovertemplate="<b>Categoria:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<extra></extra>")
         
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        # --- 2. DESPESAS COM PORCENTAGEM S/ RECEITA NO HOVER ---
+        # --- 2. DESPESAS COM PORCENTAGEM (SOMA 100%) NO HOVER ---
         col_f_h, col_f_b = st.columns([3, 1])
         with col_f_h: st.subheader("🔹 2. Despesas FUNDEB")
         with col_f_b: tipo_f = st.segmented_control("Visualização Despesa:", ["Acumulado", "Mensal"], default="Acumulado", key="f_btn")
         
         if tipo_f == "Acumulado":
+            # Para somar 100%, a base deve ser o Total das Despesas Liquidadas do FUNDEB
+            total_desp_acum = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'][meses_disponiveis].sum().sum()
             df_f_plot = []
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
                 val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
-                prop = (val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
+                prop = (val / total_desp_acum * 100) if total_desp_acum > 0 else 0
                 df_f_plot.append({"Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
             
             fig_f = px.bar(pd.DataFrame(df_f_plot), x='Fonte', y='Valor', color='Fonte', text_auto='.2s',
                            custom_data=['Proporção'],
                            color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
-            fig_f.update_traces(hovertemplate="<b>Fonte:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<br><b>% sobre Receita Total:</b> %{customdata[0]}<extra></extra>")
+            fig_f.update_traces(hovertemplate="<b>Fonte:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<br><b>% s/ Total Despesas:</b> %{customdata[0]}<extra></extra>")
         else:
             dados_m_f = []
             for m in meses_disponiveis:
-                rec_mes = df_r_fundeb[m].sum()
+                # Base mensal do total de despesas para somar 100% no mês
+                total_desp_mes = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'][m].sum()
                 for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
                     val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
-                    prop = (val / rec_mes * 100) if rec_mes > 0 else 0
+                    prop = (val / total_desp_mes * 100) if total_desp_mes > 0 else 0
                     dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
             
             fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                            custom_data=['Proporção'],
                            color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
-            fig_f.update_traces(hovertemplate="<b>Fonte:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<br><b>% sobre Receita do Mês:</b> %{customdata[0]}<extra></extra>")
+            fig_f.update_traces(hovertemplate="<b>Fonte:</b> %{fullData.name}<br><b>Mês:</b> %{x}<br><b>Valor:</b> R$ %{y:,.2f}<br><b>% s/ Despesa do Mês:</b> %{customdata[0]}<extra></extra>")
         
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
