@@ -70,6 +70,8 @@ st.markdown(
 # CORREÇÃO 1: Mudar o tema padrão para 'plotly_dark' para escurecer o hover
 pio.templates.default = "plotly_dark"
 CONFIG_PT = {'displaylogo': False, 'showTips': False}
+# Variável auxiliar para garantir o estilo do hover solicitado (Fonte branca, fundo preto, sem labels extras)
+HOVER_STYLE = dict(bgcolor="rgba(0,0,0,0.9)", font_size=13, font_family="Arial", font_color="white")
 
 if 'setor' not in st.session_state:
     st.session_state.setor = 'FUNDEB'
@@ -226,6 +228,8 @@ if df_f_raw is not None and df_r is not None:
                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
+        # Correção visual do Hover para o FUNDEB
+        fig_r.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -253,8 +257,8 @@ if df_f_raw is not None and df_r is not None:
             fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                            custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
         
-        # CORREÇÃO: Hover do FUNDEB já está correto por padrão com plotly_dark, mas mantendo a estrutura solicitada
-        fig_f.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}<extra></extra>")
+        # CORREÇÃO: Hover do FUNDEB com fonte branca e título em negrito
+        fig_f.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
@@ -281,6 +285,8 @@ if df_f_raw is not None and df_r is not None:
                               text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
         
+        # Correção visual do hover no comparativo
+        fig_comp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
@@ -368,7 +374,7 @@ if df_f_raw is not None and df_r is not None:
         # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
         fig_rp.update_traces(
             hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Fonte: " + ativo + "<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
-            hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=12, font_family="Arial")
+            hoverlabel=HOVER_STYLE
         )
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
 
@@ -406,7 +412,7 @@ if df_f_raw is not None and df_r is not None:
         # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
         fig_d.update_traces(
             hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Status: %{fullData.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
-            hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=12, font_family="Arial")
+            hoverlabel=HOVER_STYLE
         )
         st.plotly_chart(fig_d, use_container_width=True, config=CONFIG_PT)
 
@@ -432,7 +438,7 @@ if df_f_raw is not None and df_r is not None:
             # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
             fig_meta.update_traces(
                 hovertemplate="<span style='color:white;'><b>%{x}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}</span><extra></extra>",
-                hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=12, font_family="Arial")
+                hoverlabel=HOVER_STYLE
             )
             fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dash", line_color="#f39c12", annotation_text="Meta Constitucional (25%)", annotation_position="top left")
         else:
@@ -456,7 +462,7 @@ if df_f_raw is not None and df_r is not None:
             # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
             fig_meta.update_traces(
                 hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}</span><extra></extra>",
-                hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=12, font_family="Arial")
+                hoverlabel=HOVER_STYLE
             )
             
             df_linha_meta = df_meta_m[df_meta_m['Tipo'] == 'Receitas Base'].copy()
@@ -492,6 +498,8 @@ if df_f_raw is not None and df_r is not None:
         
         fig_rec_v = px.bar(pd.DataFrame(dados_comp_v), x='Programa', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                           color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'})
+        # Correção visual do hover nos vinculados
+        fig_rec_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         st.plotly_chart(fig_rec_v, use_container_width=True, config=CONFIG_PT)
 
         st.subheader("🔹 2. Detalhamento por Mês")
@@ -503,6 +511,8 @@ if df_f_raw is not None and df_r is not None:
         if dados_d_v:
             fig_desp_v = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
                                color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
+            # Correção visual do hover no detalhamento mensal dos vinculados
+            fig_desp_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Programa: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
             st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
 
     # --- RELATÓRIO DE FICHAS GLOBAL ---
