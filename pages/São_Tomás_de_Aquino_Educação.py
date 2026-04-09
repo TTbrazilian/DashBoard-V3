@@ -186,7 +186,7 @@ if df_f_raw is not None and df_r is not None:
         df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407', '15403'])].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
         
-        df_r_fundeb = df_r[(df_r['Categoria'] == 'FUNDEB')].copy()
+        df_r_fundeb = df_r[(df_r['Categoria'].str.strip() == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
         df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('540|546', na=False)].copy()
@@ -279,31 +279,29 @@ if df_f_raw is not None and df_r is not None:
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
         cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
-        # Ajuste de segurança para coluna orçado
         orc_col = [c for c in df_f_fundeb.columns if 'Orçado' in c]
         if orc_col: cols_show.append(orc_col[0])
         cols_show.append('Soma_Liquidado')
         st.dataframe(df_f_fundeb[cols_show], use_container_width=True, hide_index=True)
 
-    # --- SETOR RECURSOS PRÓPRIOS (LOGICA INTEGRADA E CORRIGIDA) ---
+    # --- SETOR RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
-        # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte (conforme solicitado na imagem)
-        df_r_base = df_r[df_r['Categoria'].isin(['Impostos', 'Cota-Parte'])].copy()
+        # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte
+        df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
         
-        # 2. Dedução FUNDEB (Parte do Numerador): Coleta a linha de Dedução (valor já negativo)
-        df_r_ded = df_r[df_r['Categoria'] == 'Dedução'].copy()
+        # 2. Dedução FUNDEB: Coleta a linha de Dedução (valor já negativo no CSV)
+        df_r_ded = df_r[df_r['Categoria'].str.strip() == 'Dedução FUNDEB'].copy()
         
-        # 3. Despesas 15001 (Parte do Numerador): Gastos diretos da educação
+        # 3. Despesas 15001 (Liquidado)
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == 'Liquidado')].copy()
         
-        # Cálculos Finais
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         total_deducoes = df_r_ded[meses_disponiveis].sum().sum() 
         
-        # Esforço Próprio = Despesa + Dedução (Sendo que dedução é negativa, ex: 10 + (-2) = 8)
+        # Esforço Próprio = Despesa + Dedução (Ex: 340k + (-214k) = 126k de esforço real)
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
@@ -425,7 +423,7 @@ if df_f_raw is not None and df_r is not None:
                                color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
             st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
 
-    # --- RELATÓRIO DE FICHAS GLOBAL (MANTENDO O FILTRO DE BUSCA DA SIDEBAR) ---
+    # --- RELATÓRIO GERAL ---
     st.markdown("---")
     st.markdown("### 📋 Relatório Geral de Fichas")
     df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(search_term, na=False, case=False)].copy()
