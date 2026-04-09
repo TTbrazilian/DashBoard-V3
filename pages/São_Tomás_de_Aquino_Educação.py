@@ -67,10 +67,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# CORREÇÃO: Mudar o tema padrão para 'plotly_dark' para escurecer o hover
+# CORREÇÃO 1: Mudar o tema padrão para 'plotly_dark' para escurecer o hover
 pio.templates.default = "plotly_dark"
 CONFIG_PT = {'displaylogo': False, 'showTips': False}
-# Estilo de Hover padronizado (Fundo preto, texto branco)
+# Variável auxiliar para garantir o estilo do hover solicitado (Fonte branca, fundo preto, sem labels extras)
 HOVER_STYLE = dict(bgcolor="rgba(0,0,0,0.9)", font_size=13, font_family="Arial", font_color="white")
 
 if 'setor' not in st.session_state:
@@ -216,7 +216,7 @@ if df_f_raw is not None and df_r is not None:
         if tipo_r == "Acumulado":
             df_r_plot = df_r_fundeb.groupby('Subcategoria')[meses_disponiveis].sum().sum(axis=1).reset_index()
             df_r_plot.columns = ['Categoria', 'Valor']
-            fig_r = px.bar(df_r_plot, x='Categoria', y='Valor', color='Categoria', text_auto=None,
+            fig_r = px.bar(df_r_plot, x='Categoria', y='Valor', color='Categoria', text_auto='.2s',
                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         else:
             dados_m_r = []
@@ -224,16 +224,12 @@ if df_f_raw is not None and df_r is not None:
                 for cat in df_r_fundeb['Subcategoria'].unique():
                     val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
                     dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
-            fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto=None, barmode='stack',
+            fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         
-        # APLICAÇÃO DA REGRA DO REAL NO HOVER E TEXTO
-        fig_r.update_traces(
-            texttemplate="R$ %{y:,.2f}",
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>",
-            hoverlabel=HOVER_STYLE
-        )
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
+        # Correção visual do Hover para o FUNDEB
+        fig_r.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -248,7 +244,7 @@ if df_f_raw is not None and df_r is not None:
                 val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
                 prop = (val / total_desp_acum * 100) if total_desp_acum > 0 else 0
                 df_f_plot.append({"Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
-            fig_f = px.bar(pd.DataFrame(df_f_plot), x='Fonte', y='Valor', color='Fonte', text_auto=None,
+            fig_f = px.bar(pd.DataFrame(df_f_plot), x='Fonte', y='Valor', color='Fonte', text_auto='.2s',
                            custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
         else:
             dados_m_f = []
@@ -258,15 +254,11 @@ if df_f_raw is not None and df_r is not None:
                     val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
                     prop = (val / total_desp_mes * 100) if total_desp_mes > 0 else 0
                     dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
-            fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto=None, barmode='stack',
+            fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                            custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
         
-        # APLICAÇÃO DA REGRA DO REAL NO HOVER E TEXTO
-        fig_f.update_traces(
-            texttemplate="R$ %{y:,.2f}",
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}</span><extra></extra>",
-            hoverlabel=HOVER_STYLE
-        )
+        # CORREÇÃO: Hover do FUNDEB com fonte branca e título em negrito
+        fig_f.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
@@ -293,12 +285,8 @@ if df_f_raw is not None and df_r is not None:
                               text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
         
-        # APLICAÇÃO DA REGRA DO REAL NO HOVER
-        fig_comp.update_traces(
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>",
-            hoverlabel=HOVER_STYLE
-        )
-        fig_comp.update_layout(separators=",.")
+        # Correção visual do hover no comparativo
+        fig_comp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
@@ -378,18 +366,16 @@ if df_f_raw is not None and df_r is not None:
         df_aux = df_r_base.copy() if ativo == "Acumulado Geral" else df_r_base[df_r_base['Descrição da Receita'] == ativo].copy()
         
         if view_rp == "Acumulado":
-            fig_rp = px.bar(x=[ativo], y=[df_aux[meses_disponiveis].sum().sum()], text_auto=None, color_discrete_sequence=['#003366'])
+            fig_rp = px.bar(x=[ativo], y=[df_aux[meses_disponiveis].sum().sum()], text_auto='.3s', color_discrete_sequence=['#003366'])
         else:
             dados_m = [{"Mês": m, "Valor": df_aux[m].sum()} for m in meses_disponiveis]
-            fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto=None, color_discrete_sequence=['#003366'])
+            fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s', color_discrete_sequence=['#003366'])
         
-        # APLICAÇÃO DA REGRA DO REAL NO HOVER E TEXTO
+        # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
         fig_rp.update_traces(
-            texttemplate="R$ %{y:,.2f}",
             hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Fonte: " + ativo + "<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
             hoverlabel=HOVER_STYLE
         )
-        fig_rp.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -408,7 +394,7 @@ if df_f_raw is not None and df_r is not None:
             df_desp_plot['Fase'] = pd.Categorical(df_desp_plot['Fase'], ["Empenhado", "Liquidado", "Pago"])
             df_desp_plot = df_desp_plot.sort_values("Fase")
             
-            fig_d = px.bar(df_desp_plot, x='Fase', y='Valor', color='Fase', text_auto=None, 
+            fig_d = px.bar(df_desp_plot, x='Fase', y='Valor', color='Fase', text_auto='.3s', 
                            color_discrete_map={'Empenhado':'#b3b3b3', 'Liquidado':'#00509d', 'Pago':'#002147'})
         else:
             dados_d_m = []
@@ -420,16 +406,14 @@ if df_f_raw is not None and df_r is not None:
             df_dados_d_m['Fase'] = pd.Categorical(df_dados_d_m['Fase'], ["Empenhado", "Liquidado", "Pago"])
             df_dados_d_m = df_dados_d_m.sort_values(["Mês", "Fase"])
             
-            fig_d = px.bar(df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group', text_auto=None,
+            fig_d = px.bar(df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group', text_auto='.2s',
                            color_discrete_map={'Empenhado':'#b3b3b3', 'Liquidado':'#00509d', 'Pago':'#002147'})
         
-        # APLICAÇÃO DA REGRA DO REAL NO HOVER E TEXTO
+        # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
         fig_d.update_traces(
-            texttemplate="R$ %{y:,.2f}",
             hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Status: %{fullData.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
             hoverlabel=HOVER_STYLE
         )
-        fig_d.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_d, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -447,13 +431,12 @@ if df_f_raw is not None and df_r is not None:
                 "Deducao": [0, total_deducoes],
                 "Despesa15001": [0, total_desp_15001]
             })
-            fig_meta = px.bar(df_meta, x='Categoria', y='Valor', color='Categoria', text_auto=None,
+            fig_meta = px.bar(df_meta, x='Categoria', y='Valor', color='Categoria', text_auto='.3s',
                               custom_data=['Deducao', 'Despesa15001'],
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao})
             
-            # APLICAÇÃO DA REGRA DO REAL NO HOVER E TEXTO
+            # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
             fig_meta.update_traces(
-                texttemplate="R$ %{y:,.2f}",
                 hovertemplate="<span style='color:white;'><b>%{x}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}</span><extra></extra>",
                 hoverlabel=HOVER_STYLE
             )
@@ -472,13 +455,12 @@ if df_f_raw is not None and df_r is not None:
                 dados_meta_m.append({"Mês": m, "Tipo": "Aplicação Total", "Valor": d_m + ded_m, "Dedução": ded_m, "Desp": d_m, "Cor": cor_m})
             
             df_meta_m = pd.DataFrame(dados_meta_m)
-            fig_meta = px.bar(df_meta_m, x='Mês', y='Valor', color='Tipo', barmode='group', text_auto=None,
+            fig_meta = px.bar(df_meta_m, x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               custom_data=['Dedução', 'Desp'], 
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao}) 
             
-            # APLICAÇÃO DA REGRA DO REAL NO HOVER E TEXTO
+            # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
             fig_meta.update_traces(
-                texttemplate="R$ %{y:,.2f}",
                 hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}</span><extra></extra>",
                 hoverlabel=HOVER_STYLE
             )
@@ -487,7 +469,6 @@ if df_f_raw is not None and df_r is not None:
             df_linha_meta['Meta Mensal (25%)'] = df_linha_meta['Valor'] * 0.25
             fig_meta.add_trace(go.Scatter(x=df_linha_meta['Mês'], y=df_linha_meta['Meta Mensal (25%)'], mode='lines+markers', name='Meta 25% (Mensal)', line=dict(color='#f39c12', dash='dash')))
 
-        fig_meta.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
 
     # --- SETOR RECURSOS VINCULADOS ---
@@ -515,16 +496,10 @@ if df_f_raw is not None and df_r is not None:
             dados_comp_v.append({"Programa": prog, "Tipo": "Receita", "Valor": rec})
             dados_comp_v.append({"Programa": prog, "Tipo": "Despesa", "Valor": desp})
         
-        fig_rec_v = px.bar(pd.DataFrame(dados_comp_v), x='Programa', y='Valor', color='Tipo', barmode='group', text_auto=None,
+        fig_rec_v = px.bar(pd.DataFrame(dados_comp_v), x='Programa', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                           color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'})
-        
-        # APLICAÇÃO DA REGRA DO REAL NO HOVER E TEXTO
-        fig_rec_v.update_traces(
-            texttemplate="R$ %{y:,.2f}",
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>",
-            hoverlabel=HOVER_STYLE
-        )
-        fig_rec_v.update_layout(separators=",.", yaxis={'showticklabels': False})
+        # Correção visual do hover nos vinculados
+        fig_rec_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         st.plotly_chart(fig_rec_v, use_container_width=True, config=CONFIG_PT)
 
         st.subheader("🔹 2. Detalhamento por Mês")
@@ -534,16 +509,10 @@ if df_f_raw is not None and df_r is not None:
                 val = df_df_raw[(df_df_raw['Fonte'].isin(fontes)) & (df_df_raw['Tipo'] == 'Liquidado')][m].sum()
                 if val > 0: dados_d_v.append({"Mês": m, "Programa": prog, "Valor": val})
         if dados_d_v:
-            fig_desp_v = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Programa', barmode='group', text_auto=None,
+            fig_desp_v = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
                                color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
-            
-            # APLICAÇÃO DA REGRA DO REAL NO HOVER E TEXTO
-            fig_desp_v.update_traces(
-                texttemplate="R$ %{y:,.2f}",
-                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Programa: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
-                hoverlabel=HOVER_STYLE
-            )
-            fig_desp_v.update_layout(separators=",.", yaxis={'showticklabels': False})
+            # Correção visual do hover no detalhamento mensal dos vinculados
+            fig_desp_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Programa: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
             st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
 
     # --- RELATÓRIO DE FICHAS GLOBAL ---
