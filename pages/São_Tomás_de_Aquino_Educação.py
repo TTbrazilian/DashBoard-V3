@@ -279,26 +279,32 @@ if df_f_raw is not None and df_r is not None:
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
         cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
-        if 'Orçado' in str(df_f_fundeb.columns): cols_show.append([c for c in df_f_fundeb.columns if 'Orçado' in c][0])
+        # Ajuste de segurança para coluna orçado
+        orc_col = [c for c in df_f_fundeb.columns if 'Orçado' in c]
+        if orc_col: cols_show.append(orc_col[0])
         cols_show.append('Soma_Liquidado')
         st.dataframe(df_f_fundeb[cols_show], use_container_width=True, hide_index=True)
 
-    # --- SETOR RECURSOS PRÓPRIOS (LOGICA DE DEDUÇÃO NEGATIVA APLICADA) ---
+    # --- SETOR RECURSOS PRÓPRIOS (LOGICA INTEGRADA E CORRIGIDA) ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
+        # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte (conforme solicitado na imagem)
         df_r_base = df_r[df_r['Categoria'].isin(['Impostos', 'Cota-Parte'])].copy()
-        df_r_ded = df_r[df_r['Categoria'] == 'Dedução FUNDEB'].copy()
+        
+        # 2. Dedução FUNDEB (Parte do Numerador): Coleta a linha de Dedução (valor já negativo)
+        df_r_ded = df_r[df_r['Categoria'] == 'Dedução'].copy()
+        
+        # 3. Despesas 15001 (Parte do Numerador): Gastos diretos da educação
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == 'Liquidado')].copy()
         
+        # Cálculos Finais
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
-        
-        # LOGICA CORRIGIDA: total_deducoes já vem negativo do banco de dados/limpeza.
-        # Somar um valor negativo é o mesmo que subtrair do esforço.
         total_deducoes = df_r_ded[meses_disponiveis].sum().sum() 
-        esforco_total = total_desp_15001 + total_deducoes
         
+        # Esforço Próprio = Despesa + Dedução (Sendo que dedução é negativa, ex: 10 + (-2) = 8)
+        esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
         m1, m2, m3 = st.columns(3)
@@ -319,7 +325,9 @@ if df_f_raw is not None and df_r is not None:
         
         grid = st.columns([0.5, 1.2, 1.2, 1.2, 1.2, 1.2, 0.5])
         with grid[0]:
-            if st.button("◀", key="rp_left"): st.session_state.idx_nav_rp = max(0, st.session_state.idx_nav_rp - 5); st.rerun()
+            if st.button("◀", key="rp_left"): 
+                st.session_state.idx_nav_rp = max(0, st.session_state.idx_nav_rp - 5)
+                st.rerun()
         
         fim_idx = min(st.session_state.idx_nav_rp + 5, len(lista_completa))
         fatia = lista_completa[st.session_state.idx_nav_rp:fim_idx]
@@ -328,11 +336,14 @@ if df_f_raw is not None and df_r is not None:
             with grid[i+1]:
                 label = abreviar_extremo(item)
                 if st.button(label, key=f"rp_btn_{item}", help=item, use_container_width=True):
-                    st.session_state['ativo_rp'] = item.replace("📊 ", ""); st.rerun()
+                    st.session_state['ativo_rp'] = item.replace("📊 ", "")
+                    st.rerun()
         
         with grid[6]:
             if st.button("▶", key="rp_right"):
-                if st.session_state.idx_nav_rp + 5 < len(lista_completa): st.session_state.idx_nav_rp += 5; st.rerun()
+                if st.session_state.idx_nav_rp + 5 < len(lista_completa): 
+                    st.session_state.idx_nav_rp += 5
+                    st.rerun()
                     
         ativo = st.session_state.get('ativo_rp', "Acumulado Geral")
         st.markdown(f"#### 📈 {ativo}")
@@ -346,9 +357,8 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        col_meta_h, col_meta_b = st.columns([3, 1])
-        with col_meta_h: st.subheader("🔹 Análise Comparativa e Meta")
-        with col_meta_b: view_meta = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Acumulado", key="view_meta")
+        st.subheader("🔹 Análise Comparativa e Meta")
+        view_meta = st.segmented_control("Visualização Meta:", ["Acumulado", "Mensal"], default="Acumulado", key="view_meta")
 
         if view_meta == "Acumulado":
             df_meta = pd.DataFrame({
@@ -387,7 +397,8 @@ if df_f_raw is not None and df_r is not None:
         with m1: st.metric("Previsão Vinculados 2026", formar_real(df_r_vinc['Orçado Receitas'].sum()))
         with m2: st.metric(f"Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(df_r_vinc[meses_disponiveis].sum().sum()))
         with m3:
-            total_liq_vinc = df_df_raw[(df_df_raw['Fonte'].isin([f for sub in mapa_desp.values() for f in sub])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
+            fontes_v = [f for sub in mapa_desp.values() for f in sub]
+            total_liq_vinc = df_df_raw[(df_df_raw['Fonte'].isin(fontes_v)) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
             st.metric(f"Liquidado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_liq_vinc))
 
         st.markdown("---")
@@ -398,6 +409,7 @@ if df_f_raw is not None and df_r is not None:
             desp = df_df_raw[(df_df_raw['Fonte'].isin(mapa_desp[prog])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
             dados_comp_v.append({"Programa": prog, "Tipo": "Receita", "Valor": rec})
             dados_comp_v.append({"Programa": prog, "Tipo": "Despesa", "Valor": desp})
+        
         fig_rec_v = px.bar(pd.DataFrame(dados_comp_v), x='Programa', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                           color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'})
         st.plotly_chart(fig_rec_v, use_container_width=True, config=CONFIG_PT)
@@ -412,5 +424,12 @@ if df_f_raw is not None and df_r is not None:
             fig_desp_v = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
                                color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
             st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
+
+    # --- RELATÓRIO DE FICHAS GLOBAL (MANTENDO O FILTRO DE BUSCA DA SIDEBAR) ---
+    st.markdown("---")
+    st.markdown("### 📋 Relatório Geral de Fichas")
+    df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(search_term, na=False, case=False)].copy()
+    st.dataframe(df_f_filt, use_container_width=True, hide_index=True)
+
 else:
     st.error("Erro ao carregar os arquivos CSV. Verifique a pasta 'zEducação' ou o upload dos arquivos.")
