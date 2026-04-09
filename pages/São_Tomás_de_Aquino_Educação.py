@@ -303,7 +303,7 @@ if df_f_raw is not None and df_r is not None:
         # 2. Dedução FUNDEB: Valor já negativo no CSV, aplicaremos abs() para computar como aplicação a favor da educação
         df_r_ded = df_r[df_r['Categoria'].str.strip() == 'Dedução FUNDEB'].copy()
         
-        # --- NOVO: Seletor Global de Fase para Despesas 15001 ---
+        # Seletor Global de Fase para Despesas 15001
         fase_despesa = st.segmented_control(" (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
 
         # 3. Despesas 15001 baseadas na fase selecionada
@@ -313,11 +313,11 @@ if df_f_raw is not None and df_r is not None:
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
-        # Esforço Próprio = Despesas 15001 + Dedução FUNDEB (Ambos contam para atingimento dos 25%)
+        # Esforço Próprio = Despesas 15001 + Dedução FUNDEB
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
-        # 1. INDICADORES NO TOPO
+        # INDICADORES NO TOPO
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Total das Receitas de Impostos e Cota-Parte", formar_real(total_rec_base))
         with m2: st.metric(f"Despesas 15001 ({fase_despesa}) + Dedução", formar_real(esforco_total))
@@ -327,7 +327,7 @@ if df_f_raw is not None and df_r is not None:
             
         st.markdown("---")
         
-        # --- 2. RECEITAS ---
+        # --- RECEITAS ---
         col_rp_h, col_rp_b = st.columns([3, 1])
         with col_rp_h: st.subheader("🔹 Receitas Recursos Próprios (Impostos e Cota-Parte)")
         with col_rp_b: view_rp = st.segmented_control("Visualização Receitas:", ["Acumulado", "Mensal"], default="Acumulado", key="view_rp")
@@ -370,7 +370,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         
-        # --- 3. DESPESAS FONTE 15001 ---
+        # --- DESPESAS FONTE 15001 ---
         st.subheader("🔹 Despesas Fonte 15001")
         col_d_h, col_d_b = st.columns([3, 1])
         with col_d_h: st.markdown("Detalhamento Acumulado e Mensal por Estágio (Empenhado, Liquidado, Pago)")
@@ -381,7 +381,6 @@ if df_f_raw is not None and df_r is not None:
         if view_desp == "Acumulado":
             df_desp_plot = df_15001_todas.groupby('Tipo')[meses_disponiveis].sum().sum(axis=1).reset_index()
             df_desp_plot.columns = ['Fase', 'Valor']
-            # Reordenar para lógica contábil
             df_desp_plot['Fase'] = pd.Categorical(df_desp_plot['Fase'], ["Empenhado", "Liquidado", "Pago"])
             df_desp_plot = df_desp_plot.sort_values("Fase")
             
@@ -403,7 +402,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         
-        # --- 4. ANÁLISE COMPARATIVA E META ---
+        # --- ANÁLISE COMPARATIVA E META ---
         st.subheader("🔹 Análise Comparativa e Meta (Mínimo 25%)")
         view_meta = st.segmented_control("Visualização Meta:", ["Acumulado", "Mensal"], default="Acumulado", key="view_meta")
 
@@ -442,7 +441,6 @@ if df_f_raw is not None and df_r is not None:
             
             fig_meta.update_traces(hovertemplate="<b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}")
             
-            # Linha representando a meta de 25% com base no fechamento do respectivo mês
             df_linha_meta = df_meta_m[df_meta_m['Tipo'] == 'Receitas Base'].copy()
             df_linha_meta['Meta Mensal (25%)'] = df_linha_meta['Valor'] * 0.25
             fig_meta.add_trace(go.Scatter(x=df_linha_meta['Mês'], y=df_linha_meta['Meta Mensal (25%)'], mode='lines+markers', name='Meta 25% (Mensal)', line=dict(color='#f39c12', dash='dash')))
@@ -489,7 +487,7 @@ if df_f_raw is not None and df_r is not None:
                                color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
             st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
 
-    # --- RELATÓRIO DE FICHAS GLOBAL (MANTENDO O FILTRO DE BUSCA DA SIDEBAR) ---
+    # --- RELATÓRIO DE FICHAS GLOBAL ---
     st.markdown("---")
     st.markdown("### 📋 Relatório Geral de Fichas")
     df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(search_term, na=False, case=False)].copy()
