@@ -287,6 +287,7 @@ if df_f_raw is not None and df_r is not None:
         
         # Correção visual do hover no comparativo
         fig_comp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
+        fig_comp.update_layout(separators=",.") # <- ADICIONADO AQUI
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
@@ -376,6 +377,7 @@ if df_f_raw is not None and df_r is not None:
             hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Fonte: " + ativo + "<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
             hoverlabel=HOVER_STYLE
         )
+        fig_rp.update_layout(separators=",.") # <- ADICIONADO AQUI
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -414,6 +416,7 @@ if df_f_raw is not None and df_r is not None:
             hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Status: %{fullData.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
             hoverlabel=HOVER_STYLE
         )
+        fig_d.update_layout(separators=",.") # <- ADICIONADO AQUI
         st.plotly_chart(fig_d, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
@@ -469,6 +472,7 @@ if df_f_raw is not None and df_r is not None:
             df_linha_meta['Meta Mensal (25%)'] = df_linha_meta['Valor'] * 0.25
             fig_meta.add_trace(go.Scatter(x=df_linha_meta['Mês'], y=df_linha_meta['Meta Mensal (25%)'], mode='lines+markers', name='Meta 25% (Mensal)', line=dict(color='#f39c12', dash='dash')))
 
+        fig_meta.update_layout(separators=",.") # <- ADICIONADO AQUI
         st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
 
     # --- SETOR RECURSOS VINCULADOS ---
@@ -500,6 +504,7 @@ if df_f_raw is not None and df_r is not None:
                           color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'})
         # Correção visual do hover nos vinculados
         fig_rec_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
+        fig_rec_v.update_layout(separators=",.") # <- ADICIONADO AQUI
         st.plotly_chart(fig_rec_v, use_container_width=True, config=CONFIG_PT)
 
         st.subheader("🔹 2. Detalhamento por Mês")
@@ -513,6 +518,7 @@ if df_f_raw is not None and df_r is not None:
                                color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
             # Correção visual do hover no detalhamento mensal dos vinculados
             fig_desp_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Programa: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
+            fig_desp_v.update_layout(separators=",.") # <- ADICIONADO AQUI
             st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
 
     # --- RELATÓRIO DE FICHAS GLOBAL ---
