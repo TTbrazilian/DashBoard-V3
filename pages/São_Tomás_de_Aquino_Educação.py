@@ -398,7 +398,7 @@ if df_f_raw is not None and df_r is not None:
             df_desp_plot = df_desp_plot.sort_values("Fase")
             
             fig_d = px.bar(df_desp_plot, x='Fase', y='Valor', color='Fase', text_auto='.3s', 
-                           color_discrete_map={'Empenhado':"#ff0000", 'Liquidado':"#860000", 'Pago':"#470000"})
+                           color_discrete_map={'Empenhado':"#fa3d3d", 'Liquidado':"#860000", 'Pago':"#470000"})
         else:
             dados_d_m = []
             for m in meses_disponiveis:
