@@ -410,7 +410,7 @@ if df_f_raw is not None and df_r is not None:
             df_dados_d_m = df_dados_d_m.sort_values(["Mês", "Fase"])
             
             fig_d = px.bar(df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group', text_auto='.2s',
-                           color_discrete_map={'Empenhado':'#b3b3b3', 'Liquidado':'#00509d', 'Pago':'#002147'})
+                           color_discrete_map={'Empenhado':'#fa3d3d', 'Liquidado':'#860000', 'Pago':'#470000'})
         
         fig_d.update_traces(
             hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Status: %{fullData.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
