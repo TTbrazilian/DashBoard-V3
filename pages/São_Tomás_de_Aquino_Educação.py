@@ -152,13 +152,16 @@ def load_all_data():
             df_df[col] = df_df[col].apply(limpar_valor)
             
     if 'Fonte' in df_f.columns:
-        df_f['Fonte'] = df_f['Fonte'].astype(str).str.strip()
+        df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
     if 'Fonte' in df_df.columns:
-        df_df['Fonte'] = df_df['Fonte'].astype(str).str.strip()
+        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
         
     return df_f, df_r, df_df
 
 df_f_raw, df_r, df_df_raw = load_all_data()
+
+# --- DEFINIÇÃO DE MESES COM DADOS REAIS (Evita extrapolar com meses zerados ou colunas Total) ---
+meses_disponiveis = ['Janeiro', 'Fevereiro']
 
 if df_f_raw is not None and df_r is not None:
     # --- SIDEBAR ---
@@ -180,9 +183,7 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'RENDIMENTOS' in desc: return 'Aplicação'
             return 'Principal'
             
-        meses_disponiveis = ['Janeiro', 'Fevereiro']
-        
-        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].str.contains('15407|15403', na=False)].copy()
+        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407', '15403'])].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
         
         df_r_fundeb = df_r[(df_r['Categoria'] == 'FUNDEB')].copy()
@@ -193,10 +194,12 @@ if df_f_raw is not None and df_r is not None:
         tot_rec_periodo = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         
+        # Base de cálculo do FUNDEB (Geralmente o Principal Arrecadado)
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] == 'Principal'][meses_disponiveis].sum().sum()
+        # Despesa Magistério (Fonte 15407) - Apenas Liquidado para não extrapolar
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
         
-        perc_70_indice = (desp_70_val / rec_base_70 * 100) if rec_base_70 > 0 else 0
+        perc_70_indice = (desp_70_val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
         
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
@@ -259,19 +262,19 @@ if df_f_raw is not None and df_r is not None:
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
         tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Total Acumulado")
         if tipo_grafico == "Total Acumulado":
-            df_comp = pd.DataFrame({"Tipo": ["Receitas (Base)", "Despesas (70%)"], "Valor": [rec_base_70, desp_70_val]})
+            df_comp = pd.DataFrame({"Tipo": ["Receita Total", "Despesas (70%)"], "Valor": [tot_rec_periodo, desp_70_val]})
             fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', text_auto='.3s',
-                              color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.add_hline(y=rec_base_70 * 0.7, line_dash="dot", line_color="green", annotation_text=f"Meta 70% ({formar_real(rec_base_70 * 0.7)})")
+                              color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
+            fig_comp.add_hline(y=tot_rec_periodo * 0.7, line_dash="dot", line_color="green", annotation_text=f"Meta 70%")
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
-                r_m = df_r_fundeb[df_r_fundeb['Subcategoria'] == 'Principal'][m].sum()
+                r_m = df_r_fundeb[m].sum()
                 d_m = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
-                dados_m_comp.append({"Mês": m, "Tipo": "Receitas (Base)", "Valor": r_m})
+                dados_m_comp.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m})
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m})
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
-                              color_discrete_map={"Receitas (Base)": "#003366", "Despesas (70%)": "#660000"})
+                              color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
@@ -286,21 +289,19 @@ if df_f_raw is not None and df_r is not None:
     # --- SETOR RECURSOS PRÓPRIOS (CORRIGIDO) ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
-        meses_proprios = ['Janeiro', 'Fevereiro']
         
         # Correção Base 25%: Filtramos categorias que compõem a base constitucional
         df_r_base = df_r[df_r['Categoria'].isin(['Impostos', 'Cota-Parte'])].copy()
         
         # Deduções FUNDEB (Sempre tratadas como valor absoluto para somar ao esforço)
         df_r_ded = df_r[df_r['Categoria'] == 'Dedução FUNDEB'].copy()
-        total_deducoes = abs(df_r_ded[meses_proprios].sum().sum())
+        total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
-        # Despesas Fonte 15001 (Tesouro Educação) - Usando str.contains para garantir novas fontes
-        df_df_15001 = df_df_raw[(df_df_raw['Fonte'].astype(str).str.contains('15001')) & 
-                                (df_df_raw['Tipo'] == 'Liquidado')].copy()
+        # Despesas Fonte 15001 (Tesouro Educação) - Apenas Liquidado
+        df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == 'Liquidado')].copy()
         
-        total_rec_base = df_r_base[meses_proprios].sum().sum()
-        total_desp_15001 = df_df_15001[meses_proprios].sum().sum()
+        total_rec_base = df_r_base[meses_disponiveis].sum().sum()
+        total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         
         # Esforço Total = Direto (15001) + Indireto (Dedução FUNDEB)
         esforco_total = total_desp_15001 + total_deducoes
@@ -345,9 +346,9 @@ if df_f_raw is not None and df_r is not None:
         df_aux = df_r_base.copy() if ativo == "Acumulado Geral" else df_r_base[df_r_base['Descrição da Receita'] == ativo].copy()
         
         if view_rp == "Acumulado":
-            fig_rp = px.bar(x=[ativo], y=[df_aux[meses_proprios].sum().sum()], text_auto='.3s', color_discrete_sequence=['#003366'])
+            fig_rp = px.bar(x=[ativo], y=[df_aux[meses_disponiveis].sum().sum()], text_auto='.3s', color_discrete_sequence=['#003366'])
         else:
-            dados_m = [{"Mês": m, "Valor": df_aux[m].sum()} for m in meses_proprios]
+            dados_m = [{"Mês": m, "Valor": df_aux[m].sum()} for m in meses_disponiveis]
             fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s', color_discrete_sequence=['#003366'])
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
 
@@ -372,7 +373,7 @@ if df_f_raw is not None and df_r is not None:
             fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dot", line_color="green", annotation_text="Meta 25%")
         else:
             dados_meta_m = []
-            for m in meses_proprios:
+            for m in meses_disponiveis:
                 r_m = df_r_base[m].sum()
                 d_m = df_df_15001[m].sum()
                 ded_m = abs(df_r_ded[m].sum())
@@ -387,7 +388,6 @@ if df_f_raw is not None and df_r is not None:
     # --- SETOR RECURSOS VINCULADOS ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Vinculados</h1>", unsafe_allow_html=True)
-        meses_vinc = ['Janeiro', 'Fevereiro']
         mapa_desp = {'PNAE': ['1552', '2552'], 'PNATE': ['1553', '2553'], 'PTE': ['1576', '2576'], 'QESE': ['1550', '2550']}
         programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
         
@@ -395,17 +395,17 @@ if df_f_raw is not None and df_r is not None:
         
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Vinculados 2026", formar_real(df_r_vinc['Orçado Receitas'].sum()))
-        with m2: st.metric("Arrecadado (Jan-Fev)", formar_real(df_r_vinc[meses_vinc].sum().sum()))
+        with m2: st.metric(f"Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(df_r_vinc[meses_disponiveis].sum().sum()))
         with m3:
-            total_liq_vinc = df_df_raw[(df_df_raw['Fonte'].astype(str).isin([f for sub in mapa_desp.values() for f in sub])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
-            st.metric("Liquidado (Jan-Fev)", formar_real(total_liq_vinc))
+            total_liq_vinc = df_df_raw[(df_df_raw['Fonte'].isin([f for sub in mapa_desp.values() for f in sub])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
+            st.metric(f"Liquidado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_liq_vinc))
 
         st.markdown("---")
         st.subheader("🔹 1. Total de Receitas vs Despesas")
         dados_comp_v = []
         for prog in programas:
-            rec = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog][meses_vinc].sum().sum()
-            desp = df_df_raw[(df_df_raw['Fonte'].astype(str).isin(mapa_desp[prog])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_vinc].sum().sum()
+            rec = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog][meses_disponiveis].sum().sum()
+            desp = df_df_raw[(df_df_raw['Fonte'].isin(mapa_desp[prog])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
             dados_comp_v.append({"Programa": prog, "Tipo": "Receita", "Valor": rec})
             dados_comp_v.append({"Programa": prog, "Tipo": "Despesa", "Valor": desp})
         fig_rec_v = px.bar(pd.DataFrame(dados_comp_v), x='Programa', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
@@ -414,13 +414,13 @@ if df_f_raw is not None and df_r is not None:
 
         st.subheader("🔹 2. Detalhamento por Mês")
         dados_d_v = []
-        for m in meses_vinc:
+        for m in meses_disponiveis:
             for prog, fontes in mapa_desp.items():
-                val = df_df_raw[(df_df_raw['Fonte'].astype(str).isin(fontes)) & (df_df_raw['Tipo'] == 'Liquidado')][m].sum()
+                val = df_df_raw[(df_df_raw['Fonte'].isin(fontes)) & (df_df_raw['Tipo'] == 'Liquidado')][m].sum()
                 if val > 0: dados_d_v.append({"Mês": m, "Programa": prog, "Valor": val})
         if dados_d_v:
             fig_desp_v = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
                                color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
             st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
 else:
-    st.error("Erro ao carregar os arquivos CSV. Verifique a pasta 'zEducação'.")
+    st.error("Erro ao carregar os arquivos CSV. Verifique a pasta 'zEducação' ou o upload dos arquivos.")
