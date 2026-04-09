@@ -127,6 +127,7 @@ def load_all_data():
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
     
+    # 1. Processamento das Fichas
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
@@ -134,13 +135,16 @@ def load_all_data():
         else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
     
+    # 2. Processamento das Receitas (Header na linha 1)
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
     
+    # 3. Processamento do Consolidado
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
     
     meses_limpeza = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
+    
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
             df_f[col] = df_f[col].apply(limpar_valor)
@@ -153,6 +157,8 @@ def load_all_data():
             
     if 'Fonte' in df_f.columns:
         df_f['Fonte'] = df_f['Fonte'].astype(str).str.strip()
+    if 'Fonte' in df_df.columns:
+        df_df['Fonte'] = df_df['Fonte'].astype(str).str.strip()
         
     return df_f, df_r, df_df
 
@@ -178,20 +184,21 @@ if df_f_raw is not None and df_r is not None:
             return 'Principal'
             
         meses_disponiveis = ['Janeiro', 'Fevereiro']
-        # Correção: Fontes específicas do município (15407 = 70%, 15403 = 30%)
-        df_df_fundeb = df_df_raw[(df_df_raw['Fonte'].astype(str).str.contains('15407|15403', na=False))].copy()
+        
+        # Correção: Fontes específicas para São Tomás (15407 = 70%, 15403 = 30%)
+        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].str.contains('15407|15403', na=False)].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
         
         df_r_fundeb = df_r[(df_r['Categoria'] == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        # Filtro de fichas FUNDEB (fontes 540 e 546 conforme estrutura original)
+        # Filtro de fichas FUNDEB
         df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('540|546', na=False)].copy()
         
         tot_rec_periodo = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         
-        # Base de cálculo para o índice 70% (exclui VAAR e rendimentos)
+        # Base de cálculo para o índice 70%
         rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] == 'Principal'][meses_disponiveis].sum().sum()
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
         
@@ -264,7 +271,6 @@ if df_f_raw is not None and df_r is not None:
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
-        # --- 3. COMPARATIVO ---
         st.markdown("---")
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
         tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Total Acumulado")
@@ -313,10 +319,8 @@ if df_f_raw is not None and df_r is not None:
         df_r_ded = df_r[df_r['Categoria'] == 'Dedução FUNDEB'].copy()
         
         df_df_15001 = df_df_raw[df_df_raw['Fonte'].astype(str) == '15001'].copy()
-        df_f_15001 = df_f_raw[df_f_raw['Fonte'].str.contains('15001', na=False)].copy()
         
         total_impostos = df_r_imp[meses_proprios].sum().sum()
-        # Tratamos a dedução como valor absoluto para subtrair corretamente
         total_deducoes = abs(df_r_ded[meses_proprios].sum().sum())
         base_calculo_25 = total_impostos - total_deducoes
         
@@ -363,7 +367,6 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Vinculados</h1>", unsafe_allow_html=True)
         meses_vinc = ['Janeiro', 'Fevereiro']
-        # Mapeamento: Fontes 1xxx (Corrente) e 2xxx (Superávit)
         mapa_desp = {'PNAE': ['1552', '2552'], 'PNATE': ['1553', '2553'], 'PTE': ['1576', '2576'], 'QESE': ['1550', '2550']}
         programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
         
@@ -402,4 +405,4 @@ if df_f_raw is not None and df_r is not None:
             st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
 
 else:
-    st.error("Erro ao carregar os arquivos CSV de São Tomás de Aquino. Verifique se os nomes na pasta zEducação estão corretos.")
+    st.error("Erro ao carregar os arquivos CSV. Verifique a pasta 'zEducação'.")
