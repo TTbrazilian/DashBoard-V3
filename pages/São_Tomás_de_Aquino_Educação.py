@@ -295,7 +295,7 @@ if df_f_raw is not None and df_r is not None:
         df_r_ded = df_r[df_r['Categoria'].str.strip() == 'Dedução FUNDEB'].copy()
         
         # --- NOVO: Seletor Global de Fase para Despesas 15001 ---
-        fase_despesa = st.segmented_control("Fase de Referência da Despesa (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
+        fase_despesa = st.segmented_control(["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
 
         # 3. Despesas 15001 baseadas na fase selecionada
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == fase_despesa)].copy()
