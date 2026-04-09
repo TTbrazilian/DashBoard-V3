@@ -143,9 +143,15 @@ if setor_escolhido:
         cols = st.columns(5)
         for i, nome in enumerate(nomes):
             with cols[i % 5]:
-                # Formata o caminho do arquivo para o switch_page
+                # --- ALTERAÇÃO AQUI PARA FUNCIONAR SÃO TOMÁS ---
+                # Substitui espaços por underscores para o nome do arquivo
                 file_name = nome.replace(' ', '_')
+                
+                # O caminho deve refletir exatamente o nome do arquivo na pasta /pages
                 path = f"pages/{file_name}_{suffix}.py"
                 
                 if st.button(nome, key=f"btn_{nome}_{i}", use_container_width=True):
-                    st.switch_page(path)
+                    try:
+                        st.switch_page(path)
+                    except Exception as e:
+                        st.error(f"Página não encontrada: {path}")
