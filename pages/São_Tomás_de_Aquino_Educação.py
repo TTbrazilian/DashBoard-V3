@@ -67,7 +67,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-pio.templates.default = "plotly_white"
+# CORREÇÃO 1: Mudar o tema padrão para 'plotly_dark' para escurecer o hover
+pio.templates.default = "plotly_dark"
 CONFIG_PT = {'displaylogo': False, 'showTips': False}
 
 if 'setor' not in st.session_state:
@@ -224,7 +225,6 @@ if df_f_raw is not None and df_r is not None:
             fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         
-        fig_r.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
@@ -253,6 +253,7 @@ if df_f_raw is not None and df_r is not None:
             fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                            custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
         
+        # CORREÇÃO: Hover do FUNDEB já está correto por padrão com plotly_dark, mas mantendo a estrutura solicitada
         fig_f.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}<extra></extra>")
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
@@ -280,7 +281,6 @@ if df_f_raw is not None and df_r is not None:
                               text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
         
-        fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
@@ -297,7 +297,7 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
-        # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte (Busca Integrada no arquivo R conforme solicitado)
+        # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte
         df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
         
         # 2. Dedução FUNDEB
@@ -306,18 +306,16 @@ if df_f_raw is not None and df_r is not None:
         # Seletor Global de Fase para Despesas 15001
         fase_despesa = st.segmented_control(" (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
 
-        # 3. Despesas 15001 filtrando estritamente as fontes necessárias
+        # 3. Despesas 15001
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == fase_despesa)].copy()
         
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
-        # Esforço Próprio = Despesas 15001 + Dedução FUNDEB
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
-        # INDICADORES NO TOPO
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Total das Receitas de Impostos e Cota-Parte", formar_real(total_rec_base))
         with m2: st.metric(f"Despesas 15001 ({fase_despesa}) + Dedução", formar_real(esforco_total))
@@ -367,10 +365,10 @@ if df_f_raw is not None and df_r is not None:
             dados_m = [{"Mês": m, "Valor": df_aux[m].sum()} for m in meses_disponiveis]
             fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s', color_discrete_sequence=['#003366'])
         
-        # CORREÇÃO DO HOVER PADRONIZADO - RECEITAS RP
+        # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
         fig_rp.update_traces(
-            hovertemplate="<b>%{x}</b><br><b>Setor:</b> Recursos Próprios<br><b>Fonte:</b> " + ativo + "<br><b>Valor:</b> %{y}<extra></extra>",
-            hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
+            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Fonte: " + ativo + "<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
+            hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=12, font_family="Arial")
         )
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
 
@@ -382,7 +380,6 @@ if df_f_raw is not None and df_r is not None:
         with col_d_h: st.markdown("Detalhamento Acumulado e Mensal por Estágio (Empenhado, Liquidado, Pago)")
         with col_d_b: view_desp = st.segmented_control("Visualização Despesas:", ["Acumulado", "Mensal"], default="Acumulado", key="view_desp")
         
-        # Busca integrada de despesas garantindo apenas os dados/valores necessários
         df_15001_todas = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))].copy()
         
         if view_desp == "Acumulado":
@@ -406,10 +403,10 @@ if df_f_raw is not None and df_r is not None:
             fig_d = px.bar(df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group', text_auto='.2s',
                            color_discrete_map={'Empenhado':'#b3b3b3', 'Liquidado':'#00509d', 'Pago':'#002147'})
         
-        # CORREÇÃO DO HOVER PADRONIZADO - DESPESAS RP
+        # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
         fig_d.update_traces(
-            hovertemplate="<b>%{x}</b><br><b>Setor:</b> Recursos Próprios<br><b>Status:</b> %{fullData.name}<br><b>Valor:</b> %{y}<extra></extra>",
-            hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
+            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Status: %{fullData.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
+            hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=12, font_family="Arial")
         )
         st.plotly_chart(fig_d, use_container_width=True, config=CONFIG_PT)
 
@@ -432,10 +429,10 @@ if df_f_raw is not None and df_r is not None:
                               custom_data=['Deducao', 'Despesa15001'],
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao})
             
-            # CORREÇÃO DO HOVER PADRONIZADO - META ACUMULADO
+            # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
             fig_meta.update_traces(
-                hovertemplate="<b>%{x}</b><br><b>Total Aplicação:</b> R$ %{y:,.2f}<br><b>Dedução FUNDEB:</b> R$ %{customdata[0]:,.2f}<br><b>Despesa 15001:</b> R$ %{customdata[1]:,.2f}<extra></extra>",
-                hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
+                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}</span><extra></extra>",
+                hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=12, font_family="Arial")
             )
             fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dash", line_color="#f39c12", annotation_text="Meta Constitucional (25%)", annotation_position="top left")
         else:
@@ -456,10 +453,10 @@ if df_f_raw is not None and df_r is not None:
                               custom_data=['Dedução', 'Desp'], 
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao}) 
             
-            # CORREÇÃO DO HOVER PADRONIZADO - META MENSAL
+            # CORREÇÃO 3: Ajuste fino do HTML no template para negrito no título e label branco
             fig_meta.update_traces(
-                hovertemplate="<b>%{x} - %{data.name}</b><br><b>Total:</b> R$ %{y:,.2f}<br><b>Dedução:</b> R$ %{customdata[0]:,.2f}<br><b>Despesa:</b> R$ %{customdata[1]:,.2f}<extra></extra>",
-                hoverlabel=dict(bgcolor="white", font_size=12, font_family="Arial")
+                hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}</span><extra></extra>",
+                hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=12, font_family="Arial")
             )
             
             df_linha_meta = df_meta_m[df_meta_m['Tipo'] == 'Receitas Base'].copy()
