@@ -73,6 +73,10 @@ CONFIG_PT = {'displaylogo': False, 'showTips': False}
 # Variável auxiliar para garantir o estilo do hover solicitado (Fonte branca, fundo preto, sem labels extras)
 HOVER_STYLE = dict(bgcolor="rgba(0,0,0,0.9)", font_size=13, font_family="Arial", font_color="white")
 
+# ORDEM CRONOLÓGICA DOS MESES
+ORDEM_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
 if 'setor' not in st.session_state:
     st.session_state.setor = 'FUNDEB'
 
@@ -142,7 +146,7 @@ def load_all_data():
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
     
-    meses_limpeza = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro', 'Total', 'Orçado', 'Dedução', 'Orçado Receitas']
+    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
@@ -225,7 +229,8 @@ if df_f_raw is not None and df_r is not None:
                     val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
                     dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
             fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
-                           color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
+                           color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'},
+                           category_orders={"Mês": ORDEM_MESES})
         
         fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
         fig_r.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
@@ -254,7 +259,8 @@ if df_f_raw is not None and df_r is not None:
                     prop = (val / total_desp_mes * 100) if total_desp_mes > 0 else 0
                     dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
             fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
-                           custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
+                           custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'},
+                           category_orders={"Mês": ORDEM_MESES})
         
         fig_f.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
@@ -281,7 +287,8 @@ if df_f_raw is not None and df_r is not None:
             
             fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', 
                               text='Texto',
-                              color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
+                              color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
+                              category_orders={"Mês": ORDEM_MESES})
         
         fig_comp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         fig_comp.update_layout(separators=",.") 
@@ -372,7 +379,8 @@ if df_f_raw is not None and df_r is not None:
             fig_rp = px.bar(x=[ativo], y=[df_aux[meses_disponiveis].sum().sum()], text_auto='.3s', color_discrete_sequence=['#003366'])
         else:
             dados_m = [{"Mês": m, "Valor": df_aux[m].sum()} for m in meses_disponiveis]
-            fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s', color_discrete_sequence=['#003366'])
+            fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s', color_discrete_sequence=['#003366'],
+                            category_orders={"Mês": ORDEM_MESES})
         
         fig_rp.update_traces(
             hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Fonte: " + ativo + "<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
@@ -407,10 +415,10 @@ if df_f_raw is not None and df_r is not None:
                     dados_d_m.append({"Mês": m, "Fase": fase, "Valor": val})
             df_dados_d_m = pd.DataFrame(dados_d_m)
             df_dados_d_m['Fase'] = pd.Categorical(df_dados_d_m['Fase'], ["Empenhado", "Liquidado", "Pago"])
-            df_dados_d_m = df_dados_d_m.sort_values(["Mês", "Fase"])
             
             fig_d = px.bar(df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group', text_auto='.2s',
-                           color_discrete_map={'Empenhado':'#fa3d3d', 'Liquidado':'#860000', 'Pago':'#470000'})
+                           color_discrete_map={'Empenhado':'#fa3d3d', 'Liquidado':'#860000', 'Pago':'#470000'},
+                           category_orders={"Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]})
         
         fig_d.update_traces(
             hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Status: %{fullData.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
@@ -459,7 +467,8 @@ if df_f_raw is not None and df_r is not None:
             df_meta_m = pd.DataFrame(dados_meta_m)
             fig_meta = px.bar(df_meta_m, x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               custom_data=['Dedução', 'Desp'], 
-                              color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao}) 
+                              color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao},
+                              category_orders={"Mês": ORDEM_MESES}) 
             
             fig_meta.update_traces(
                 hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}</span><extra></extra>",
@@ -512,7 +521,8 @@ if df_f_raw is not None and df_r is not None:
                 if val > 0: dados_d_v.append({"Mês": m, "Programa": prog, "Valor": val})
         if dados_d_v:
             fig_desp_v = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Programa', barmode='group', text_auto='.2s',
-                               color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'})
+                               color_discrete_map={'PNAE':'#660000', 'PNATE':'#990000', 'PTE':'#cc0000', 'QESE':'#ff4d4d'},
+                               category_orders={"Mês": ORDEM_MESES})
             fig_desp_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Programa: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
             fig_desp_v.update_layout(separators=",.") 
             st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
