@@ -288,52 +288,61 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         meses_proprios = ['Janeiro', 'Fevereiro']
         
-        # Correção Base 25%: (Total Impostos e Cota-Parte) / (Total Despesas 15001 + Deduções)
-        df_r_proprio = df_r[df_r['Categoria'].isin(['Impostos', 'Cota-Parte'])].copy()
-        df_r_ded = df_r[df_r['Categoria'] == 'Dedução FUNDEB'].copy()
-        df_df_15001 = df_df_raw[(df_df_raw['Fonte'].astype(str) == '15001') & (df_df_raw['Tipo'] == 'Liquidado')].copy()
+        # Correção Base 25%: Filtramos categorias que compõem a base constitucional
+        df_r_base = df_r[df_r['Categoria'].isin(['Impostos', 'Cota-Parte'])].copy()
         
-        total_rec_base = df_r_proprio[meses_proprios].sum().sum()
+        # Deduções FUNDEB (Sempre tratadas como valor absoluto para somar ao esforço)
+        df_r_ded = df_r[df_r['Categoria'] == 'Dedução FUNDEB'].copy()
         total_deducoes = abs(df_r_ded[meses_proprios].sum().sum())
+        
+        # Despesas Fonte 15001 (Tesouro Educação) - Usando str.contains para garantir novas fontes
+        df_df_15001 = df_df_raw[(df_df_raw['Fonte'].astype(str).str.contains('15001')) & 
+                                (df_df_raw['Tipo'] == 'Liquidado')].copy()
+        
+        total_rec_base = df_r_base[meses_proprios].sum().sum()
         total_desp_15001 = df_df_15001[meses_proprios].sum().sum()
         
-        # Índice Corrigido
+        # Esforço Total = Direto (15001) + Indireto (Dedução FUNDEB)
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Receitas (Impostos + Cotas)", formar_real(total_rec_base))
-        with m2: st.metric("Despesas Fonte 15001", formar_real(total_desp_15001))
+        with m1: st.metric("Receitas (Base de Cálculo)", formar_real(total_rec_base))
+        with m2: st.metric("Aplicação Total (Direta + FUNDEB)", formar_real(esforco_total))
         with m3:
             if perc_25 >= 25: st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
             else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
             
         st.markdown("---")
         
-        # --- RECEITAS RECURSOS PRÓPRIOS (FILTRO COTA-PARTE + BOTOES) ---
+        # --- RECEITAS RECURSOS PRÓPRIOS ---
         col_rp_h, col_rp_b = st.columns([3, 1])
-        with col_rp_h: st.subheader("🔹 Receitas Recursos Próprios")
+        with col_rp_h: st.subheader("🔹 Detalhamento de Receitas Base")
         with col_rp_b: view_rp = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Acumulado", key="view_rp")
 
-        lista_completa = ["📊 Acumulado Geral"] + df_r_proprio['Descrição da Receita'].unique().tolist()
+        lista_completa = ["📊 Acumulado Geral"] + df_r_base['Descrição da Receita'].unique().tolist()
         if 'idx_nav_rp' not in st.session_state: st.session_state.idx_nav_rp = 0
+        
         grid = st.columns([0.5, 1.2, 1.2, 1.2, 1.2, 1.2, 0.5])
         with grid[0]:
             if st.button("◀", key="rp_left"): st.session_state.idx_nav_rp = max(0, st.session_state.idx_nav_rp - 5); st.rerun()
+        
         fim_idx = min(st.session_state.idx_nav_rp + 5, len(lista_completa))
         fatia = lista_completa[st.session_state.idx_nav_rp:fim_idx]
+        
         for i, item in enumerate(fatia):
             with grid[i+1]:
                 label = abreviar_extremo(item)
                 if st.button(label, key=f"rp_btn_{item}", help=item, use_container_width=True):
                     st.session_state['ativo_rp'] = item.replace("📊 ", ""); st.rerun()
+        
         with grid[6]:
             if st.button("▶", key="rp_right"):
                 if st.session_state.idx_nav_rp + 5 < len(lista_completa): st.session_state.idx_nav_rp += 5; st.rerun()
                     
         ativo = st.session_state.get('ativo_rp', "Acumulado Geral")
         st.markdown(f"#### 📈 {ativo}")
-        df_aux = df_r_proprio.copy() if ativo == "Acumulado Geral" else df_r_proprio[df_r_proprio['Descrição da Receita'] == ativo].copy()
+        df_aux = df_r_base.copy() if ativo == "Acumulado Geral" else df_r_base[df_r_base['Descrição da Receita'] == ativo].copy()
         
         if view_rp == "Acumulado":
             fig_rp = px.bar(x=[ativo], y=[df_aux[meses_proprios].sum().sum()], text_auto='.3s', color_discrete_sequence=['#003366'])
@@ -344,7 +353,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         
-        # --- ANÁLISE COMPARATIVA E META (COM HOVER DEDUÇÃO E MENSAL) ---
+        # --- ANÁLISE COMPARATIVA E META ---
         col_meta_h, col_meta_b = st.columns([3, 1])
         with col_meta_h: st.subheader("🔹 Análise Comparativa e Meta")
         with col_meta_b: view_meta = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Acumulado", key="view_meta")
@@ -364,7 +373,7 @@ if df_f_raw is not None and df_r is not None:
         else:
             dados_meta_m = []
             for m in meses_proprios:
-                r_m = df_r_proprio[m].sum()
+                r_m = df_r_base[m].sum()
                 d_m = df_df_15001[m].sum()
                 ded_m = abs(df_r_ded[m].sum())
                 dados_meta_m.append({"Mês": m, "Tipo": "Receitas Base", "Valor": r_m, "Dedução": 0, "Desp": 0})
