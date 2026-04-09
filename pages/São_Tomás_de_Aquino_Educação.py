@@ -283,30 +283,27 @@ if df_f_raw is not None and df_r is not None:
         cols_show.append('Soma_Liquidado')
         st.dataframe(df_f_fundeb[cols_show], use_container_width=True, hide_index=True)
 
-    # --- SETOR RECURSOS PRÓPRIOS (CORRIGIDO CONFORME SOLICITADO) ---
+    # --- SETOR RECURSOS PRÓPRIOS (LOGICA DE DEDUÇÃO NEGATIVA APLICADA) ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
-        # Correção Base 25%: Filtramos categorias que compõem a base constitucional
         df_r_base = df_r[df_r['Categoria'].isin(['Impostos', 'Cota-Parte'])].copy()
-        
-        # Deduções FUNDEB (Tratadas como valor absoluto para somar ao esforço)
         df_r_ded = df_r[df_r['Categoria'] == 'Dedução FUNDEB'].copy()
-        total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
-        
-        # Despesas Fonte 15001 (Tesouro Educação) - Apenas Liquidado
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == 'Liquidado')].copy()
         
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         
-        # ESFORÇO TOTAL CORRIGIDO = Direto (15001) + Indireto (Dedução FUNDEB)
+        # LOGICA CORRIGIDA: total_deducoes já vem negativo do banco de dados/limpeza.
+        # Somar um valor negativo é o mesmo que subtrair do esforço.
+        total_deducoes = df_r_ded[meses_disponiveis].sum().sum() 
         esforco_total = total_desp_15001 + total_deducoes
+        
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Receitas (Base de Cálculo)", formar_real(total_rec_base))
-        with m2: st.metric("Aplicação Total (Direta + FUNDEB)", formar_real(esforco_total))
+        with m2: st.metric("Aplicação Total (15001 + Dedução)", formar_real(esforco_total))
         with m3:
             if perc_25 >= 25: st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
             else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
@@ -363,14 +360,14 @@ if df_f_raw is not None and df_r is not None:
             fig_meta = px.bar(df_meta, x='Categoria', y='Valor', color='Categoria', text_auto='.3s',
                               custom_data=['Deducao', 'Despesa15001'],
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": "#c0392b"})
-            fig_meta.update_traces(hovertemplate="<b>%{x}</b><br>Total: R$ %{y:,.2f}<br>Dedução: R$ %{customdata[0]:,.2f}<br>Despesa: R$ %{customdata[1]:,.2f}")
+            fig_meta.update_traces(hovertemplate="<b>%{x}</b><br>Total: R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}")
             fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dot", line_color="green", annotation_text="Meta 25%")
         else:
             dados_meta_m = []
             for m in meses_disponiveis:
                 r_m = df_r_base[m].sum()
                 d_m = df_df_15001[m].sum()
-                ded_m = abs(df_r_ded[m].sum())
+                ded_m = df_r_ded[m].sum()
                 dados_meta_m.append({"Mês": m, "Tipo": "Receitas Base", "Valor": r_m, "Dedução": 0, "Desp": 0})
                 dados_meta_m.append({"Mês": m, "Tipo": "Aplicação Total", "Valor": d_m + ded_m, "Dedução": ded_m, "Desp": d_m})
             fig_meta = px.bar(pd.DataFrame(dados_meta_m), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
