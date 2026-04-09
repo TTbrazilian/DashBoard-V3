@@ -160,7 +160,7 @@ def load_all_data():
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
-# --- DEFINIÇÃO DE MESES COM DADOS REAIS (Evita extrapolar com meses zerados ou colunas Total) ---
+# --- DEFINIÇÃO DE MESES COM DADOS REAIS ---
 meses_disponiveis = ['Janeiro', 'Fevereiro']
 
 if df_f_raw is not None and df_r is not None:
@@ -194,9 +194,6 @@ if df_f_raw is not None and df_r is not None:
         tot_rec_periodo = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         
-        # Base de cálculo do FUNDEB (Geralmente o Principal Arrecadado)
-        rec_base_70 = df_r_fundeb[df_r_fundeb['Subcategoria'] == 'Principal'][meses_disponiveis].sum().sum()
-        # Despesa Magistério (Fonte 15407) - Apenas Liquidado para não extrapolar
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
         
         perc_70_indice = (desp_70_val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
@@ -286,14 +283,14 @@ if df_f_raw is not None and df_r is not None:
         cols_show.append('Soma_Liquidado')
         st.dataframe(df_f_fundeb[cols_show], use_container_width=True, hide_index=True)
 
-    # --- SETOR RECURSOS PRÓPRIOS (CORRIGIDO) ---
+    # --- SETOR RECURSOS PRÓPRIOS (CORRIGIDO CONFORME SOLICITADO) ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
         # Correção Base 25%: Filtramos categorias que compõem a base constitucional
         df_r_base = df_r[df_r['Categoria'].isin(['Impostos', 'Cota-Parte'])].copy()
         
-        # Deduções FUNDEB (Sempre tratadas como valor absoluto para somar ao esforço)
+        # Deduções FUNDEB (Tratadas como valor absoluto para somar ao esforço)
         df_r_ded = df_r[df_r['Categoria'] == 'Dedução FUNDEB'].copy()
         total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
@@ -303,7 +300,7 @@ if df_f_raw is not None and df_r is not None:
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         
-        # Esforço Total = Direto (15001) + Indireto (Dedução FUNDEB)
+        # ESFORÇO TOTAL CORRIGIDO = Direto (15001) + Indireto (Dedução FUNDEB)
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
@@ -316,7 +313,6 @@ if df_f_raw is not None and df_r is not None:
             
         st.markdown("---")
         
-        # --- RECEITAS RECURSOS PRÓPRIOS ---
         col_rp_h, col_rp_b = st.columns([3, 1])
         with col_rp_h: st.subheader("🔹 Detalhamento de Receitas Base")
         with col_rp_b: view_rp = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Acumulado", key="view_rp")
@@ -353,8 +349,6 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        
-        # --- ANÁLISE COMPARATIVA E META ---
         col_meta_h, col_meta_b = st.columns([3, 1])
         with col_meta_h: st.subheader("🔹 Análise Comparativa e Meta")
         with col_meta_b: view_meta = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Acumulado", key="view_meta")
@@ -381,7 +375,6 @@ if df_f_raw is not None and df_r is not None:
                 dados_meta_m.append({"Mês": m, "Tipo": "Aplicação Total", "Valor": d_m + ded_m, "Dedução": ded_m, "Desp": d_m})
             fig_meta = px.bar(pd.DataFrame(dados_meta_m), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                               custom_data=['Dedução', 'Desp'], color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": "#c0392b"})
-            fig_meta.update_traces(hovertemplate="<b>%{x}</b><br>Total: R$ %{y:,.2f}<br>Dedução: R$ %{customdata[0]:,.2f}")
             
         st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
 
