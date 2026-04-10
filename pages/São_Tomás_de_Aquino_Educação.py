@@ -75,7 +75,7 @@ HOVER_STYLE = dict(bgcolor="rgba(0,0,0,0.9)", font_size=13, font_family="Arial",
 
 # ORDEM CRONOLÓGICA DOS MESES
 ORDEM_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
 if 'setor' not in st.session_state:
     st.session_state.setor = 'FUNDEB'
@@ -324,7 +324,7 @@ if df_f_raw is not None and df_r is not None:
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
-        # Lógica de cálculo para o índice (permanece igual para manter a integridade dos 25%)
+        # Lógica de cálculo para o índice
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
@@ -400,28 +400,36 @@ if df_f_raw is not None and df_r is not None:
         df_15001_todas = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))].copy()
         
         if view_desp == "Acumulado":
-            df_desp_plot = df_15001_todas.groupby('Tipo')[meses_disponiveis].sum().sum(axis=1).reset_index()
-            df_desp_plot.columns = ['Fase', 'Valor']
+            total_desp_acum_rp = df_15001_todas[meses_disponiveis].sum().sum()
+            df_desp_plot = []
+            for fase in ["Empenhado", "Liquidado", "Pago"]:
+                val = df_15001_todas[df_15001_todas['Tipo'] == fase][meses_disponiveis].sum().sum()
+                prop = (val / total_desp_acum_rp * 100) if total_desp_acum_rp > 0 else 0
+                df_desp_plot.append({"Fase": fase, "Valor": val, "Proporção": f"{prop:.2f}%"})
+            df_desp_plot = pd.DataFrame(df_desp_plot)
             df_desp_plot['Fase'] = pd.Categorical(df_desp_plot['Fase'], ["Empenhado", "Liquidado", "Pago"])
-            df_desp_plot = df_desp_plot.sort_values("Fase")
             
             fig_d = px.bar(df_desp_plot, x='Fase', y='Valor', color='Fase', text_auto='.3s', 
+                           custom_data=['Proporção'],
                            color_discrete_map={'Empenhado':"#fa3d3d", 'Liquidado':"#860000", 'Pago':"#470000"})
         else:
             dados_d_m = []
             for m in meses_disponiveis:
+                total_mes_rp = df_15001_todas[m].sum()
                 for fase in ['Empenhado', 'Liquidado', 'Pago']:
                     val = df_15001_todas[df_15001_todas['Tipo'] == fase][m].sum()
-                    dados_d_m.append({"Mês": m, "Fase": fase, "Valor": val})
+                    prop = (val / total_mes_rp * 100) if total_mes_rp > 0 else 0
+                    dados_d_m.append({"Mês": m, "Fase": fase, "Valor": val, "Proporção": f"{prop:.2f}%"})
             df_dados_d_m = pd.DataFrame(dados_d_m)
             df_dados_d_m['Fase'] = pd.Categorical(df_dados_d_m['Fase'], ["Empenhado", "Liquidado", "Pago"])
             
             fig_d = px.bar(df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group', text_auto='.2s',
+                           custom_data=['Proporção'],
                            color_discrete_map={'Empenhado':'#fa3d3d', 'Liquidado':'#860000', 'Pago':'#470000'},
                            category_orders={"Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]})
         
         fig_d.update_traces(
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Status: %{fullData.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
+            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Status: %{fullData.name}<br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}</span><extra></extra>",
             hoverlabel=HOVER_STYLE
         )
         fig_d.update_layout(separators=",.") 
@@ -442,7 +450,8 @@ if df_f_raw is not None and df_r is not None:
                 "Deducao": [0, total_deducoes],
                 "Despesa15001": [0, total_desp_15001]
             })
-            fig_meta = px.bar(df_meta, x='Categoria', y='Valor', color='Categoria', text_auto='.3s',
+            fig_meta = px.bar(df_meta, x='Categoria', y='Valor', color='Categoria', 
+                              text=["", f"{perc_25:.2f}%"],
                               custom_data=['Deducao', 'Despesa15001'],
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao})
             
@@ -461,11 +470,11 @@ if df_f_raw is not None and df_r is not None:
                 perc_m = ((d_m + ded_m) / r_m * 100) if r_m > 0 else 0
                 cor_m = "#27ae60" if perc_m >= 25 else "#e74c3c"
                 
-                dados_meta_m.append({"Mês": m, "Tipo": "Receitas Base", "Valor": r_m, "Dedução": 0, "Desp": 0, "Cor": "#003366"})
-                dados_meta_m.append({"Mês": m, "Tipo": "Aplicação Total", "Valor": d_m + ded_m, "Dedução": ded_m, "Desp": d_m, "Cor": cor_m})
+                dados_meta_m.append({"Mês": m, "Tipo": "Receitas Base", "Valor": r_m, "Dedução": 0, "Desp": 0, "Texto": ""})
+                dados_meta_m.append({"Mês": m, "Tipo": "Aplicação Total", "Valor": d_m + ded_m, "Dedução": ded_m, "Desp": d_m, "Texto": f"{perc_m:.2f}%"})
             
             df_meta_m = pd.DataFrame(dados_meta_m)
-            fig_meta = px.bar(df_meta_m, x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
+            fig_meta = px.bar(df_meta_m, x='Mês', y='Valor', color='Tipo', barmode='group', text='Texto',
                               custom_data=['Dedução', 'Desp'], 
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao},
                               category_orders={"Mês": ORDEM_MESES}) 
