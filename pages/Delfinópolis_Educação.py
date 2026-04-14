@@ -118,33 +118,26 @@ def abreviar_extremo(nome):
     return n[:12]
 
 def buscar_arquivo(nome):
-    # Removido o prefixo 'zEducação/' pois os arquivos estão na raiz
-    nome_limpo = nome.replace("zEducação/", "")
-    caminhos = [nome_limpo, os.path.join("..", nome_limpo), os.path.join("pages", nome_limpo),
-                os.path.join(os.path.dirname(__file__), nome_limpo)]
+    caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome),
+                os.path.join(os.path.dirname(__file__), "..", nome)]
     for p in caminhos:
         if os.path.exists(p): return p
     return None
 
 @st.cache_data
 def load_all_data():
-    arquivo_f = "Delfinópolis.csv"
-    arquivo_r = "Delfinópolis_R.csv"
-    arquivo_df = "Delfinópolis_DF.csv"
+    arquivo_f = "zEducação/Delfinópolis.csv"
+    arquivo_r = "zEducação/Delfinópolis_R.csv"
+    arquivo_df = "zEducação/Delfinópolis_DF.csv"
     
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
+    if not path_f or not path_r or not path_df: return None, None, None
     
-    if not path_f or not path_r or not path_df: 
-        return None, None, None
-    
-    # Ajuste na leitura do df_f para lidar com o cabeçalho duplo de forma mais segura
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
-        c0 = str(col[0]).strip()
-        c1 = str(col[1]).strip()
-        if "Unnamed" in c0: new_cols.append(c1)
-        else: new_cols.append(f"{c1}_{c0}")
+        if "Unnamed" in col[0]: new_cols.append(col[1].strip())
+        else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
     
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
@@ -478,6 +471,7 @@ if df_f_raw is not None and df_r is not None:
                 ded_m = abs(df_r_ded[m].sum())
                 
                 perc_m = ((d_m + ded_m) / r_m * 100) if r_m > 0 else 0
+                cor_m = "#27ae60" if perc_m >= 25 else "#e74c3c"
                 
                 dados_meta_m.append({"Mês": m, "Tipo": "Receitas Base", "Valor": r_m, "Dedução": 0, "Desp": 0, "Texto": ""})
                 dados_meta_m.append({"Mês": m, "Tipo": "Aplicação Total", "Valor": d_m + ded_m, "Dedução": ded_m, "Desp": d_m, "Texto": f"{perc_m:.2f}%"})
@@ -563,4 +557,4 @@ if df_f_raw is not None and df_r is not None:
     st.dataframe(df_f_filt, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro ao carregar os arquivos CSV. Verifique se os arquivos Delfinópolis.csv, Delfinópolis_R.csv e Delfinópolis_DF.csv estão na mesma pasta do script.")
+    st.error("Erro ao carregar os arquivos CSV. Verifique a pasta 'zEducação' ou o upload dos arquivos.")
