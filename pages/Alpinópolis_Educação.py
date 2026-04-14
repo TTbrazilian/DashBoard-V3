@@ -67,10 +67,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# CORREÇÃO 1: Mudar o tema padrão para 'plotly_dark' para escurecer o hover
 pio.templates.default = "plotly_dark"
 CONFIG_PT = {'displaylogo': False, 'showTips': False}
+# Variável auxiliar para garantir o estilo do hover solicitado (Fonte branca, fundo preto, sem labels extras)
 HOVER_STYLE = dict(bgcolor="rgba(0,0,0,0.9)", font_size=13, font_family="Arial", font_color="white")
 
+# ORDEM CRONOLÓGICA DOS MESES
 ORDEM_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
                 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
@@ -91,6 +94,29 @@ def limpar_valor(valor):
 def formar_real(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+def abreviar_extremo(nome):
+    if "📊" in nome: return "GERAL"
+    n = nome.upper()
+    mapeamento = {
+        "IMPOSTO SOBRE A PROPRIEDADE PREDIAL E TERRITORIAL URBANA": "IPTU",
+        "IMPOSTO SOBRE TRANSMISSÃO DE BENS IMÓVEIS": "ITBI",
+        "IMPOSTO SOBRE SERVIÇOS DE QUALQUER NATUREZA": "ISS",
+        "IMPOSTO SOBRE A RENDA": "IR",
+        "IMPOSTO TERRITORIAL RURAL": "ITR",
+        "DÍVIDA ATIVA": "D.A.",
+        "CONTRIBUIÇÃO PARA O CUSTEIO DO SERVIÇO DE ILUMINAÇÃO PÚBLICA": "COSIP",
+        "COTA-PARTE": "COTA"
+    }
+    for longo, curto in mapeamento.items():
+        n = n.replace(longo, curto)
+    n = n.replace("PRINCIPAL", "PRIN.")
+    n = n.replace("MULTAS E JUROS", "M/J")
+    n = n.replace("OUTRAS RECEITAS", "OUTR.")
+    if "-" in n:
+        partes = n.split("-")
+        return f"{partes[0].strip()[:6]} {partes[1].strip()[:5]}"
+    return n[:12]
+
 def buscar_arquivo(nome):
     caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome),
                 os.path.join(os.path.dirname(__file__), "..", nome)]
@@ -107,9 +133,7 @@ def load_all_data():
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
     
-    # CORREÇÃO: Adicionado sep=';' para garantir a leitura correta do cabeçalho múltiplo
-    df_f = pd.read_csv(path_f, sep=';', engine='python', encoding='utf-8', header=[0, 1])
-    
+    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
         if "Unnamed" in col[0]: new_cols.append(col[1].strip())
@@ -143,9 +167,10 @@ def load_all_data():
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
-# Lógica de interface e processamento segue abaixo...
-if df_f_raw is not None:
-    # --- CONTINUAÇÃO DO CÓDIGO ORIGINAL ---
+# --- DEFINIÇÃO DE MESES COM DADOS REAIS ---
+meses_disponiveis = ['Janeiro', 'Fevereiro']
+
+if df_f_raw is not None and df_r is not None:
     # --- SIDEBAR ---
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Filtrar Fichas:", "")
