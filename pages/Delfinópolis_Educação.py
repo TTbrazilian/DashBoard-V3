@@ -67,13 +67,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# CORREÇÃO 1: Mudar o tema padrão para 'plotly_dark' para escurecer o hover
 pio.templates.default = "plotly_dark"
 CONFIG_PT = {'displaylogo': False, 'showTips': False}
-# Variável auxiliar para garantir o estilo do hover solicitado (Fonte branca, fundo preto, sem labels extras)
 HOVER_STYLE = dict(bgcolor="rgba(0,0,0,0.9)", font_size=13, font_family="Arial", font_color="white")
 
-# ORDEM CRONOLÓGICA DOS MESES
 ORDEM_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
                 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
@@ -119,18 +116,22 @@ def abreviar_extremo(nome):
 
 def buscar_arquivo(nome):
     caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome),
-                os.path.join(os.path.dirname(__file__), "..", nome)]
+                os.path.join(os.path.dirname(__file__), "..", nome),
+                os.path.join("zEducação", nome)]
     for p in caminhos:
         if os.path.exists(p): return p
     return None
 
 @st.cache_data
 def load_all_data():
-    arquivo_f = "zEducação/Delfinópolis.csv"
-    arquivo_r = "zEducação/Delfinópolis_R.csv"
-    arquivo_df = "zEducação/Delfinópolis_DF.csv"
+    arquivo_f = "Delfinópolis.csv"
+    arquivo_r = "Delfinópolis_R.csv"
+    arquivo_df = "Delfinópolis_DF.csv"
     
-    path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
+    path_f = buscar_arquivo(arquivo_f)
+    path_r = buscar_arquivo(arquivo_r)
+    path_df = buscar_arquivo(arquivo_df)
+    
     if not path_f or not path_r or not path_df: return None, None, None
     
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
@@ -167,11 +168,10 @@ def load_all_data():
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
-# --- DEFINIÇÃO DE MESES COM DADOS REAIS ---
+# --- DEFINIÇÃO DE MESES COM DADOS REAIS (Adaptado para o CSV atual) ---
 meses_disponiveis = ['Janeiro', 'Fevereiro']
 
 if df_f_raw is not None and df_r is not None:
-    # --- SIDEBAR ---
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Filtrar Fichas:", "")
     st.sidebar.markdown("---")
@@ -196,13 +196,12 @@ if df_f_raw is not None and df_r is not None:
         df_r_fundeb = df_r[(df_r['Categoria'].str.strip() == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('540|546', na=False)].copy()
+        df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('15407|15403', na=False)].copy()
         
         tot_rec_periodo = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
-        
         perc_70_indice = (desp_70_val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
         
         m1, m2, m3 = st.columns(3)
@@ -288,7 +287,6 @@ if df_f_raw is not None and df_r is not None:
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
                               category_orders={"Mês": ORDEM_MESES})
             
-            # Adicionando a linha da meta de 70% também na visão mensal
             df_linha_70 = pd.DataFrame(dados_m_comp)
             df_linha_70 = df_linha_70[df_linha_70['Tipo'] == 'Receita Total'].copy()
             df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
@@ -301,7 +299,7 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
         col_liq_fichas = [c for c in df_f_fundeb.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
-        df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
+        df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
         cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
         orc_col = [c for c in df_f_fundeb.columns if 'Orçado' in c]
         if orc_col: cols_show.append(orc_col[0])
@@ -312,27 +310,19 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 Delfinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
-        # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte
         df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
+        df_r_ded = df_r[df_r['Categoria'].str.strip().isin(['Dedução FUNDEB', 'Dedução'])].copy()
         
-        # 2. Dedução FUNDEB
-        df_r_ded = df_r[df_r['Categoria'].str.strip() == 'Dedução FUNDEB'].copy()
-        
-        # Seletor Global de Fase para Despesas 15001
         fase_despesa = st.segmented_control(" (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
-
-        # 3. Despesas 15001
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == fase_despesa)].copy()
         
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
-        # Lógica de cálculo para o índice
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
-        # Cálculo de quanto falta gastar para o secretário atingir a meta
         meta_financeira_25 = total_rec_base * 0.25
         saldo_necessario_25 = max(0, meta_financeira_25 - esforco_total)
         
@@ -344,8 +334,6 @@ if df_f_raw is not None and df_r is not None:
             else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
             
         st.markdown("---")
-        
-        # --- RECEITAS ---
         st.subheader("🔹 Receitas Recursos Próprios (Impostos e Cota-Parte)")
         view_rp = st.segmented_control("Visualização Receitas:", ["Acumulado", "Mensal"], default="Mensal", key="view_rp")
 
@@ -386,17 +374,14 @@ if df_f_raw is not None and df_r is not None:
                             category_orders={"Mês": ORDEM_MESES})
         
         fig_rp.update_traces(
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Fonte: " + ativo + "<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
+            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>",
             hoverlabel=HOVER_STYLE
         )
         fig_rp.update_layout(separators=",.") 
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        
-        # --- DESPESAS FONTE 15001 ---
         st.subheader("🔹 Despesas Fonte 15001")
-        st.markdown("Detalhamento Acumulado e Mensal por Estágio (Empenhado, Liquidado, Pago)")
         view_desp = st.segmented_control("Visualização Despesas:", ["Acumulado", "Mensal"], default="Mensal", key="view_desp")
         
         df_15001_todas = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))].copy()
@@ -432,18 +417,15 @@ if df_f_raw is not None and df_r is not None:
                            category_orders={"Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]})
         
         fig_d.update_traces(
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Status: %{fullData.name}<br>Valor do Investimento (15001): R$ %{customdata[2]:,.2f}<br>Valor da Dedução: R$ %{customdata[1]:,.2f}<br>Proporção (do Mês/Total): %{customdata[0]}</span><extra></extra>",
+            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Status: %{fullData.name}<br>Valor: R$ %{customdata[2]:,.2f}</span><extra></extra>",
             hoverlabel=HOVER_STYLE
         )
         fig_d.update_layout(separators=",.") 
         st.plotly_chart(fig_d, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        
-        # --- ANÁLISE COMPARATIVA E META ---
         st.subheader("🔹 Análise Comparativa e Meta (Mínimo 25%)")
         view_meta = st.segmented_control("Visualização Meta:", ["Acumulado", "Mensal"], default="Mensal", key="view_meta")
-
         cor_aplicacao = "#27ae60" if perc_25 >= 25 else "#e74c3c"
 
         if view_meta == "Acumulado":
@@ -457,39 +439,26 @@ if df_f_raw is not None and df_r is not None:
                               text=["", f"{perc_25:.2f}%"],
                               custom_data=['Deducao', 'Despesa15001'],
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao})
-            
-            fig_meta.update_traces(
-                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>",
-                hoverlabel=HOVER_STYLE
-            )
-            fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dash", line_color="#f39c12", annotation_text="Meta Constitucional (25%)", annotation_position="top left")
+            fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dash", line_color="#f39c12", annotation_text="Meta Constitucional (25%)")
         else:
             dados_meta_m = []
             for m in meses_disponiveis:
                 r_m = df_r_base[m].sum()
                 d_m = df_df_15001[m].sum()
                 ded_m = abs(df_r_ded[m].sum())
-                
                 perc_m = ((d_m + ded_m) / r_m * 100) if r_m > 0 else 0
-                cor_m = "#27ae60" if perc_m >= 25 else "#e74c3c"
-                
                 dados_meta_m.append({"Mês": m, "Tipo": "Receitas Base", "Valor": r_m, "Dedução": 0, "Desp": 0, "Texto": ""})
                 dados_meta_m.append({"Mês": m, "Tipo": "Aplicação Total", "Valor": d_m + ded_m, "Dedução": ded_m, "Desp": d_m, "Texto": f"{perc_m:.2f}%"})
             
-            df_meta_m = pd.DataFrame(dados_meta_m)
-            fig_meta = px.bar(df_meta_m, x='Mês', y='Valor', color='Tipo', barmode='group', text='Texto',
+            fig_meta = px.bar(pd.DataFrame(dados_meta_m), x='Mês', y='Valor', color='Tipo', barmode='group', text='Texto',
                               custom_data=['Dedução', 'Desp'], 
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao},
                               category_orders={"Mês": ORDEM_MESES}) 
             
-            fig_meta.update_traces(
-                hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>",
-                hoverlabel=HOVER_STYLE
-            )
-            
-            df_linha_meta = df_meta_m[df_meta_m['Tipo'] == 'Receitas Base'].copy()
+            df_linha_meta = pd.DataFrame(dados_meta_m)
+            df_linha_meta = df_linha_meta[df_linha_meta['Tipo'] == 'Receitas Base'].copy()
             df_linha_meta['Meta Mensal (25%)'] = df_linha_meta['Valor'] * 0.25
-            fig_meta.add_trace(go.Scatter(x=df_linha_meta['Mês'], y=df_linha_meta['Meta Mensal (25%)'], mode='lines+markers', name='Meta 25% (Mensal)', line=dict(color='#f39c12', dash='dash')))
+            fig_meta.add_trace(go.Scatter(x=df_linha_meta['Mês'], y=df_linha_meta['Meta Mensal (25%)'], mode='lines+markers', name='Meta 25%', line=dict(color='#f39c12', dash='dash')))
 
         fig_meta.update_layout(separators=",.") 
         st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
@@ -511,8 +480,7 @@ if df_f_raw is not None and df_r is not None:
             st.metric(f"Liquidado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_liq_vinc))
 
         st.markdown("---")
-        
-        st.subheader("🔹 1. Detalhamento de Receitas e Despesas por Programa")
+        st.subheader("🔹 1. Detalhamento por Programa")
         tipo_vinc = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Mensal", key="vinc_btn")
 
         for prog in programas:
@@ -521,18 +489,11 @@ if df_f_raw is not None and df_r is not None:
             st.markdown(f"**Previsão total de Receitas para 2026:** {formar_real(prev_prog)}")
 
             if tipo_vinc == "Acumulado":
-                dados_comp_v = []
                 rec = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog][meses_disponiveis].sum().sum()
                 desp = df_df_raw[(df_df_raw['Fonte'].isin(mapa_desp[prog])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
-                dados_comp_v.append({"Tipo": "Receita", "Valor": rec})
-                dados_comp_v.append({"Tipo": "Despesa", "Valor": desp})
-                
-                fig_rec_v = px.bar(pd.DataFrame(dados_comp_v), x='Tipo', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
+                fig_rec_v = px.bar(x=["Receita", "Despesa"], y=[rec, desp], color=["Receita", "Despesa"], text_auto='.2s',
                                   color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'})
-                fig_rec_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
-                fig_rec_v.update_layout(separators=",.") 
                 st.plotly_chart(fig_rec_v, use_container_width=True, config=CONFIG_PT)
-
             else:
                 dados_d_v = []
                 for m in meses_disponiveis:
@@ -545,10 +506,7 @@ if df_f_raw is not None and df_r is not None:
                     fig_desp_v = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                                        color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'},
                                        category_orders={"Mês": ORDEM_MESES})
-                    fig_desp_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Tipo: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
-                    fig_desp_v.update_layout(separators=",.") 
                     st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
-            
             st.markdown("---")
 
     # --- RELATÓRIO DE FICHAS GLOBAL ---
@@ -557,4 +515,4 @@ if df_f_raw is not None and df_r is not None:
     st.dataframe(df_f_filt, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro ao carregar os arquivos CSV. Verifique a pasta 'zEducação' ou o upload dos arquivos.")
+    st.error("Erro ao carregar os arquivos CSV de Delfinópolis. Certifique-se de que os nomes estão corretos.")
