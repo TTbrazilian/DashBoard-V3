@@ -1,5 +1,5 @@
 ,,,,,,,,,,,,,,,,
-Código,Categoria,Descrição da Receita,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,Total,Orçamento Receitas
+Código,Categoria,Descrição da Receita,Janeiro,Fevereiro,Março ,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,Total,Orçado Receitas
 11180111000,Impostos,Propriedade Predial e Territorial Urbana - Principal ,"R$ 647,99","R$ 0,00",,,,,,,,,,,"R$ 647,99",
 11180112000,Impostos,Propriedade Predial e Territorial Urbana - Multas e Juros ,"R$ 338,89","R$ 0,00",,,,,,,,,,,"R$ 338,89",
 11180113000,Impostos,Propriedade Predial e Territorial Urbana - Dívida Ativa ,"R$ 21.726,91","R$ 21.951,55",,,,,,,,,,,"R$ 43.678,46",
@@ -21,12 +21,12 @@ Código,Categoria,Descrição da Receita,Janeiro,Fevereiro,Março ,Abril,Maio,Ju
 17280111000,Cota-Parte ,ICMS - Principal ,"R$ 1.291.012,54","R$ 1.050.339,23",,,,,,,,,,,"R$ 2.341.351,77",
 17280121000,Cota-Parte ,IPVA - Principal ,"R$ 297.892,06","R$ 465.842,21",,,,,,,,,,,"R$ 763.734,27",
 17280131000,Cota-Parte ,IPI - Municípios - Principal ,"R$ 15.262,25","R$ 16.016,12",,,,,,,,,,,"R$ 31.278,37",
-9517180121000,Dedução FUNDEB,Cota-Parte do Fundo de Participação dos Municípios - Cota Mensal - Principal,"-R$ 342.965,56","-R$ 431.210,47",,,,,,,,,,,"-R$ 774.176,03",
-9517180151000,Dedução FUNDEB,Cota-Parte do Imposto Sobre a Propriedade Territorial Rural - Principal ,"-R$ 2.163,22","-R$ 660,67",,,,,,,,,,,"-R$ 2.823,89",
-9517180611000,Dedução FUNDEB,Transferência Financeira do ICMS – Desoneração – L.C. No 87/96 - Principal ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
-9517280111000,Dedução FUNDEB,Cota-Parte do ICMS - Principal ,"-R$ 258.202,48","-R$ 210.067,82",,,,,,,,,,,"-R$ 468.270,30",
-9517280121000,Dedução FUNDEB,Cota-Parte do IPVA - Principal ,"-R$ 59.578,30","-R$ 93.168,38",,,,,,,,,,,"-R$ 152.746,68",
-9517280131000,Dedução FUNDEB,Cota-Parte do IPI - Municípios - Principal,"-R$ 3.174,55","-R$ 3.331,36",,,,,,,,,,,"-R$ 6.505,91",
+9517180121000,Dedução ,Cota-Parte do Fundo de Participação dos Municípios - Cota Mensal - Principal,"-R$ 342.965,56","-R$ 431.210,47",,,,,,,,,,,"-R$ 774.176,03",
+9517180151000,Dedução ,Cota-Parte do Imposto Sobre a Propriedade Territorial Rural - Principal ,"-R$ 2.163,22","-R$ 660,67",,,,,,,,,,,"-R$ 2.823,89",
+9517180611000,Dedução ,Transferência Financeira do ICMS – Desoneração – L.C. No 87/96 - Principal ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+9517280111000,Dedução ,Cota-Parte do ICMS - Principal ,"-R$ 258.202,48","-R$ 210.067,82",,,,,,,,,,,"-R$ 468.270,30",
+9517280121000,Dedução ,Cota-Parte do IPVA - Principal ,"-R$ 59.578,30","-R$ 93.168,38",,,,,,,,,,,"-R$ 152.746,68",
+9517280131000,Dedução ,Cota-Parte do IPI - Municípios - Principal,"-R$ 3.174,55","-R$ 3.331,36",,,,,,,,,,,"-R$ 6.505,91",
 17515001000,FUNDEB,Principal ,"R$ 820.705,79","R$ 960.486,97",,,,,,,,,,,"R$ 1.781.192,76","R$ 10.523.235,10"
 13210111002,FUNDEB,Rendimentos ,"R$ 4.848,09","R$ 9.822,47",,,,,,,,,,,"R$ 14.670,56",
 17155201000,FUNDEB,VAAR ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
