@@ -307,6 +307,7 @@ if df_f_raw is not None and df_r is not None:
         if orc_col: cols_show.append(orc_col[0])
         cols_show.append('Soma_Liquidado')
         st.dataframe(df_f_fundeb[cols_show], use_container_width=True, hide_index=True)
+        
         # --- SETOR RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 Delfinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
