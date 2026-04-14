@@ -213,9 +213,8 @@ if df_f_raw is not None and df_r is not None:
             else: st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70_indice:.2f}%", delta=f"{perc_70_indice-70:.2f}%", delta_color="inverse")
         
         st.markdown("---")
-        col_r_h, col_r_b = st.columns([3, 1])
-        with col_r_h: st.subheader("🔹 1. Receitas FUNDEB")
-        with col_r_b: tipo_r = st.segmented_control("Visualização Receita:", ["Acumulado", "Mensal"], default="Acumulado", key="r_btn")
+        st.subheader("🔹 1. Receitas FUNDEB")
+        tipo_r = st.segmented_control("Visualização Receita:", ["Acumulado", "Mensal"], default="Mensal", key="r_btn")
         
         if tipo_r == "Acumulado":
             df_r_plot = df_r_fundeb.groupby('Subcategoria')[meses_disponiveis].sum().sum(axis=1).reset_index()
@@ -237,9 +236,8 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        col_f_h, col_f_b = st.columns([3, 1])
-        with col_f_h: st.subheader("🔹 2. Despesas FUNDEB")
-        with col_f_b: tipo_f = st.segmented_control("Visualização Despesa:", ["Acumulado", "Mensal"], default="Acumulado", key="f_btn")
+        st.subheader("🔹 2. Despesas FUNDEB")
+        tipo_f = st.segmented_control("Visualização Despesa:", ["Acumulado", "Mensal"], default="Mensal", key="f_btn")
         
         if tipo_f == "Acumulado":
             total_desp_acum = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'][meses_disponiveis].sum().sum()
@@ -268,7 +266,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
-        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Total Acumulado")
+        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal")
         
         if tipo_grafico == "Total Acumulado":
             df_comp = pd.DataFrame({"Tipo": ["Receita Total", "Despesas (70%)"], "Valor": [tot_rec_periodo, desp_70_val]})
@@ -289,6 +287,12 @@ if df_f_raw is not None and df_r is not None:
                               text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
                               category_orders={"Mês": ORDEM_MESES})
+            
+            # Adicionando a linha da meta de 70% também na visão mensal
+            df_linha_70 = pd.DataFrame(dados_m_comp)
+            df_linha_70 = df_linha_70[df_linha_70['Tipo'] == 'Receita Total'].copy()
+            df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
+            fig_comp.add_trace(go.Scatter(x=df_linha_70['Mês'], y=df_linha_70['Meta 70%'], mode='lines+markers', name='Meta 70% (Mensal)', line=dict(color='green', dash='dot')))
         
         fig_comp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         fig_comp.update_layout(separators=",.") 
@@ -342,9 +346,8 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         
         # --- RECEITAS ---
-        col_rp_h, col_rp_b = st.columns([3, 1])
-        with col_rp_h: st.subheader("🔹 Receitas Recursos Próprios (Impostos e Cota-Parte)")
-        with col_rp_b: view_rp = st.segmented_control("Visualização Receitas:", ["Acumulado", "Mensal"], default="Acumulado", key="view_rp")
+        st.subheader("🔹 Receitas Recursos Próprios (Impostos e Cota-Parte)")
+        view_rp = st.segmented_control("Visualização Receitas:", ["Acumulado", "Mensal"], default="Mensal", key="view_rp")
 
         lista_completa = ["📊 Acumulado Geral"] + df_r_base['Descrição da Receita'].unique().tolist()
         if 'idx_nav_rp' not in st.session_state: st.session_state.idx_nav_rp = 0
@@ -393,9 +396,8 @@ if df_f_raw is not None and df_r is not None:
         
         # --- DESPESAS FONTE 15001 ---
         st.subheader("🔹 Despesas Fonte 15001")
-        col_d_h, col_d_b = st.columns([3, 1])
-        with col_d_h: st.markdown("Detalhamento Acumulado e Mensal por Estágio (Empenhado, Liquidado, Pago)")
-        with col_d_b: view_desp = st.segmented_control("Visualização Despesas:", ["Acumulado", "Mensal"], default="Acumulado", key="view_desp")
+        st.markdown("Detalhamento Acumulado e Mensal por Estágio (Empenhado, Liquidado, Pago)")
+        view_desp = st.segmented_control("Visualização Despesas:", ["Acumulado", "Mensal"], default="Mensal", key="view_desp")
         
         df_15001_todas = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))].copy()
         
@@ -405,31 +407,32 @@ if df_f_raw is not None and df_r is not None:
             for fase in ["Empenhado", "Liquidado", "Pago"]:
                 val = df_15001_todas[df_15001_todas['Tipo'] == fase][meses_disponiveis].sum().sum()
                 prop = (val / total_desp_acum_rp * 100) if total_desp_acum_rp > 0 else 0
-                df_desp_plot.append({"Fase": fase, "Valor": val, "Proporção": f"{prop:.2f}%"})
+                df_desp_plot.append({"Fase": fase, "Valor": val, "Proporção": f"{prop:.2f}%", "Dedução": total_deducoes, "Despesa": val})
             df_desp_plot = pd.DataFrame(df_desp_plot)
             df_desp_plot['Fase'] = pd.Categorical(df_desp_plot['Fase'], ["Empenhado", "Liquidado", "Pago"])
             
             fig_d = px.bar(df_desp_plot, x='Fase', y='Valor', color='Fase', text_auto='.3s', 
-                           custom_data=['Proporção'],
+                           custom_data=['Proporção', 'Dedução', 'Despesa'],
                            color_discrete_map={'Empenhado':"#fa3d3d", 'Liquidado':"#860000", 'Pago':"#470000"})
         else:
             dados_d_m = []
             for m in meses_disponiveis:
                 total_mes_rp = df_15001_todas[m].sum()
+                deducao_mes = abs(df_r_ded[m].sum())
                 for fase in ['Empenhado', 'Liquidado', 'Pago']:
                     val = df_15001_todas[df_15001_todas['Tipo'] == fase][m].sum()
                     prop = (val / total_mes_rp * 100) if total_mes_rp > 0 else 0
-                    dados_d_m.append({"Mês": m, "Fase": fase, "Valor": val, "Proporção": f"{prop:.2f}%"})
+                    dados_d_m.append({"Mês": m, "Fase": fase, "Valor": val, "Proporção": f"{prop:.2f}%", "Dedução": deducao_mes, "Despesa": val})
             df_dados_d_m = pd.DataFrame(dados_d_m)
             df_dados_d_m['Fase'] = pd.Categorical(df_dados_d_m['Fase'], ["Empenhado", "Liquidado", "Pago"])
             
             fig_d = px.bar(df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group', text_auto='.2s',
-                           custom_data=['Proporção'],
+                           custom_data=['Proporção', 'Dedução', 'Despesa'],
                            color_discrete_map={'Empenhado':'#fa3d3d', 'Liquidado':'#860000', 'Pago':'#470000'},
                            category_orders={"Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]})
         
         fig_d.update_traces(
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Status: %{fullData.name}<br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}</span><extra></extra>",
+            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Status: %{fullData.name}<br>Valor do Investimento (15001): R$ %{customdata[2]:,.2f}<br>Valor da Dedução: R$ %{customdata[1]:,.2f}<br>Proporção (do Mês/Total): %{customdata[0]}</span><extra></extra>",
             hoverlabel=HOVER_STYLE
         )
         fig_d.update_layout(separators=",.") 
@@ -439,7 +442,7 @@ if df_f_raw is not None and df_r is not None:
         
         # --- ANÁLISE COMPARATIVA E META ---
         st.subheader("🔹 Análise Comparativa e Meta (Mínimo 25%)")
-        view_meta = st.segmented_control("Visualização Meta:", ["Acumulado", "Mensal"], default="Acumulado", key="view_meta")
+        view_meta = st.segmented_control("Visualização Meta:", ["Acumulado", "Mensal"], default="Mensal", key="view_meta")
 
         cor_aplicacao = "#27ae60" if perc_25 >= 25 else "#e74c3c"
 
@@ -456,7 +459,7 @@ if df_f_raw is not None and df_r is not None:
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao})
             
             fig_meta.update_traces(
-                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}</span><extra></extra>",
+                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>",
                 hoverlabel=HOVER_STYLE
             )
             fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dash", line_color="#f39c12", annotation_text="Meta Constitucional (25%)", annotation_position="top left")
@@ -480,7 +483,7 @@ if df_f_raw is not None and df_r is not None:
                               category_orders={"Mês": ORDEM_MESES}) 
             
             fig_meta.update_traces(
-                hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Dedução FUNDEB: R$ %{customdata[0]:,.2f}<br>Despesa 15001: R$ %{customdata[1]:,.2f}</span><extra></extra>",
+                hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>",
                 hoverlabel=HOVER_STYLE
             )
             
@@ -509,9 +512,8 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         
-        col_vinc_h, col_vinc_b = st.columns([3, 1])
-        with col_vinc_h: st.subheader("🔹 1. Detalhamento de Receitas e Despesas por Programa")
-        with col_vinc_b: tipo_vinc = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Acumulado", key="vinc_btn")
+        st.subheader("🔹 1. Detalhamento de Receitas e Despesas por Programa")
+        tipo_vinc = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Mensal", key="vinc_btn")
 
         for prog in programas:
             st.markdown(f"#### 📊 Programa: {prog}")
