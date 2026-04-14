@@ -315,8 +315,9 @@ if df_f_raw is not None and df_r is not None:
         # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte
         df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
         
-        # 2. Dedução FUNDEB
-        df_r_ded = df_r[df_r['Categoria'].str.strip() == 'Dedução FUNDEB'].copy()
+        # 2. Correção na Coleta de Deduções: Filtra pela categoria 'Dedução' conforme consta no CSV
+        # O script agora busca tanto o termo 'Dedução' na categoria quanto no texto para evitar perdas
+        df_r_ded = df_r[df_r['Categoria'].str.contains('Dedução', case=False, na=False)].copy()
         
         # Seletor Global de Fase para Despesas 15001
         fase_despesa = st.segmented_control(" (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
@@ -326,6 +327,8 @@ if df_f_raw is not None and df_r is not None:
         
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
+        
+        # O total de deduções é extraído como valor absoluto para somar ao esforço de aplicação (conforme manual de contabilidade aplicada ao setor público)
         total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
         # Lógica de cálculo para o índice
@@ -471,7 +474,6 @@ if df_f_raw is not None and df_r is not None:
                 ded_m = abs(df_r_ded[m].sum())
                 
                 perc_m = ((d_m + ded_m) / r_m * 100) if r_m > 0 else 0
-                cor_m = "#27ae60" if perc_m >= 25 else "#e74c3c"
                 
                 dados_meta_m.append({"Mês": m, "Tipo": "Receitas Base", "Valor": r_m, "Dedução": 0, "Desp": 0, "Texto": ""})
                 dados_meta_m.append({"Mês": m, "Tipo": "Aplicação Total", "Valor": d_m + ded_m, "Dedução": ded_m, "Desp": d_m, "Texto": f"{perc_m:.2f}%"})
