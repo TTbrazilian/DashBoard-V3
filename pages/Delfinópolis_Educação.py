@@ -119,7 +119,8 @@ def abreviar_extremo(nome):
 
 def buscar_arquivo(nome):
     caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome),
-                os.path.join(os.path.dirname(__file__), "..", nome)]
+                os.path.join(os.path.dirname(__file__), "..", nome),
+                os.path.join(os.path.dirname(__file__), nome)]
     for p in caminhos:
         if os.path.exists(p): return p
     return None
@@ -176,9 +177,9 @@ if df_f_raw is not None and df_r is not None:
     search_term = st.sidebar.text_input("Filtrar Fichas:", "")
     st.sidebar.markdown("---")
     st.sidebar.subheader("Setores")
-    if st.sidebar.button("FUNDEB", use_container_width=True): st.session_state.setor = 'FUNDEB'
-    if st.sidebar.button("Recursos Próprios", use_container_width=True): st.session_state.setor = 'Recursos Próprios'
-    if st.sidebar.button("Recursos Vinculados", use_container_width=True): st.session_state.setor = 'Recursos Vinculados'
+    if st.sidebar.button("FUNDEB", key="nav_fundeb", use_container_width=True): st.session_state.setor = 'FUNDEB'
+    if st.sidebar.button("Recursos Próprios", key="nav_rp", use_container_width=True): st.session_state.setor = 'Recursos Próprios'
+    if st.sidebar.button("Recursos Vinculados", key="nav_vinc", use_container_width=True): st.session_state.setor = 'Recursos Vinculados'
 
     # --- SETOR FUNDEB ---
     if st.session_state.setor == 'FUNDEB':
