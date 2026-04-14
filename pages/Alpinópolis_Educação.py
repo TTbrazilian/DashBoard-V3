@@ -126,40 +126,52 @@ def buscar_arquivo(nome):
 
 @st.cache_data
 def load_all_data():
-    # NOMES DE ARQUIVOS ATUALIZADOS PARA ALPINÓPOLIS
     arquivo_f = "Alpinópolis.csv"
     arquivo_r = "Alpinópolis_R.csv"
     arquivo_df = "Alpinópolis_DF.csv"
     
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
-    if not path_f or not path_r or not path_df: return None, None, None
     
+    # Se algum arquivo não existir localmente, retorna erro para o Streamlit tratar
+    if not path_f or not path_r or not path_df: 
+        return None, None, None
+    
+    # --- CORREÇÃO ALPINÓPOLIS.CSV (Cabeçalho Duplo) ---
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
-        if "Unnamed" in col[0]: new_cols.append(col[1].strip())
-        else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
+        # Se a parte de cima (Tipo) for vazia ou 'Unnamed', pega apenas a de baixo
+        if "Unnamed" in col[0] or col[0].strip() == "": 
+            new_cols.append(col[1].strip())
+        else: 
+            # Inverte a ordem para facilitar a filtragem (Ex: Janeiro_Empenhado)
+            new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
     
-    # O arquivo R de Alpinópolis possui 1 linha vazia no topo segundo o snippet
-    df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
+    # --- CORREÇÃO ALPINÓPOLIS_R.CSV (Linha vazia no topo) ---
+    df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', skiprows=1)
     df_r.columns = [str(c).strip() for c in df_r.columns]
     
+    # --- CORREÇÃO ALPINÓPOLIS_DF.CSV ---
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
     
-    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
+    # Limpeza de dados financeiros
+    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas', 'Saldo', 'Creditado', 'Anulado']
     
     for col in df_f.columns:
-        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
+        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total']):
             df_f[col] = df_f[col].apply(limpar_valor)
+            
     for col in df_r.columns:
-        if col in meses_limpeza:
+        if any(m in col for m in meses_limpeza):
             df_r[col] = df_r[col].apply(limpar_valor)
+            
     for col in df_df.columns:
-        if col in meses_limpeza:
+        if any(m in col for m in meses_limpeza):
             df_df[col] = df_df[col].apply(limpar_valor)
             
+    # Padronização de fontes como String
     if 'Fonte' in df_f.columns:
         df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
     if 'Fonte' in df_df.columns:
@@ -172,7 +184,7 @@ df_f_raw, df_r, df_df_raw = load_all_data()
 # --- DEFINIÇÃO DE MESES COM DADOS REAIS ---
 meses_disponiveis = ['Janeiro', 'Fevereiro']
 
-if df_f_raw is not None and df_r is not None:
+if df_f_raw is not None and df_r is not None and df_df_raw is not None:
     # --- SIDEBAR ---
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Filtrar Fichas:", "")
@@ -186,13 +198,13 @@ if df_f_raw is not None and df_r is not None:
     if st.session_state.setor == 'FUNDEB':
         st.markdown("<h1 style='text-align: left;'>📖 Alpinópolis - FUNDEB</h1>", unsafe_allow_html=True)
         def cat_receita(desc):
-            desc = desc.upper()
+            desc = str(desc).upper()
             if 'VAAR' in desc: return 'VAAR'
             if 'ETI' in desc or 'TEMPO INTEGRAL' in desc: return 'ETI'
             if 'APLICAÇÃO' in desc or 'RENDIMENTOS' in desc: return 'Aplicação'
             return 'Principal'
             
-        # Fontes FUNDEB mapeadas conforme o arquivo DF de Alpinópolis
+        # Fontes FUNDEB mapeadas
         df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['1540', '15407', '15403', '1541', '1542', '1543'])].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '5407' in str(x) else 'FUNDEB 30%')
         
@@ -291,7 +303,6 @@ if df_f_raw is not None and df_r is not None:
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
                               category_orders={"Mês": ORDEM_MESES})
             
-            # Adicionando a linha da meta de 70% também na visão mensal
             df_linha_70 = pd.DataFrame(dados_m_comp)
             df_linha_70 = df_linha_70[df_linha_70['Tipo'] == 'Receita Total'].copy()
             df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
@@ -304,7 +315,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
         col_liq_fichas = [c for c in df_f_fundeb.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
-        # Fontes de Alpinópolis: 15407 (70%), 1540/15403/outras (30%)
         df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '5407' in str(x) else 'FUNDEB 30%')
         cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
         orc_col = [c for c in df_f_fundeb.columns if 'Orçado' in c]
@@ -316,27 +326,20 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 Alpinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
-        # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte
         df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
-        
-        # 2. Dedução FUNDEB
         df_r_ded = df_r[df_r['Categoria'].str.strip() == 'Dedução FUNDEB'].copy()
         
-        # Seletor Global de Fase para Despesas 15001 (ou 1500 segundo arquivo Alpinópolis)
-        fase_despesa = st.segmented_control(" (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
+        fase_despesa = st.segmented_control(" (Impacta Indicadores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
 
-        # 3. Despesas Recursos Próprios Educação (Alpinópolis usa 15001 conforme arquivo DF)
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'].isin(['15001', '1500'])) & (df_df_raw['Tipo'] == fase_despesa)].copy()
         
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
-        # Lógica de cálculo para o índice
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
-        # Cálculo de quanto falta gastar para o secretário atingir a meta
         meta_financeira_25 = total_rec_base * 0.25
         saldo_necessario_25 = max(0, meta_financeira_25 - esforco_total)
         
@@ -348,8 +351,6 @@ if df_f_raw is not None and df_r is not None:
             else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
             
         st.markdown("---")
-        
-        # --- RECEITAS ---
         st.subheader("🔹 Receitas Recursos Próprios (Impostos e Cota-Parte)")
         view_rp = st.segmented_control("Visualização Receitas:", ["Acumulado", "Mensal"], default="Mensal", key="view_rp")
 
@@ -389,18 +390,12 @@ if df_f_raw is not None and df_r is not None:
             fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s', color_discrete_sequence=['#003366'],
                             category_orders={"Mês": ORDEM_MESES})
         
-        fig_rp.update_traces(
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Setor: Recursos Próprios<br>Fonte: " + ativo + "<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
-            hoverlabel=HOVER_STYLE
-        )
+        fig_rp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         fig_rp.update_layout(separators=",.") 
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        
-        # --- DESPESAS FONTE 15001 ---
         st.subheader("🔹 Despesas Fonte 15001")
-        st.markdown("Detalhamento Acumulado e Mensal por Estágio (Empenhado, Liquidado, Pago)")
         view_desp = st.segmented_control("Visualização Despesas:", ["Acumulado", "Mensal"], default="Mensal", key="view_desp")
         
         df_15001_todas = df_df_raw[(df_df_raw['Fonte'].isin(['15001', '1500'])) & (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))].copy()
@@ -435,16 +430,11 @@ if df_f_raw is not None and df_r is not None:
                            color_discrete_map={'Empenhado':'#fa3d3d', 'Liquidado':'#860000', 'Pago':'#470000'},
                            category_orders={"Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]})
         
-        fig_d.update_traces(
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Status: %{fullData.name}<br>Valor do Investimento (15001): R$ %{customdata[2]:,.2f}<br>Valor da Dedução: R$ %{customdata[1]:,.2f}<br>Proporção (do Mês/Total): %{customdata[0]}</span><extra></extra>",
-            hoverlabel=HOVER_STYLE
-        )
+        fig_d.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Dedução: R$ %{customdata[1]:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         fig_d.update_layout(separators=",.") 
         st.plotly_chart(fig_d, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        
-        # --- ANÁLISE COMPARATIVA E META ---
         st.subheader("🔹 Análise Comparativa e Meta (Mínimo 25%)")
         view_meta = st.segmented_control("Visualização Meta:", ["Acumulado", "Mensal"], default="Mensal", key="view_meta")
 
@@ -461,22 +451,14 @@ if df_f_raw is not None and df_r is not None:
                               text=["", f"{perc_25:.2f}%"],
                               custom_data=['Deducao', 'Despesa15001'],
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao})
-            
-            fig_meta.update_traces(
-                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>",
-                hoverlabel=HOVER_STYLE
-            )
-            fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dash", line_color="#f39c12", annotation_text="Meta Constitucional (25%)", annotation_position="top left")
+            fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dash", line_color="#f39c12", annotation_text="Meta 25%")
         else:
             dados_meta_m = []
             for m in meses_disponiveis:
                 r_m = df_r_base[m].sum()
                 d_m = df_df_15001[m].sum()
                 ded_m = abs(df_r_ded[m].sum())
-                
                 perc_m = ((d_m + ded_m) / r_m * 100) if r_m > 0 else 0
-                cor_m = "#27ae60" if perc_m >= 25 else "#e74c3c"
-                
                 dados_meta_m.append({"Mês": m, "Tipo": "Receitas Base", "Valor": r_m, "Dedução": 0, "Desp": 0, "Texto": ""})
                 dados_meta_m.append({"Mês": m, "Tipo": "Aplicação Total", "Valor": d_m + ded_m, "Dedução": ded_m, "Desp": d_m, "Texto": f"{perc_m:.2f}%"})
             
@@ -486,14 +468,9 @@ if df_f_raw is not None and df_r is not None:
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao},
                               category_orders={"Mês": ORDEM_MESES}) 
             
-            fig_meta.update_traces(
-                hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>",
-                hoverlabel=HOVER_STYLE
-            )
-            
             df_linha_meta = df_meta_m[df_meta_m['Tipo'] == 'Receitas Base'].copy()
-            df_linha_meta['Meta Mensal (25%)'] = df_linha_meta['Valor'] * 0.25
-            fig_meta.add_trace(go.Scatter(x=df_linha_meta['Mês'], y=df_linha_meta['Meta Mensal (25%)'], mode='lines+markers', name='Meta 25% (Mensal)', line=dict(color='#f39c12', dash='dash')))
+            df_linha_meta['Meta 25%'] = df_linha_meta['Valor'] * 0.25
+            fig_meta.add_trace(go.Scatter(x=df_linha_meta['Mês'], y=df_linha_meta['Meta 25%'], mode='lines', name='Meta 25%', line=dict(color='#f39c12', dash='dash')))
 
         fig_meta.update_layout(separators=",.") 
         st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
@@ -501,7 +478,6 @@ if df_f_raw is not None and df_r is not None:
     # --- SETOR RECURSOS VINCULADOS ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>📖 Alpinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
-        # Fontes vinculadas educação de Alpinópolis: 1550 (QESE), 1552 (PNAE), 1553 (PNATE), etc.
         mapa_desp = {'PNAE': ['1552', '2552'], 'PNATE': ['1553', '2553'], 'PTE': ['1576', '2576'], 'QESE': ['1550', '2550']}
         programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
         
@@ -516,14 +492,13 @@ if df_f_raw is not None and df_r is not None:
             st.metric(f"Liquidado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_liq_vinc))
 
         st.markdown("---")
-        
-        st.subheader("🔹 1. Detalhamento de Receitas e Despesas por Programa")
+        st.subheader("🔹 1. Detalhamento por Programa")
         tipo_vinc = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Mensal", key="vinc_btn")
 
         for prog in programas:
             st.markdown(f"#### 📊 Programa: {prog}")
             prev_prog = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog]['Orçado Receitas'].sum()
-            st.markdown(f"**Previsão total de Receitas para 2026:** {formar_real(prev_prog)}")
+            st.markdown(f"**Previsão 2026:** {formar_real(prev_prog)}")
 
             if tipo_vinc == "Acumulado":
                 dados_comp_v = []
@@ -532,12 +507,9 @@ if df_f_raw is not None and df_r is not None:
                 dados_comp_v.append({"Tipo": "Receita", "Valor": rec})
                 dados_comp_v.append({"Tipo": "Despesa", "Valor": desp})
                 
-                fig_rec_v = px.bar(pd.DataFrame(dados_comp_v), x='Tipo', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
+                fig_rec_v = px.bar(pd.DataFrame(dados_comp_v), x='Tipo', y='Valor', color='Tipo', text_auto='.2s',
                                   color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'})
-                fig_rec_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
-                fig_rec_v.update_layout(separators=",.") 
                 st.plotly_chart(fig_rec_v, use_container_width=True, config=CONFIG_PT)
-
             else:
                 dados_d_v = []
                 for m in meses_disponiveis:
@@ -550,10 +522,7 @@ if df_f_raw is not None and df_r is not None:
                     fig_desp_v = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Tipo', barmode='group', text_auto='.2s',
                                                color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'},
                                                category_orders={"Mês": ORDEM_MESES})
-                    fig_desp_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Tipo: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
-                    fig_desp_v.update_layout(separators=",.") 
                     st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
-            
             st.markdown("---")
 
     # --- RELATÓRIO DE FICHAS GLOBAL ---
@@ -562,4 +531,4 @@ if df_f_raw is not None and df_r is not None:
     st.dataframe(df_f_filt, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro ao carregar os arquivos CSV. Verifique o upload dos arquivos de Alpinópolis.")
+    st.error("Erro ao carregar os arquivos CSV. Verifique se os nomes dos arquivos estão corretos: Alpinópolis.csv, Alpinópolis_R.csv e Alpinópolis_DF.csv.")
