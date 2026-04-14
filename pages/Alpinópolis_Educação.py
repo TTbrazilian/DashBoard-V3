@@ -82,14 +82,19 @@ if 'setor' not in st.session_state:
 
 # --- FUNÇÕES UTILITÁRIAS ---
 def limpar_valor(valor):
-    if pd.isna(valor) or str(valor).strip() in ["", "-", "R$ 0,00", "0"]:
+    if pd.isna(valor):
         return 0.0
-    s_valor = str(valor).replace('R$', '').replace(' ', '').replace('.', '').replace(',', '.')
+    s_valor = str(valor).strip()
+    if s_valor in ["", "-", "R$ 0,00", "0"]:
+        return 0.0
+    # Remove R$, pontos de milhar e espaços, troca vírgula por ponto
+    s_valor = s_valor.replace('R$', '').replace(' ', '').replace('.', '').replace(',', '.')
     try: 
         if '(' in s_valor and ')' in s_valor:
             s_valor = '-' + s_valor.replace('(', '').replace(')', '')
         return float(s_valor)
-    except: return 0.0
+    except: 
+        return 0.0
 
 def formar_real(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -132,7 +137,6 @@ def load_all_data():
     
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     
-    # Se algum arquivo não existir localmente, retorna erro para o Streamlit tratar
     if not path_f or not path_r or not path_df: 
         return None, None, None
     
@@ -140,12 +144,12 @@ def load_all_data():
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
     new_cols = []
     for col in df_f.columns:
-        # Se a parte de cima (Tipo) for vazia ou 'Unnamed', pega apenas a de baixo
-        if "Unnamed" in col[0] or col[0].strip() == "": 
-            new_cols.append(col[1].strip())
+        tipo = str(col[0]).strip()
+        mes = str(col[1]).strip()
+        if "Unnamed" in tipo or tipo == "" or tipo == "nan": 
+            new_cols.append(mes)
         else: 
-            # Inverte a ordem para facilitar a filtragem (Ex: Janeiro_Empenhado)
-            new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
+            new_cols.append(f"{mes}_{tipo}")
     df_f.columns = new_cols
     
     # --- CORREÇÃO ALPINÓPOLIS_R.CSV (Linha vazia no topo) ---
@@ -157,10 +161,10 @@ def load_all_data():
     df_df.columns = [str(c).strip() for c in df_df.columns]
     
     # Limpeza de dados financeiros
-    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas', 'Saldo', 'Creditado', 'Anulado']
+    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas', 'Saldo', 'Creditado', 'Anulado', 'Toral']
     
     for col in df_f.columns:
-        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total']):
+        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total', 'Toral']):
             df_f[col] = df_f[col].apply(limpar_valor)
             
     for col in df_r.columns:
@@ -173,9 +177,9 @@ def load_all_data():
             
     # Padronização de fontes como String
     if 'Fonte' in df_f.columns:
-        df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+        df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     if 'Fonte' in df_df.columns:
-        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
         
     return df_f, df_r, df_df
 
@@ -313,7 +317,7 @@ if df_f_raw is not None and df_r is not None and df_df_raw is not None:
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
-        col_liq_fichas = [c for c in df_f_fundeb.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
+        col_liq_fichas = [c for c in df_f_fundeb.columns if 'Liquidado' in c and any(m in c for m in meses_disponiveis)]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
         df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '5407' in str(x) else 'FUNDEB 30%')
         cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
@@ -411,8 +415,8 @@ if df_f_raw is not None and df_r is not None and df_df_raw is not None:
             df_desp_plot['Fase'] = pd.Categorical(df_desp_plot['Fase'], ["Empenhado", "Liquidado", "Pago"])
             
             fig_d = px.bar(df_desp_plot, x='Fase', y='Valor', color='Fase', text_auto='.3s', 
-                           custom_data=['Proporção', 'Dedução', 'Despesa'],
-                           color_discrete_map={'Empenhado':"#fa3d3d", 'Liquidado':"#860000", 'Pago':"#470000"})
+                            custom_data=['Proporção', 'Dedução', 'Despesa'],
+                            color_discrete_map={'Empenhado':"#fa3d3d", 'Liquidado':"#860000", 'Pago':"#470000"})
         else:
             dados_d_m = []
             for m in meses_disponiveis:
@@ -426,9 +430,9 @@ if df_f_raw is not None and df_r is not None and df_df_raw is not None:
             df_dados_d_m['Fase'] = pd.Categorical(df_dados_d_m['Fase'], ["Empenhado", "Liquidado", "Pago"])
             
             fig_d = px.bar(df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group', text_auto='.2s',
-                           custom_data=['Proporção', 'Dedução', 'Despesa'],
-                           color_discrete_map={'Empenhado':'#fa3d3d', 'Liquidado':'#860000', 'Pago':'#470000'},
-                           category_orders={"Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]})
+                            custom_data=['Proporção', 'Dedução', 'Despesa'],
+                            color_discrete_map={'Empenhado':'#fa3d3d', 'Liquidado':'#860000', 'Pago':'#470000'},
+                            category_orders={"Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]})
         
         fig_d.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Dedução: R$ %{customdata[1]:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         fig_d.update_layout(separators=",.") 
