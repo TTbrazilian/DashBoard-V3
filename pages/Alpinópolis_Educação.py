@@ -138,7 +138,7 @@ def load_all_data():
         return None, None, None
 
     try:
-        # 1. Leitura manual das linhas de cabeçalho
+        # 1. Leitura manual das linhas de cabeçalho para evitar ParserError
         with open(path_f, 'r', encoding='utf-8') as f:
             line0 = f.readline().strip().split(',')
             line1 = f.readline().strip().split(',')
@@ -157,7 +157,8 @@ def load_all_data():
             elif not c_bottom:
                 base_name = c_top
             else:
-                base_name = f"{c_top}_{c_bottom}"
+                # Remove espaços extras para evitar "Atividade " != "Atividade"
+                base_name = f"{c_top.strip()}_{c_bottom.strip()}"
             
             if base_name in counts:
                 counts[base_name] += 1
@@ -167,41 +168,46 @@ def load_all_data():
                 final_name = base_name
             final_columns.append(final_name)
 
-        # 3. Carregamento do DataFrame
+        # 3. Carregamento do DataFrame principal
         df_f = pd.read_csv(path_f, skiprows=2, names=final_columns, encoding='utf-8', sep=',', on_bad_lines='skip')
 
-        # --- NORMALIZAÇÃO CRÍTICA PARA EVITAR KEYERROR ---
-        # Procura qualquer coluna que se pareça com 'Fonte' e renomeia para 'Fonte'
-        for col in df_f.columns:
-            if "Fonte" in col:
-                df_f.rename(columns={col: "Fonte"}, inplace=True)
-                break # Pega a primeira ocorrência encontrada
+        # --- NOVA NORMALIZAÇÃO EXPANDIDA PARA EVITAR KEYERROR ---
+        # Mapeamento de termos que aparecem no CSV para o nome que o script usa
+        mapeamento_colunas = {
+            "Fonte": "Fonte",
+            "Atividade": "Atividade",
+            "Ficha": "Ficha",
+            "Elemento": "Elemento",
+            "Categoria": "Categoria"
+        }
+
+        for termo_busca, nome_final in mapeamento_colunas.items():
+            for col in df_f.columns:
+                # Se a coluna contém o termo (ex: "Atividade_Atividade"), renomeia para o simplificado
+                if termo_busca.lower() in col.lower():
+                    df_f.rename(columns={col: nome_final}, inplace=True)
+                    break 
 
     except Exception as e:
         st.error(f"Erro crítico no processamento de Alpinópolis.csv: {e}")
         return None, None, None
 
-    # Carregamento dos demais arquivos (Receita e Despesa Fixa)
+    # Carregamento dos demais arquivos
     try:
         df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
         df_r.columns = [str(c).strip() for c in df_r.columns]
         
         df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
         df_df.columns = [str(c).strip() for c in df_df.columns]
-        
-        # Também normaliza 'Fonte' nos outros arquivos por segurança
-        for d_tmp in [df_r, df_df]:
-            for col in d_tmp.columns:
-                if "Fonte" in col:
-                    d_tmp.rename(columns={col: "Fonte"}, inplace=True)
     except Exception as e:
         st.error(f"Erro ao carregar arquivos complementares: {e}")
         return None, None, None
 
-    # Processamento de Limpeza de Valores
+    # Processamento de Limpeza de Valores Monetários
     meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas', 'Toral']
 
     for col in df_f.columns:
+        # Limpa valores em colunas financeiras (meses e totais)
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total', 'Toral']):
             df_f[col] = df_f[col].apply(limpar_valor)
             
@@ -213,10 +219,13 @@ def load_all_data():
         if col in meses_limpeza:
             df_df[col] = df_df[col].apply(limpar_valor)
 
-    # Tratamento final da coluna Fonte (remover .0)
-    for df in [df_f, df_df]:
-        if 'Fonte' in df.columns:
-            df['Fonte'] = df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+    # Tratamento final de tipos de dados
+    if 'Fonte' in df_f.columns:
+        df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+    
+    # Garante que Atividade seja string para não dar erro no .str.contains()
+    if 'Atividade' in df_f.columns:
+        df_f['Atividade'] = df_f['Atividade'].astype(str).str.strip()
 
     return df_f, df_r, df_df
 
