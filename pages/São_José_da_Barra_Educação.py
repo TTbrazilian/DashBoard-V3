@@ -137,98 +137,57 @@ def load_all_data():
     if not path_f or not path_r or not path_df:
         return None, None, None
 
-    try:
-        # 1. Leitura manual das linhas de cabeçalho para evitar ParserError
-        with open(path_f, 'r', encoding='utf-8') as f:
-            line0 = f.readline().strip().split(',')
-            line1 = f.readline().strip().split(',')
-        
-        # 2. Reconstrução dos nomes das colunas com tratamento de duplicatas
-        final_columns = []
-        max_cols = max(len(line0), len(line1))
-        counts = {}
-
-        for i in range(max_cols):
-            c_top = line0[i].strip() if i < len(line0) else ""
-            c_bottom = line1[i].strip() if i < len(line1) else ""
-            
-            if not c_top or "Unnamed" in c_top:
-                base_name = c_bottom if c_bottom else f"Col_{i}"
-            elif not c_bottom:
-                base_name = c_top
-            else:
-                # Remove espaços extras para evitar "Atividade " != "Atividade"
-                base_name = f"{c_top.strip()}_{c_bottom.strip()}"
-            
-            if base_name in counts:
-                counts[base_name] += 1
-                final_name = f"{base_name}.{counts[base_name]}"
-            else:
-                counts[base_name] = 0
-                final_name = base_name
-            final_columns.append(final_name)
-
-        # 3. Carregamento do DataFrame principal
-        df_f = pd.read_csv(path_f, skiprows=2, names=final_columns, encoding='utf-8', sep=',', on_bad_lines='skip')
-
-        # --- NOVA NORMALIZAÇÃO EXPANDIDA PARA EVITAR KEYERROR ---
-        # Mapeamento de termos que aparecem no CSV para o nome que o script usa
-        mapeamento_colunas = {
-            "Fonte": "Fonte",
-            "Atividade": "Atividade",
-            "Ficha": "Ficha",
-            "Elemento": "Elemento",
-            "Categoria": "Categoria"
-        }
-
-        for termo_busca, nome_final in mapeamento_colunas.items():
-            for col in df_f.columns:
-                # Se a coluna contém o termo (ex: "Atividade_Atividade"), renomeia para o simplificado
-                if termo_busca.lower() in col.lower():
-                    df_f.rename(columns={col: nome_final}, inplace=True)
-                    break 
-
-    except Exception as e:
-        st.error(f"Erro crítico no processamento de Alpinópolis.csv: {e}")
-        return None, None, None
-
-    # Carregamento dos demais arquivos
-    try:
-        df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
-        df_r.columns = [str(c).strip() for c in df_r.columns]
-        
-        df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
-        df_df.columns = [str(c).strip() for c in df_df.columns]
-    except Exception as e:
-        st.error(f"Erro ao carregar arquivos complementares: {e}")
-        return None, None, None
-
-    # Processamento de Limpeza de Valores Monetários
-    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas', 'Toral']
-
+    # 1. Carregamento do arquivo Principal (MultiIndex)
+    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
+    # Limpa espaços nos nomes das colunas MultiIndex
+    df_f.columns = pd.MultiIndex.from_tuples([(str(a).strip(), str(b).strip()) for a, b in df_f.columns])
+    
+    # 2. Carregamento do arquivo de Receita
+    df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
+    df_r.columns = [str(c).strip() for c in df_r.columns]
+    
+    # 3. Carregamento do arquivo de Despesa Fixa (Onde ocorre o erro)
+    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
+    # LIMPEZA CRUCIAL: Remove espaços de todos os nomes de colunas
+    df_df.columns = [str(c).strip() for c in df_df.columns]
+    
+    # Lista de colunas para limpeza de valores (R$ 1.000,00 -> 1000.00)
+    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
+    
+    # Limpeza de valores no df_f (verificando o segundo nível do header)
     for col in df_f.columns:
-        # Limpa valores em colunas financeiras (meses e totais)
-        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total', 'Toral']):
+        if any(k in col[1] for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total']):
             df_f[col] = df_f[col].apply(limpar_valor)
             
+    # Limpeza no df_r
     for col in df_r.columns:
         if col in meses_limpeza:
             df_r[col] = df_r[col].apply(limpar_valor)
             
+    # Limpeza no df_df
     for col in df_df.columns:
         if col in meses_limpeza:
             df_df[col] = df_df[col].apply(limpar_valor)
-
-    # Tratamento final de tipos de dados
-    if 'Fonte' in df_f.columns:
-        df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-    
-    # Garante que Atividade seja string para não dar erro no .str.contains()
-    if 'Atividade' in df_f.columns:
-        df_f['Atividade'] = df_f['Atividade'].astype(str).str.strip()
-
+            
+    # --- PADRONIZAÇÃO DA COLUNA FONTE ---
+    # No df_f (procura em todos os níveis)
+    for col in df_f.columns:
+        if 'Fonte' in col:
+            df_f[col] = df_f[col].astype(str).str.replace('.0', '', regex=False).str.strip()
+            break
+            
+    # No df_df (Garante que a coluna 'Fonte' exista e esteja limpa)
+    if 'Fonte' in df_df.columns:
+        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+    else:
+        # Caso a coluna tenha outro nome mas contenha a palavra Fonte
+        for col in df_df.columns:
+            if 'Fonte' in col:
+                df_df.rename(columns={col: 'Fonte'}, inplace=True)
+                df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+                break
+        
     return df_f, df_r, df_df
-
 df_f_raw, df_r, df_df_raw = load_all_data()
 
 # --- DEFINIÇÃO DE MESES COM DADOS REAIS ---
