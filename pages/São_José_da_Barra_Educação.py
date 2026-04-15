@@ -126,68 +126,79 @@ def buscar_arquivo(nome):
 
 @st.cache_data
 def load_all_data():
-    arquivo_f = "zEducação/São José da Barra.csv"
-    arquivo_r = "zEducação/São José da Barra_R.csv"
-    arquivo_df = "zEducação/São José da Barra_DF.csv"
+    # Definição dos nomes de arquivos conforme o padrão da prefeitura
+    arquivo_f = "zEducação/São_José_da_Barra.csv"
+    arquivo_r = "zEducação/São_José_da_Barra_R.csv"
+    arquivo_df = "zEducação/São_José_da_Barra_DF.csv"
     
     path_f = buscar_arquivo(arquivo_f)
     path_r = buscar_arquivo(arquivo_r)
     path_df = buscar_arquivo(arquivo_df)
     
     if not path_f or not path_r or not path_df:
+        st.error("Erro: Arquivos não encontrados na pasta 'zEducação'.")
         return None, None, None
 
-    # 1. Carregamento do arquivo Principal (MultiIndex)
-    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
-    
-    # --- CORREÇÃO DO MULTIINDEX ---
-    # Vamos achatar o cabeçalho: se a coluna de cima for 'Unnamed', usamos só a de baixo.
-    # Se ambas tiverem nome, combinamos (ex: 'Janeiro_Liquidado').
-    # Isso resolve o AttributeError e permite usar df['Fonte']
-    novas_colunas = []
-    for col in df_f.columns:
-        nivel0 = str(col[0]).strip()
-        nivel1 = str(col[1]).strip()
-        if "Unnamed" in nivel0 or nivel0 == "":
-            nome_final = nivel1
-        elif "Unnamed" in nivel1 or nivel1 == "":
-            nome_final = nivel0
-        else:
-            nome_final = nivel1 # Ou f"{nivel0}_{nivel1}" se preferir manter ambos
-        novas_colunas.append(nome_final)
-    
-    df_f.columns = novas_colunas
-    # ------------------------------
-
-    # Carregamento dos demais arquivos
-    df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
-    df_r.columns = [str(c).strip() for c in df_r.columns]
-    
-    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
-    df_df.columns = [str(c).strip() for c in df_df.columns]
-    
-    # Limpeza de valores monetários
-    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
-    
-    for df_temp in [df_f, df_r, df_df]:
-        for col in df_temp.columns:
-            # Se for uma das colunas de meses ou conter termos financeiros
-            if col in meses_limpeza or any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
-                df_temp[col] = df_temp[col].apply(limpar_valor)
-            
-    # Padronização da coluna Fonte
-    for df_temp in [df_f, df_df]:
-        if 'Fonte' in df_temp.columns:
-            df_temp['Fonte'] = df_temp['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-        else:
-            # Caso a coluna tenha vindo com nome composto (ex: "Fonte_Fonte")
-            for col in df_temp.columns:
-                if "Fonte" in col:
-                    df_temp.rename(columns={col: "Fonte"}, inplace=True)
-                    df_temp['Fonte'] = df_temp['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-                    break
+    try:
+        # 1. Carregamento e Achatamento do MultiIndex (Arquivo Principal)
+        df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
         
-    return df_f, df_r, df_df
+        novas_colunas = []
+        for col in df_f.columns:
+            # col[0] é o nível superior (ex: Janeiro), col[1] é o inferior (ex: Liquidado)
+            nivel0 = str(col[0]).strip()
+            nivel1 = str(col[1]).strip()
+            
+            if "Unnamed" in nivel0 or nivel0 == "":
+                nome_final = nivel1
+            elif "Unnamed" in nivel1 or nivel1 == "":
+                nome_final = nivel0
+            else:
+                # Mantém o nível inferior (ex: Fonte, Ficha) ou combina conforme necessidade
+                nome_final = nivel1 
+            novas_colunas.append(nome_final)
+        
+        df_f.columns = novas_colunas
+
+        # 2. Carregamento dos demais arquivos (Cabeçalho Simples)
+        df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
+        df_r.columns = [str(c).strip() for c in df_r.columns]
+        
+        df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
+        df_df.columns = [str(c).strip() for c in df_df.columns]
+
+        # 3. Normalização Crítica de Colunas Essenciais
+        # Isso garante que df['Fonte'] e df['Atividade'] existam mesmo se o CSV mudar
+        mapeamento = {"Fonte": "Fonte", "Atividade": "Atividade", "Ficha": "Ficha"}
+        
+        for df_temp in [df_f, df_df]:
+            for termo_busca, nome_correto in mapeamento.items():
+                for col_existente in df_temp.columns:
+                    if termo_busca.lower() in col_existente.lower():
+                        df_temp.rename(columns={col_existente: nome_correto}, inplace=True)
+                        break
+
+        # 4. Limpeza de Valores Monetários (Usando MAP para evitar ValueError)
+        termos_financeiros = ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total', 'Toral']
+        colunas_meses = ORDEM_MESES + ['Dedução', 'Orçado Receitas']
+
+        for df_target in [df_f, df_r, df_df]:
+            for col in df_target.columns:
+                if col in colunas_meses or any(k in col for k in termos_financeiros):
+                    df_target[col] = df_target[col].map(limpar_valor)
+
+        # 5. Tratamento Final da Coluna Fonte (Remover decimais e espaços)
+        for df_target in [df_f, df_df]:
+            if 'Fonte' in df_target.columns:
+                df_target['Fonte'] = df_target['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+            if 'Atividade' in df_target.columns:
+                df_target['Atividade'] = df_target['Atividade'].astype(str).str.strip()
+
+        return df_f, df_r, df_df
+
+    except Exception as e:
+        st.error(f"Erro ao processar dados: {e}")
+        return None, None, None
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
