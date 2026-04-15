@@ -137,57 +137,58 @@ def load_all_data():
     if not path_f or not path_r or not path_df:
         return None, None, None
 
-    # --- BLOCO CORRIGIDO PARA ALPINÓPOLIS.CSV ---
+    # --- BLOCO DE CORREÇÃO FINAL PARA ALPINÓPOLIS.CSV ---
     try:
-        # Lemos as primeiras linhas ignorando erros de colunas extras para capturar o cabeçalho
-        df_header = pd.read_csv(
-            path_f, 
-            sep=None, 
-            engine='python', 
-            encoding='utf-8', 
-            header=None, 
-            nrows=2, 
-            on_bad_lines='skip'  # Pula linhas malformadas apenas durante a captura do cabeçalho
-        )
+        # 1. Extração Manual do Cabeçalho (Evita o erro Out-of-bounds e ParserError)
+        with open(path_f, 'r', encoding='utf-8') as f:
+            # Lemos as duas primeiras linhas como texto puro
+            line0 = f.readline().strip().split(',')
+            line1 = f.readline().strip().split(',')
         
-        h0 = df_header.iloc[0].fillna('').astype(str).tolist()
-        h1 = df_header.iloc[1].fillna('').astype(str).tolist()
-        
+        # 2. Reconstrução dos nomes das colunas
         final_columns = []
-        for col_top, col_bottom in zip(h0, h1):
-            c_top = col_top.strip()
-            c_bottom = col_bottom.strip()
+        # Usamos o tamanho da maior linha para não perder dados
+        max_cols = max(len(line0), len(line1))
+        
+        for i in range(max_cols):
+            c_top = line0[i].strip() if i < len(line0) else ""
+            c_bottom = line1[i].strip() if i < len(line1) else ""
+            
             if not c_top or "Unnamed" in c_top:
-                final_columns.append(c_bottom)
+                name = c_bottom if c_bottom else f"Coluna_{i}"
             elif not c_bottom:
-                final_columns.append(c_top)
+                name = c_top
             else:
-                final_columns.append(f"{c_top}_{c_bottom}")
+                name = f"{c_top}_{c_bottom}"
+            final_columns.append(name)
 
-        # Leitura dos dados: usamos usecols para garantir que o Pandas foque apenas no 
-        # número de colunas que mapeamos no cabeçalho, ignorando lixo à direita.
+        # 3. Leitura dos dados pulando as linhas de texto processadas
+        # Usamos engine='c' (mais rápido) agora que o cabeçalho está resolvido
         df_f = pd.read_csv(
             path_f, 
-            sep=None, 
-            engine='python', 
-            encoding='utf-8', 
             skiprows=2, 
-            names=final_columns,
-            on_bad_lines='skip' 
+            names=final_columns, 
+            encoding='utf-8', 
+            sep=',', 
+            on_bad_lines='skip'
         )
     except Exception as e:
-        st.error(f"Erro ao processar o arquivo Alpinópolis.csv: {e}")
+        st.error(f"Erro crítico no processamento de Alpinópolis.csv: {e}")
         return None, None, None
-    # --- FIM DO BLOCO CORRIGIDO ---
+    # --- FIM DO BLOCO DE CORREÇÃO ---
 
-    # Carregamento dos demais arquivos
-    df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
-    df_r.columns = [str(c).strip() for c in df_r.columns]
-    
-    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
-    df_df.columns = [str(c).strip() for c in df_df.columns]
+    # Leitura dos demais arquivos
+    try:
+        df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
+        df_r.columns = [str(c).strip() for c in df_r.columns]
+        
+        df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
+        df_df.columns = [str(c).strip() for c in df_df.columns]
+    except Exception as e:
+        st.error(f"Erro ao carregar arquivos complementares: {e}")
+        return None, None, None
 
-    # Processamento de Limpeza
+    # Processamento de Limpeza (Valores Monetários)
     meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas', 'Toral']
 
     for col in df_f.columns:
@@ -202,7 +203,7 @@ def load_all_data():
         if col in meses_limpeza:
             df_df[col] = df_df[col].apply(limpar_valor)
 
-    # Padronização de colunas de Fonte
+    # Tratamento de colunas de identificação
     for df in [df_f, df_df]:
         if 'Fonte' in df.columns:
             df['Fonte'] = df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
