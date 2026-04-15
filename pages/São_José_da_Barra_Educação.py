@@ -8,7 +8,7 @@ import streamlit.components.v1 as components
 import random
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Alpinópolis - Gestão Educação", layout="wide")
+st.set_page_config(page_title="São José Da Barra - Gestão Educação", layout="wide")
 
 # --- ESTILIZAÇÃO E GRADE PADRONIZADA ---
 st.markdown(
