@@ -126,9 +126,9 @@ def buscar_arquivo(nome):
 
 @st.cache_data
 def load_all_data():
-    arquivo_f = "zEducação/São_José_da_Barra.csv"
-    arquivo_r = "zEducação/São_José_da_Barra_R.csv"
-    arquivo_df = "zEducação/São_José_da_Barra_DF.csv"
+    arquivo_f = "zEducação/São José da Barra.csv"
+    arquivo_r = "zEducação/São José da Barra_R.csv"
+    arquivo_df = "zEducação/São José da Barra_DF.csv"
     
     path_f = buscar_arquivo(arquivo_f)
     path_r = buscar_arquivo(arquivo_r)
