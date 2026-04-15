@@ -139,55 +139,56 @@ def load_all_data():
 
     # 1. Carregamento do arquivo Principal (MultiIndex)
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
-    # Limpa espaços nos nomes das colunas MultiIndex
-    df_f.columns = pd.MultiIndex.from_tuples([(str(a).strip(), str(b).strip()) for a, b in df_f.columns])
     
-    # 2. Carregamento do arquivo de Receita
+    # --- CORREÇÃO DO MULTIINDEX ---
+    # Vamos achatar o cabeçalho: se a coluna de cima for 'Unnamed', usamos só a de baixo.
+    # Se ambas tiverem nome, combinamos (ex: 'Janeiro_Liquidado').
+    # Isso resolve o AttributeError e permite usar df['Fonte']
+    novas_colunas = []
+    for col in df_f.columns:
+        nivel0 = str(col[0]).strip()
+        nivel1 = str(col[1]).strip()
+        if "Unnamed" in nivel0 or nivel0 == "":
+            nome_final = nivel1
+        elif "Unnamed" in nivel1 or nivel1 == "":
+            nome_final = nivel0
+        else:
+            nome_final = nivel1 # Ou f"{nivel0}_{nivel1}" se preferir manter ambos
+        novas_colunas.append(nome_final)
+    
+    df_f.columns = novas_colunas
+    # ------------------------------
+
+    # Carregamento dos demais arquivos
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
     df_r.columns = [str(c).strip() for c in df_r.columns]
     
-    # 3. Carregamento do arquivo de Despesa Fixa (Onde ocorre o erro)
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
-    # LIMPEZA CRUCIAL: Remove espaços de todos os nomes de colunas
     df_df.columns = [str(c).strip() for c in df_df.columns]
     
-    # Lista de colunas para limpeza de valores (R$ 1.000,00 -> 1000.00)
+    # Limpeza de valores monetários
     meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
-    # Limpeza de valores no df_f (verificando o segundo nível do header)
-    for col in df_f.columns:
-        if any(k in col[1] for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total']):
-            df_f[col] = df_f[col].apply(limpar_valor)
+    for df_temp in [df_f, df_r, df_df]:
+        for col in df_temp.columns:
+            # Se for uma das colunas de meses ou conter termos financeiros
+            if col in meses_limpeza or any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
+                df_temp[col] = df_temp[col].apply(limpar_valor)
             
-    # Limpeza no df_r
-    for col in df_r.columns:
-        if col in meses_limpeza:
-            df_r[col] = df_r[col].apply(limpar_valor)
-            
-    # Limpeza no df_df
-    for col in df_df.columns:
-        if col in meses_limpeza:
-            df_df[col] = df_df[col].apply(limpar_valor)
-            
-    # --- PADRONIZAÇÃO DA COLUNA FONTE ---
-    # No df_f (procura em todos os níveis)
-    for col in df_f.columns:
-        if 'Fonte' in col:
-            df_f[col] = df_f[col].astype(str).str.replace('.0', '', regex=False).str.strip()
-            break
-            
-    # No df_df (Garante que a coluna 'Fonte' exista e esteja limpa)
-    if 'Fonte' in df_df.columns:
-        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-    else:
-        # Caso a coluna tenha outro nome mas contenha a palavra Fonte
-        for col in df_df.columns:
-            if 'Fonte' in col:
-                df_df.rename(columns={col: 'Fonte'}, inplace=True)
-                df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-                break
+    # Padronização da coluna Fonte
+    for df_temp in [df_f, df_df]:
+        if 'Fonte' in df_temp.columns:
+            df_temp['Fonte'] = df_temp['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+        else:
+            # Caso a coluna tenha vindo com nome composto (ex: "Fonte_Fonte")
+            for col in df_temp.columns:
+                if "Fonte" in col:
+                    df_temp.rename(columns={col: "Fonte"}, inplace=True)
+                    df_temp['Fonte'] = df_temp['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+                    break
         
     return df_f, df_r, df_df
+
 df_f_raw, df_r, df_df_raw = load_all_data()
 
 # --- DEFINIÇÃO DE MESES COM DADOS REAIS ---
