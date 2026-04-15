@@ -130,40 +130,94 @@ def load_all_data():
     arquivo_r = "zEducação/Alpinópolis_R.csv"
     arquivo_df = "zEducação/Alpinópolis_DF.csv"
     
-    path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
-    if not path_f or not path_r or not path_df: return None, None, None
+    path_f = buscar_arquivo(arquivo_f)
+    path_r = buscar_arquivo(arquivo_r)
+    path_df = buscar_arquivo(arquivo_df)
     
-    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
-    new_cols = []
+    if not path_f or not path_r or not path_df:
+        return None, None, None
+
+    try:
+        # 1. Leitura manual das linhas de cabeçalho
+        with open(path_f, 'r', encoding='utf-8') as f:
+            line0 = f.readline().strip().split(',')
+            line1 = f.readline().strip().split(',')
+        
+        # 2. Reconstrução dos nomes das colunas com tratamento de duplicatas
+        final_columns = []
+        max_cols = max(len(line0), len(line1))
+        counts = {}
+
+        for i in range(max_cols):
+            c_top = line0[i].strip() if i < len(line0) else ""
+            c_bottom = line1[i].strip() if i < len(line1) else ""
+            
+            if not c_top or "Unnamed" in c_top:
+                base_name = c_bottom if c_bottom else f"Col_{i}"
+            elif not c_bottom:
+                base_name = c_top
+            else:
+                base_name = f"{c_top}_{c_bottom}"
+            
+            if base_name in counts:
+                counts[base_name] += 1
+                final_name = f"{base_name}.{counts[base_name]}"
+            else:
+                counts[base_name] = 0
+                final_name = base_name
+            final_columns.append(final_name)
+
+        # 3. Carregamento do DataFrame
+        df_f = pd.read_csv(path_f, skiprows=2, names=final_columns, encoding='utf-8', sep=',', on_bad_lines='skip')
+
+        # --- NORMALIZAÇÃO CRÍTICA PARA EVITAR KEYERROR ---
+        # Procura qualquer coluna que se pareça com 'Fonte' e renomeia para 'Fonte'
+        for col in df_f.columns:
+            if "Fonte" in col:
+                df_f.rename(columns={col: "Fonte"}, inplace=True)
+                break # Pega a primeira ocorrência encontrada
+
+    except Exception as e:
+        st.error(f"Erro crítico no processamento de Alpinópolis.csv: {e}")
+        return None, None, None
+
+    # Carregamento dos demais arquivos (Receita e Despesa Fixa)
+    try:
+        df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
+        df_r.columns = [str(c).strip() for c in df_r.columns]
+        
+        df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
+        df_df.columns = [str(c).strip() for c in df_df.columns]
+        
+        # Também normaliza 'Fonte' nos outros arquivos por segurança
+        for d_tmp in [df_r, df_df]:
+            for col in d_tmp.columns:
+                if "Fonte" in col:
+                    d_tmp.rename(columns={col: "Fonte"}, inplace=True)
+    except Exception as e:
+        st.error(f"Erro ao carregar arquivos complementares: {e}")
+        return None, None, None
+
+    # Processamento de Limpeza de Valores
+    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas', 'Toral']
+
     for col in df_f.columns:
-        if "Unnamed" in col[0]: new_cols.append(col[1].strip())
-        else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
-    df_f.columns = new_cols
-    
-    # Ajustado para header=0 pois é o padrão da base de Alpinópolis
-    df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
-    df_r.columns = [str(c).strip() for c in df_r.columns]
-    
-    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
-    df_df.columns = [str(c).strip() for c in df_df.columns]
-    
-    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
-    
-    for col in df_f.columns:
-        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
+        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total', 'Toral']):
             df_f[col] = df_f[col].apply(limpar_valor)
+            
     for col in df_r.columns:
         if col in meses_limpeza:
             df_r[col] = df_r[col].apply(limpar_valor)
+            
     for col in df_df.columns:
         if col in meses_limpeza:
             df_df[col] = df_df[col].apply(limpar_valor)
-            
-    if 'Fonte' in df_f.columns:
-        df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-    if 'Fonte' in df_df.columns:
-        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-        
+
+    # Tratamento final da coluna Fonte (remover .0)
+    for df in [df_f, df_df]:
+        if 'Fonte' in df.columns:
+            df['Fonte'] = df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+
     return df_f, df_r, df_df
 
 df_f_raw, df_r, df_df_raw = load_all_data()
