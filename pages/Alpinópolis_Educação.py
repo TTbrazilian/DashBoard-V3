@@ -130,58 +130,69 @@ def load_all_data():
     arquivo_r = "zEducação/Alpinópolis_R.csv"
     arquivo_df = "zEducação/Alpinópolis_DF.csv"
     
-    path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
-    if not path_f or not path_r or not path_df: return None, None, None
+    path_f = buscar_arquivo(arquivo_f)
+    path_r = buscar_arquivo(arquivo_r)
+    path_df = buscar_arquivo(arquivo_df)
     
-    # --- CORREÇÃO PARA O ARQUIVO ALPINÓPOLIS.CSV ---
-    # Lemos primeiro sem cabeçalho para tratar possíveis inconsistências de colunas
-    df_f_raw = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=None)
+    if not path_f or not path_r or not path_df:
+        return None, None, None
+
+    # --- INÍCIO DA CORREÇÃO PARA ALPINÓPOLIS.CSV ---
+    # Passo 1: Ler apenas as duas primeiras linhas para construir o cabeçalho manualmente
+    # Isso evita o erro de "equal number of columns" do engine do pandas
+    df_header = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=None, nrows=2)
     
-    # Extraímos as duas primeiras linhas para criar o cabeçalho combinado manualmente
-    header_0 = df_f_raw.iloc[0].fillna('').astype(str).tolist()
-    header_1 = df_f_raw.iloc[1].fillna('').astype(str).tolist()
+    # Preencher valores nulos para evitar erros na concatenação
+    h0 = df_header.iloc[0].fillna('').astype(str).tolist()
+    h1 = df_header.iloc[1].fillna('').astype(str).tolist()
     
-    new_cols = []
-    for h0, h1 in zip(header_0, header_1):
-        h0_clean = h0.strip()
-        h1_clean = h1.strip()
+    final_columns = []
+    for col_top, col_bottom in zip(h0, h1):
+        c_top = col_top.strip()
+        c_bottom = col_bottom.strip()
         
-        if "Unnamed" in h0_clean or h0_clean == "":
-            new_cols.append(h1_clean)
+        # Lógica para combinar: Se o topo for vazio ou 'Unnamed', usa apenas o de baixo
+        # Caso contrário, combina os dois para criar um nome único (Ex: Janeiro_Empenhado)
+        if not c_top or "Unnamed" in c_top:
+            final_columns.append(c_bottom)
+        elif not c_bottom:
+            final_columns.append(c_top)
         else:
-            # Se h1 estiver vazio, usa apenas h0, senão combina os dois
-            if h1_clean == "":
-                new_cols.append(h0_clean)
-            else:
-                new_cols.append(f"{h1_clean}_{h0_clean}")
-    
-    # Recarregamos o dataframe pulando as linhas de cabeçalho problemáticas e atribuindo os nomes tratados
-    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', skiprows=2, names=new_cols)
-    
-    # Ajustado para header=0 pois é o padrão da base de Alpinópolis
+            final_columns.append(f"{c_top}_{c_bottom}")
+
+    # Passo 2: Carregar os dados reais pulando as duas linhas de cabeçalho
+    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', skiprows=2, names=final_columns)
+    # --- FIM DA CORREÇÃO ---
+
+    # Carregamento dos outros arquivos (permanece o padrão)
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
     df_r.columns = [str(c).strip() for c in df_r.columns]
     
-    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
+    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
     df_df.columns = [str(c).strip() for c in df_df.columns]
-    
-    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
-    
+
+    # Lista de meses e termos para limpeza de valores monetários
+    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas', 'Toral']
+
+    # Limpeza de strings para números (R$ 1.234,00 -> 1234.00)
     for col in df_f.columns:
-        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
+        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total', 'Toral']):
             df_f[col] = df_f[col].apply(limpar_valor)
+            
     for col in df_r.columns:
         if col in meses_limpeza:
             df_r[col] = df_r[col].apply(limpar_valor)
+            
     for col in df_df.columns:
         if col in meses_limpeza:
             df_df[col] = df_df[col].apply(limpar_valor)
-            
+
+    # Tratamento da coluna Fonte para evitar decimais indesejados (ex: 1500.0 -> 1500)
     if 'Fonte' in df_f.columns:
         df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
     if 'Fonte' in df_df.columns:
         df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-        
+
     return df_f, df_r, df_df
 
 df_f_raw, df_r, df_df_raw = load_all_data()
