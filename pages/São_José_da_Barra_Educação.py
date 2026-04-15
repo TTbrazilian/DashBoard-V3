@@ -6,7 +6,7 @@ import os
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 import random
-
+import numpy as np
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="São José Da Barra - Gestão Educação", layout="wide")
 
@@ -82,14 +82,18 @@ if 'setor' not in st.session_state:
 
 # --- FUNÇÕES UTILITÁRIAS ---
 def limpar_valor(valor):
-    if pd.isna(valor) or str(valor).strip() in ["", "-", "R$ 0,00", "0"]:
+    """Converte valores monetários do CSV para float de forma segura."""
+    if isinstance(valor, (pd.Series, list, np.ndarray)):
         return 0.0
-    s_valor = str(valor).replace('R$', '').replace(' ', '').replace('.', '').replace(',', '.')
-    try: 
-        if '(' in s_valor and ')' in s_valor:
-            s_valor = '-' + s_valor.replace('(', '').replace(')', '')
-        return float(s_valor)
-    except: return 0.0
+    if pd.isna(valor) or str(valor).strip() in ["", "-", "R$ 0,00", "0", "None"]:
+        return 0.0
+    try:
+        val_str = str(valor).replace('R$', '').replace('.', '').replace(',', '.').strip()
+        if '(' in val_str and ')' in val_str:
+            val_str = '-' + val_str.replace('(', '').replace(')', '')
+        return float(val_str)
+    except:
+        return 0.0
 
 def formar_real(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -126,7 +130,6 @@ def buscar_arquivo(nome):
 
 @st.cache_data
 def load_all_data():
-    # Definição dos nomes de arquivos conforme o padrão da prefeitura
     arquivo_f = "zEducação/São José da Barra.csv"
     arquivo_r = "zEducação/São José da Barra_R.csv"
     arquivo_df = "zEducação/São José da Barra_DF.csv"
@@ -140,54 +143,45 @@ def load_all_data():
         return None, None, None
 
     try:
-        # 1. Carregamento e Achatamento do MultiIndex (Arquivo Principal)
+        # 1. Carregamento do arquivo Principal com cabeçalho duplo
         df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
         
+        # 2. Achatamento do cabeçalho (Resolve AttributeError e prepara para encontrar a 'Fonte')
         novas_colunas = []
         for col in df_f.columns:
-            # col[0] é o nível superior (ex: Janeiro), col[1] é o inferior (ex: Liquidado)
-            nivel0 = str(col[0]).strip()
-            nivel1 = str(col[1]).strip()
-            
-            if "Unnamed" in nivel0 or nivel0 == "":
-                nome_final = nivel1
-            elif "Unnamed" in nivel1 or nivel1 == "":
-                nome_final = nivel0
+            n0, n1 = str(col[0]).strip(), str(col[1]).strip()
+            if "Unnamed" not in n1 and n1 != "":
+                nome_final = n1
             else:
-                # Mantém o nível inferior (ex: Fonte, Ficha) ou combina conforme necessidade
-                nome_final = nivel1 
+                nome_final = n0
             novas_colunas.append(nome_final)
-        
         df_f.columns = novas_colunas
 
-        # 2. Carregamento dos demais arquivos (Cabeçalho Simples)
+        # 3. Carregamento dos arquivos simples
         df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
         df_r.columns = [str(c).strip() for c in df_r.columns]
         
         df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
         df_df.columns = [str(c).strip() for c in df_df.columns]
 
-        # 3. Normalização Crítica de Colunas Essenciais
-        # Isso garante que df['Fonte'] e df['Atividade'] existam mesmo se o CSV mudar
-        mapeamento = {"Fonte": "Fonte", "Atividade": "Atividade", "Ficha": "Ficha"}
-        
+        # 4. Normalização Forçada de Colunas (Resolve o KeyError)
         for df_temp in [df_f, df_df]:
-            for termo_busca, nome_correto in mapeamento.items():
-                for col_existente in df_temp.columns:
-                    if termo_busca.lower() in col_existente.lower():
-                        df_temp.rename(columns={col_existente: nome_correto}, inplace=True)
-                        break
+            for col in list(df_temp.columns):
+                c_upper = str(col).upper()
+                if "FONTE" in c_upper: df_temp.rename(columns={col: "Fonte"}, inplace=True)
+                elif "ATIVIDADE" in c_upper: df_temp.rename(columns={col: "Atividade"}, inplace=True)
+                elif "FICHA" in c_upper: df_temp.rename(columns={col: "Ficha"}, inplace=True)
 
-        # 4. Limpeza de Valores Monetários (Usando MAP para evitar ValueError)
-        termos_financeiros = ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total', 'Toral']
-        colunas_meses = ORDEM_MESES + ['Dedução', 'Orçado Receitas']
+        # 5. Limpeza de Valores Monetários (Usando MAP para evitar ValueError)
+        termos_fin = ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total', 'Toral']
+        col_meses = ORDEM_MESES + ['Dedução', 'Orçado Receitas']
 
         for df_target in [df_f, df_r, df_df]:
             for col in df_target.columns:
-                if col in colunas_meses or any(k in col for k in termos_financeiros):
+                if col in col_meses or any(k in str(col) for k in termos_fin):
                     df_target[col] = df_target[col].map(limpar_valor)
 
-        # 5. Tratamento Final da Coluna Fonte (Remover decimais e espaços)
+        # 6. Garantia final de tipos para Filtros e Strings
         for df_target in [df_f, df_df]:
             if 'Fonte' in df_target.columns:
                 df_target['Fonte'] = df_target['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
@@ -197,9 +191,8 @@ def load_all_data():
         return df_f, df_r, df_df
 
     except Exception as e:
-        st.error(f"Erro ao processar dados: {e}")
+        st.error(f"Erro ao processar dados de São José da Barra: {e}")
         return None, None, None
-
 df_f_raw, df_r, df_df_raw = load_all_data()
 
 # --- DEFINIÇÃO DE MESES COM DADOS REAIS ---
@@ -225,7 +218,7 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'RENDIMENTOS' in desc: return 'Aplicação'
             return 'Principal'
             
-        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407', '15403'])].copy()
+        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].astype(str).isin(['15407', '15403'])].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
         
         df_r_fundeb = df_r[(df_r['Categoria'].str.strip() == 'FUNDEB')].copy()
