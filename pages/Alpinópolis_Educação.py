@@ -130,84 +130,40 @@ def load_all_data():
     arquivo_r = "zEducação/Alpinópolis_R.csv"
     arquivo_df = "zEducação/Alpinópolis_DF.csv"
     
-    path_f = buscar_arquivo(arquivo_f)
-    path_r = buscar_arquivo(arquivo_r)
-    path_df = buscar_arquivo(arquivo_df)
+    path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
+    if not path_f or not path_r or not path_df: return None, None, None
     
-    if not path_f or not path_r or not path_df:
-        return None, None, None
-
-    # --- BLOCO DE CORREÇÃO FINAL PARA ALPINÓPOLIS.CSV ---
-    try:
-        # 1. Extração Manual do Cabeçalho (Evita o erro Out-of-bounds e ParserError)
-        with open(path_f, 'r', encoding='utf-8') as f:
-            # Lemos as duas primeiras linhas como texto puro
-            line0 = f.readline().strip().split(',')
-            line1 = f.readline().strip().split(',')
-        
-        # 2. Reconstrução dos nomes das colunas
-        final_columns = []
-        # Usamos o tamanho da maior linha para não perder dados
-        max_cols = max(len(line0), len(line1))
-        
-        for i in range(max_cols):
-            c_top = line0[i].strip() if i < len(line0) else ""
-            c_bottom = line1[i].strip() if i < len(line1) else ""
-            
-            if not c_top or "Unnamed" in c_top:
-                name = c_bottom if c_bottom else f"Coluna_{i}"
-            elif not c_bottom:
-                name = c_top
-            else:
-                name = f"{c_top}_{c_bottom}"
-            final_columns.append(name)
-
-        # 3. Leitura dos dados pulando as linhas de texto processadas
-        # Usamos engine='c' (mais rápido) agora que o cabeçalho está resolvido
-        df_f = pd.read_csv(
-            path_f, 
-            skiprows=2, 
-            names=final_columns, 
-            encoding='utf-8', 
-            sep=',', 
-            on_bad_lines='skip'
-        )
-    except Exception as e:
-        st.error(f"Erro crítico no processamento de Alpinópolis.csv: {e}")
-        return None, None, None
-    # --- FIM DO BLOCO DE CORREÇÃO ---
-
-    # Leitura dos demais arquivos
-    try:
-        df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
-        df_r.columns = [str(c).strip() for c in df_r.columns]
-        
-        df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
-        df_df.columns = [str(c).strip() for c in df_df.columns]
-    except Exception as e:
-        st.error(f"Erro ao carregar arquivos complementares: {e}")
-        return None, None, None
-
-    # Processamento de Limpeza (Valores Monetários)
-    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas', 'Toral']
-
+    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
+    new_cols = []
     for col in df_f.columns:
-        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total', 'Toral']):
+        if "Unnamed" in col[0]: new_cols.append(col[1].strip())
+        else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
+    df_f.columns = new_cols
+    
+    # Ajustado para header=0 pois é o padrão da base de Alpinópolis
+    df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
+    df_r.columns = [str(c).strip() for c in df_r.columns]
+    
+    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
+    df_df.columns = [str(c).strip() for c in df_df.columns]
+    
+    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
+    
+    for col in df_f.columns:
+        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
             df_f[col] = df_f[col].apply(limpar_valor)
-            
     for col in df_r.columns:
         if col in meses_limpeza:
             df_r[col] = df_r[col].apply(limpar_valor)
-            
     for col in df_df.columns:
         if col in meses_limpeza:
             df_df[col] = df_df[col].apply(limpar_valor)
-
-    # Tratamento de colunas de identificação
-    for df in [df_f, df_df]:
-        if 'Fonte' in df.columns:
-            df['Fonte'] = df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-
+            
+    if 'Fonte' in df_f.columns:
+        df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+    if 'Fonte' in df_df.columns:
+        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+        
     return df_f, df_r, df_df
 
 df_f_raw, df_r, df_df_raw = load_all_data()
