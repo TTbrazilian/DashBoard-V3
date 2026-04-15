@@ -126,9 +126,9 @@ def buscar_arquivo(nome):
 
 @st.cache_data
 def load_all_data():
-    arquivo_f = "zEducação/São José da Barra.csv"
-    arquivo_r = "zEducação/São José da Barra_R.csv"
-    arquivo_df = "zEducação/São José da Barra_DF.csv"
+    arquivo_f = "zEducação/São_José_da_Barra.csv"
+    arquivo_r = "zEducação/São_José_da_Barra_R.csv"
+    arquivo_df = "zEducação/São_José_da_Barra_DF.csv"
     
     path_f = buscar_arquivo(arquivo_f)
     path_r = buscar_arquivo(arquivo_r)
@@ -137,10 +137,13 @@ def load_all_data():
     if not path_f or not path_r or not path_df:
         return None, None, None
 
-    # Carregamento com limpeza imediata de nomes de colunas (strip)
+    # 1. Carregamento do arquivo com cabeçalho duplo
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
-    # Para MultiIndex, limpamos os níveis
-    df_f.columns = df_f.columns.set_levels([l.str.strip() for l in df_f.columns.levels])
+    
+    # Limpeza de espaços nos nomes das colunas de todos os níveis
+    df_f.columns = pd.MultiIndex.from_tuples(
+        [(str(a).strip(), str(b).strip()) for a, b in df_f.columns]
+    )
     
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
     df_r.columns = [str(c).strip() for c in df_r.columns]
@@ -148,12 +151,12 @@ def load_all_data():
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
     df_df.columns = [str(c).strip() for c in df_df.columns]
     
-    # Lista de colunas que precisam de limpeza de valores monetários
     meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
-    # Limpeza de valores nas colunas detectadas
+    # 2. Limpeza de valores monetários
+    # Para o df_f (MultiIndex), verificamos o segundo nível (índice 1 da tupla)
     for col in df_f.columns:
-        if any(k in col[1] for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
+        if any(k in col[1] for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Total']):
             df_f[col] = df_f[col].apply(limpar_valor)
             
     for col in df_r.columns:
@@ -164,11 +167,14 @@ def load_all_data():
         if col in meses_limpeza:
             df_df[col] = df_df[col].apply(limpar_valor)
             
-    # Padronização da coluna Fonte (remover .0 e espaços)
-    if 'Fonte' in df_f.columns:
-        df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+    # 3. TRATAMENTO DA COLUNA FONTE (Correção do AttributeError)
+    # No MultiIndex, a 'Fonte' costuma estar na tupla ('', 'Fonte') ou ('Categoria', 'Fonte')
+    # Vamos percorrer as colunas para encontrar onde 'Fonte' está e tratar
+    for col in df_f.columns:
+        if 'Fonte' in col:
+            df_f[col] = df_f[col].astype(str).str.replace('.0', '', regex=False).str.strip()
     
-    # Correção específica para o KeyError: 'Fonte' no df_df
+    # Tratamento no df_df (Cabeçalho simples)
     if 'Fonte' in df_df.columns:
         df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
         
