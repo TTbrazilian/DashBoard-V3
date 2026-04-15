@@ -133,12 +133,30 @@ def load_all_data():
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
     
-    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
+    # --- CORREÇÃO PARA O ARQUIVO ALPINÓPOLIS.CSV ---
+    # Lemos primeiro sem cabeçalho para tratar possíveis inconsistências de colunas
+    df_f_raw = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=None)
+    
+    # Extraímos as duas primeiras linhas para criar o cabeçalho combinado manualmente
+    header_0 = df_f_raw.iloc[0].fillna('').astype(str).tolist()
+    header_1 = df_f_raw.iloc[1].fillna('').astype(str).tolist()
+    
     new_cols = []
-    for col in df_f.columns:
-        if "Unnamed" in col[0]: new_cols.append(col[1].strip())
-        else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
-    df_f.columns = new_cols
+    for h0, h1 in zip(header_0, header_1):
+        h0_clean = h0.strip()
+        h1_clean = h1.strip()
+        
+        if "Unnamed" in h0_clean or h0_clean == "":
+            new_cols.append(h1_clean)
+        else:
+            # Se h1 estiver vazio, usa apenas h0, senão combina os dois
+            if h1_clean == "":
+                new_cols.append(h0_clean)
+            else:
+                new_cols.append(f"{h1_clean}_{h0_clean}")
+    
+    # Recarregamos o dataframe pulando as linhas de cabeçalho problemáticas e atribuindo os nomes tratados
+    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', skiprows=2, names=new_cols)
     
     # Ajustado para header=0 pois é o padrão da base de Alpinópolis
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
