@@ -317,25 +317,34 @@ if df_f_raw is not None and df_r is not None:
         st.dataframe(df_f_fundeb[cols_show], use_container_width=True, hide_index=True)
         
         # --- SETOR RECURSOS PRÓPRIOS ---
+    # --- SETOR RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
         # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte
         df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
         
+        # --- CORREÇÃO DO ERRO (KEYERROR): Normalização de colunas ---
+        # Garante que 'fevereiro' vire 'Fevereiro' para coincidir com meses_disponiveis
+        df_r_base.columns = [c.capitalize() if c.lower() in [m.lower() for m in ORDEM_MESES] else c for c in df_r_base.columns]
+        
         # 2. Correção na Coleta de Deduções
         df_r_ded = df_r[df_r['Categoria'].str.contains('Dedução', case=False, na=False)].copy()
+        # Normaliza colunas das deduções também
+        df_r_ded.columns = [c.capitalize() if c.lower() in [m.lower() for m in ORDEM_MESES] else c for c in df_r_ded.columns]
         
         # Seletor Global de Fase para Despesas 15001
         fase_despesa = st.segmented_control(" (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
 
-        # 3. Despesas 15001 (Recursos Próprios MDE Ibiraci)
+        # 3. Despesas 15001
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == fase_despesa)].copy()
         
-        total_rec_base = df_r_base[meses_disponiveis].sum().sum()
-        total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
+        # Filtra meses que realmente existem após a normalização para evitar o crash no .sum()
+        meses_reais = [m for m in meses_disponiveis if m in df_r_base.columns]
         
-        total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
+        total_rec_base = df_r_base[meses_reais].sum().sum()
+        total_desp_15001 = df_df_15001[meses_reais].sum().sum()
+        total_deducoes = abs(df_r_ded[meses_reais].sum().sum())
         
         # Lógica de cálculo para o índice
         esforco_total = total_desp_15001 + total_deducoes
@@ -350,7 +359,6 @@ if df_f_raw is not None and df_r is not None:
         with m3:
             if perc_25 >= 25: st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
             else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
-            
         st.markdown("---")
         
         # --- RECEITAS ---
