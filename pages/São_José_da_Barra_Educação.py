@@ -137,7 +137,7 @@ def load_all_data():
         else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
     
-    df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=1)
+    df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
     df_r.columns = [str(c).strip() for c in df_r.columns]
     
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
