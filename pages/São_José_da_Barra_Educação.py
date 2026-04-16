@@ -130,27 +130,59 @@ def load_all_data():
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
     
-    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
-    new_cols = []
-    for col in df_f.columns:
-        if "Unnamed" in col[0]: new_cols.append(col[1].strip())
-        else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
+    # --- FICHAS: header=0 (single header row), then rename repeated month columns ---
+    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=0)
+    df_f.columns = [str(c).strip() for c in df_f.columns]
+    
+    # The first 10 columns are unique (Categoria, Código AT, Atividade, Ficha, Elemento, Fonte, Orçado, Creditado, Anulado, Saldo)
+    # After that, months repeat 3 times each (Empenhado, Liquidado, Pago) + Total x3
+    fases = ['Empenhado', 'Liquidado', 'Pago']
+    meses_rename = ORDEM_MESES + ['Total']
+    fixed_cols = list(df_f.columns[:10])  # first 10 unique columns
+    new_cols = list(fixed_cols)
+    month_idx = 0
+    fase_idx = 0
+    for i in range(10, len(df_f.columns)):
+        if month_idx < len(meses_rename):
+            new_cols.append(f"{meses_rename[month_idx]}_{fases[fase_idx]}")
+            fase_idx += 1
+            if fase_idx >= 3:
+                fase_idx = 0
+                month_idx += 1
+        else:
+            new_cols.append(df_f.columns[i])
     df_f.columns = new_cols
     
+    # --- RECEITAS: header=0 ---
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
     df_r.columns = [str(c).strip() for c in df_r.columns]
+    if 'Categoria' in df_r.columns:
+        df_r['Categoria'] = df_r['Categoria'].astype(str).str.strip()
     
+    # --- DESPESAS (DF) ---
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
+    # Remove repeated internal header rows
+    if 'Tipo' in df_df.columns:
+        df_df = df_df[df_df['Tipo'].astype(str).str.strip() != 'Tipo'].copy()
+    # Clean Fonte column (remove literal quotes)
+    if 'Fonte' in df_df.columns:
+        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('"', '', regex=False).str.strip()
+    # Clean Nomenclatura column
+    if 'Nomenclatura' in df_df.columns:
+        df_df['Nomenclatura'] = df_df['Nomenclatura'].astype(str).str.strip()
     
     meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
+    # Clean numeric columns in fichas
     for col in df_f.columns:
-        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
+        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Creditado', 'Anulado']):
             df_f[col] = df_f[col].apply(limpar_valor)
+    # Clean numeric columns in receitas
     for col in df_r.columns:
         if col in meses_limpeza:
             df_r[col] = df_r[col].apply(limpar_valor)
+    # Clean numeric columns in despesas
     for col in df_df.columns:
         if col in meses_limpeza:
             df_df[col] = df_df[col].apply(limpar_valor)
@@ -187,8 +219,9 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'RENDIMENTOS' in desc: return 'Aplicação'
             return 'Principal'
             
-        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407', '15403'])].copy()
-        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
+        # Filter by Nomenclatura instead of Fonte codes
+        df_df_fundeb = df_df_raw[df_df_raw['Nomenclatura'].isin(['FUNDEB 70%', 'FUNDEB 30%'])].copy()
+        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Nomenclatura']
         
         df_r_fundeb = df_r[(df_r['Categoria'].str.strip() == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
@@ -296,7 +329,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
         col_liq_fichas = [c for c in df_f_fundeb.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
-        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
+        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1) if col_liq_fichas else 0
         df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
         cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
         orc_col = [c for c in df_f_fundeb.columns if 'Orçado' in c]
@@ -313,7 +346,8 @@ if df_f_raw is not None and df_r is not None:
         
         fase_despesa = st.segmented_control(" (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
 
-        df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == fase_despesa)].copy()
+        # Filter by Nomenclatura instead of Fonte code
+        df_df_15001 = df_df_raw[(df_df_raw['Nomenclatura'] == 'Próprio Educação') & (df_df_raw['Tipo'] == fase_despesa)].copy()
         
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
@@ -386,7 +420,8 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("Detalhamento Acumulado e Mensal por Estágio (Empenhado, Liquidado, Pago)")
         view_desp = st.segmented_control("Visualização Despesas:", ["Acumulado", "Mensal"], default="Mensal", key="view_desp")
         
-        df_15001_todas = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))].copy()
+        # Filter by Nomenclatura instead of Fonte code
+        df_15001_todas = df_df_raw[(df_df_raw['Nomenclatura'] == 'Próprio Educação') & (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))].copy()
         
         if view_desp == "Acumulado":
             total_desp_acum_rp = df_15001_todas[meses_disponiveis].sum().sum()
@@ -483,7 +518,8 @@ if df_f_raw is not None and df_r is not None:
     # --- SETOR RECURSOS VINCULADOS ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>📖 São José da Barra - Recursos Vinculados</h1>", unsafe_allow_html=True)
-        mapa_desp = {'PNAE': ['1552', '2552'], 'PNATE': ['1553', '2553'], 'PTE': ['1576', '2576'], 'QESE': ['1550', '2550']}
+        # Map programs to Nomenclatura values instead of Fonte codes
+        mapa_desp_nomes = {'PNAE': 'PNAE', 'PNATE': 'PNATE', 'PTE': 'PTE', 'QESE': 'QESE'}
         programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
         
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)].copy()
@@ -492,8 +528,7 @@ if df_f_raw is not None and df_r is not None:
         with m1: st.metric("Previsão Vinculados 2026", formar_real(df_r_vinc['Orçado Receitas'].sum()))
         with m2: st.metric(f"Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(df_r_vinc[meses_disponiveis].sum().sum()))
         with m3:
-            fontes_v = [f for sub in mapa_desp.values() for f in sub]
-            total_liq_vinc = df_df_raw[(df_df_raw['Fonte'].isin(fontes_v)) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
+            total_liq_vinc = df_df_raw[(df_df_raw['Nomenclatura'].isin(programas)) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
             st.metric(f"Liquidado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_liq_vinc))
 
         st.markdown("---")
@@ -509,7 +544,7 @@ if df_f_raw is not None and df_r is not None:
             if tipo_vinc == "Acumulado":
                 dados_comp_v = []
                 rec = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog][meses_disponiveis].sum().sum()
-                desp = df_df_raw[(df_df_raw['Fonte'].isin(mapa_desp[prog])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
+                desp = df_df_raw[(df_df_raw['Nomenclatura'] == prog) & (df_df_raw['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
                 dados_comp_v.append({"Tipo": "Receita", "Valor": rec})
                 dados_comp_v.append({"Tipo": "Despesa", "Valor": desp})
                 
@@ -523,7 +558,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_d_v = []
                 for m in meses_disponiveis:
                     rec_m = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog][m].sum()
-                    desp_m = df_df_raw[(df_df_raw['Fonte'].isin(mapa_desp[prog])) & (df_df_raw['Tipo'] == 'Liquidado')][m].sum()
+                    desp_m = df_df_raw[(df_df_raw['Nomenclatura'] == prog) & (df_df_raw['Tipo'] == 'Liquidado')][m].sum()
                     dados_d_v.append({"Mês": m, "Tipo": "Receita", "Valor": rec_m})
                     dados_d_v.append({"Mês": m, "Tipo": "Despesa", "Valor": desp_m})
 
@@ -539,8 +574,8 @@ if df_f_raw is not None and df_r is not None:
 
     # --- RELATÓRIO DE FICHAS GLOBAL ---
     st.markdown("### 📋 Relatório Geral de Fichas")
-    df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(search_term, na=False, case=False)].copy()
+    df_f_filt = df_f_raw[df_f_raw['Atividade'].astype(str).str.contains(search_term, na=False, case=False)].copy()
     st.dataframe(df_f_filt, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro ao carregar os arquivos CSV. Verifique a pasta 'zEducação' ou o upload dos arquivos.")
+    st.error("Arquivos de dados não encontrados.")
