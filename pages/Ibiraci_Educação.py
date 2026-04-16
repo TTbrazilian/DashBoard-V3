@@ -195,25 +195,20 @@ if df_f_raw is not None and df_r is not None:
             return 'Principal'
 
         def obter_soma_mensal_robusta(df, meses):
-            # Cria um mapeamento de colunas (Ex: {'Janeiro': 'janeiro'}) para evitar KeyError
             colunas_map = {c.strip().lower(): c for c in df.columns}
-            cols_encontradas = []
-            for m in meses:
-                m_limpo = m.strip().lower()
-                if m_limpo in colunas_map:
-                    cols_encontradas.append(colunas_map[m_limpo])
-            
-            if not cols_encontradas:
-                return 0
-            return df[cols_encontradas].sum().sum()
+            cols_encontradas = [colunas_map[m.strip().lower()] for m in meses if m.strip().lower() in colunas_map]
+            return df[cols_encontradas].sum().sum() if cols_encontradas else 0
 
         # 2. PROCESSAMENTO DE DADOS (RECEITAS)
-        # Filtramos FUNDEB e garantimos que a descrição seja limpa para bater com a lógica
         df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        # O valor de R$ 10.703.377,31 vem da soma das subcategorias (excluindo deduções se houver)
-        tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
+        # --- CORREÇÃO DEFINITIVA DA PREVISÃO ---
+        # Filtra apenas a linha do Principal para pegar o valor orçado correto (R$ 10.703.377,31)
+        df_principal = df_r_fundeb[df_r_fundeb['Subcategoria'] == 'Principal']
+        tot_prev_2026 = df_principal['Orçado Receitas'].sum()
+        
+        # Para o arrecadado, somamos todas as fontes que entraram (Principal + VAAR + ETI + Rendimentos)
         tot_rec_periodo = obter_soma_mensal_robusta(df_r_fundeb, meses_disponiveis)
 
         # 3. PROCESSAMENTO DE DADOS (DESPESAS)
@@ -322,7 +317,6 @@ if df_f_raw is not None and df_r is not None:
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
                               category_orders={"Mês": ORDEM_MESES})
             
-            # Linha de Meta Dinâmica
             df_l = pd.DataFrame([{"Mês": m, "Meta": obter_soma_mensal_robusta(df_r_fundeb, [m])*0.7} for m in meses_disponiveis])
             fig_comp.add_trace(go.Scatter(x=df_l['Mês'], y=df_l['Meta'], mode='lines+markers', name='Meta 70%', line=dict(color='green', dash='dot')))
 
