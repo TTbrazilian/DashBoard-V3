@@ -17,7 +17,7 @@ st.markdown(
         [data-testid="stSidebarNav"] ul li div:has(span:contains("Bom Jesus")),
         [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")),
         [data-testid="stSidebarNav"] ul li:has(span:contains("Penha")),
-        [data-testid="stSidebarNav"] ul li:has(span:contains("São Tomás de Aquino")) {
+        [data-testid="stSidebarNav"] ul li:has(span:contains("São Tomás")) {
             display: none !important;
         }
         
@@ -67,10 +67,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# CORREÇÃO 1: Mudar o tema padrão para 'plotly_dark' para escurecer o hover
 pio.templates.default = "plotly_dark"
 CONFIG_PT = {'displaylogo': False, 'showTips': False}
+# Variável auxiliar para garantir o estilo do hover solicitado (Fonte branca, fundo preto, sem labels extras)
 HOVER_STYLE = dict(bgcolor="rgba(0,0,0,0.9)", font_size=13, font_family="Arial", font_color="white")
 
+# ORDEM CRONOLÓGICA DOS MESES
 ORDEM_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
                 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
@@ -130,67 +133,78 @@ def load_all_data():
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
     
-    # --- FICHAS: header=0 (single header row), then rename repeated month columns ---
+    # =============================================
+    # FICHAS: header único com meses repetidos (Empenhado, Liquidado, Pago)
+    # Colunas 0-9: Categoria, Código AT, Atividade, Ficha, Elemento, Fonte, Orçado, Creditado, Anulado, Saldo
+    # Depois triplets: Janeiro(E), Janeiro(L), Janeiro(P), Fevereiro(E), ...
+    # =============================================
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=0)
-    df_f.columns = [str(c).strip() for c in df_f.columns]
     
-    # The first 10 columns are unique (Categoria, Código AT, Atividade, Ficha, Elemento, Fonte, Orçado, Creditado, Anulado, Saldo)
-    # After that, months repeat 3 times each (Empenhado, Liquidado, Pago) + Total x3
-    fases = ['Empenhado', 'Liquidado', 'Pago']
-    meses_rename = ORDEM_MESES + ['Total']
-    fixed_cols = list(df_f.columns[:10])  # first 10 unique columns
-    new_cols = list(fixed_cols)
-    month_idx = 0
-    fase_idx = 0
-    for i in range(10, len(df_f.columns)):
-        if month_idx < len(meses_rename):
-            new_cols.append(f"{meses_rename[month_idx]}_{fases[fase_idx]}")
-            fase_idx += 1
-            if fase_idx >= 3:
-                fase_idx = 0
-                month_idx += 1
+    # Renomear colunas: as 10 primeiras mantêm nome original, depois renomear triplets
+    colunas_base = ['Categoria', 'Código AT', 'Atividade', 'Ficha', 'Elemento', 'Fonte', 'Orçado', 'Creditado', 'Anulado', 'Saldo']
+    meses_renomear = ORDEM_MESES + ['Total']
+    novas_colunas = []
+    for i, col in enumerate(df_f.columns):
+        if i < 10:
+            novas_colunas.append(colunas_base[i])
         else:
-            new_cols.append(df_f.columns[i])
-    df_f.columns = new_cols
+            idx_depois = i - 10
+            mes_idx = idx_depois // 3
+            fase_idx = idx_depois % 3
+            fases = ['Empenhado', 'Liquidado', 'Pago']
+            if mes_idx < len(meses_renomear):
+                novas_colunas.append(f"{meses_renomear[mes_idx]}_{fases[fase_idx]}")
+            else:
+                novas_colunas.append(str(col).strip())
+    df_f.columns = novas_colunas
     
-    # --- RECEITAS: header=0 ---
+    # =============================================
+    # RECEITAS: header na linha 0
+    # =============================================
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
     df_r.columns = [str(c).strip() for c in df_r.columns]
-    if 'Categoria' in df_r.columns:
-        df_r['Categoria'] = df_r['Categoria'].astype(str).str.strip()
     
-    # --- DESPESAS (DF) ---
-    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
+    # =============================================
+    # DESPESAS (DF): tem headers repetidos nas linhas e aspas no Fonte
+    # =============================================
+    df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8', header=0)
     df_df.columns = [str(c).strip() for c in df_df.columns]
-    # Remove repeated internal header rows
-    if 'Tipo' in df_df.columns:
-        df_df = df_df[df_df['Tipo'].astype(str).str.strip() != 'Tipo'].copy()
-    # Clean Fonte column (remove literal quotes)
+    
+    # Remover linhas que são headers repetidos
+    df_df = df_df[df_df['Tipo'] != 'Tipo'].copy()
+    df_df.reset_index(drop=True, inplace=True)
+    
+    # Limpar aspas do Fonte
     if 'Fonte' in df_df.columns:
         df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('"', '', regex=False).str.strip()
-    # Clean Nomenclatura column
+    
+    # Limpar Nomenclatura
     if 'Nomenclatura' in df_df.columns:
         df_df['Nomenclatura'] = df_df['Nomenclatura'].astype(str).str.strip()
     
+    # Limpar Tipo
+    if 'Tipo' in df_df.columns:
+        df_df['Tipo'] = df_df['Tipo'].astype(str).str.strip()
+    
+    # Limpar valores monetários
     meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
     
-    # Clean numeric columns in fichas
     for col in df_f.columns:
-        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago', 'Creditado', 'Anulado']):
+        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
             df_f[col] = df_f[col].apply(limpar_valor)
-    # Clean numeric columns in receitas
     for col in df_r.columns:
         if col in meses_limpeza:
             df_r[col] = df_r[col].apply(limpar_valor)
-    # Clean numeric columns in despesas
     for col in df_df.columns:
         if col in meses_limpeza:
             df_df[col] = df_df[col].apply(limpar_valor)
             
     if 'Fonte' in df_f.columns:
         df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-    if 'Fonte' in df_df.columns:
-        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
+    
+    # Limpar Categoria de receitas (espaços extras)
+    if 'Categoria' in df_r.columns:
+        df_r['Categoria'] = df_r['Categoria'].astype(str).str.strip()
         
     return df_f, df_r, df_df
 
@@ -219,14 +233,15 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'RENDIMENTOS' in desc: return 'Aplicação'
             return 'Principal'
             
-        # Filter by Nomenclatura instead of Fonte codes
+        # FILTRO POR NOMENCLATURA ao invés de Fonte (os códigos de Fonte no DF são diferentes do fichas)
         df_df_fundeb = df_df_raw[df_df_raw['Nomenclatura'].isin(['FUNDEB 70%', 'FUNDEB 30%'])].copy()
-        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Nomenclatura']
+        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Nomenclatura'].apply(lambda x: 'FUNDEB 70%' if x == 'FUNDEB 70%' else 'FUNDEB 30%')
         
-        df_r_fundeb = df_r[(df_r['Categoria'].str.strip() == 'FUNDEB')].copy()
+        df_r_fundeb = df_r[(df_r['Categoria'] == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('540|546', na=False)].copy()
+        # Fichas FUNDEB: fontes 15407, 15403, 1540, 1542
+        df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('1540|1542|15407|15403', na=False)].copy()
         
         tot_rec_periodo = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
@@ -318,6 +333,7 @@ if df_f_raw is not None and df_r is not None:
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
                               category_orders={"Mês": ORDEM_MESES})
             
+            # Adicionando a linha da meta de 70% também na visão mensal
             df_linha_70 = pd.DataFrame(dados_m_comp)
             df_linha_70 = df_linha_70[df_linha_70['Tipo'] == 'Receita Total'].copy()
             df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
@@ -329,8 +345,8 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
         col_liq_fichas = [c for c in df_f_fundeb.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
-        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1) if col_liq_fichas else 0
-        df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
+        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
+        df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else ('FUNDEB 30%' if '15403' in str(x) else 'FUNDEB'))
         cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
         orc_col = [c for c in df_f_fundeb.columns if 'Orçado' in c]
         if orc_col: cols_show.append(orc_col[0])
@@ -341,26 +357,32 @@ if df_f_raw is not None and df_r is not None:
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 São José da Barra - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
-        df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
-        df_r_ded = df_r[df_r['Categoria'].str.strip() == 'Dedução FUNDEB'].copy()
+        # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte
+        df_r_base = df_r[df_r['Categoria'].isin(['Impostos', 'Cota-Parte'])].copy()
         
+        # 2. Dedução FUNDEB
+        df_r_ded = df_r[df_r['Categoria'] == 'Dedução FUNDEB'].copy()
+        
+        # Seletor Global de Fase para Despesas Próprio Educação
         fase_despesa = st.segmented_control(" (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
 
-        # Filter by Nomenclatura instead of Fonte code
+        # 3. Despesas Próprio Educação (equivalente a Fonte 15001 no arquivo DF)
         df_df_15001 = df_df_raw[(df_df_raw['Nomenclatura'] == 'Próprio Educação') & (df_df_raw['Tipo'] == fase_despesa)].copy()
         
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
+        # Lógica de cálculo para o índice
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
+        # Cálculo de quanto falta gastar para o secretário atingir a meta
         meta_financeira_25 = total_rec_base * 0.25
         saldo_necessario_25 = max(0, meta_financeira_25 - esforco_total)
         
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Total das Despesas (Fonte 15001)", formar_real(total_desp_15001))
+        with m1: st.metric("Total das Despesas (Próprio Educação)", formar_real(total_desp_15001))
         with m2: st.metric("Saldo para atingir a meta (25%)", formar_real(saldo_necessario_25))
         with m3:
             if perc_25 >= 25: st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
@@ -368,6 +390,7 @@ if df_f_raw is not None and df_r is not None:
             
         st.markdown("---")
         
+        # --- RECEITAS ---
         st.subheader("🔹 Receitas Recursos Próprios (Impostos e Cota-Parte)")
         view_rp = st.segmented_control("Visualização Receitas:", ["Acumulado", "Mensal"], default="Mensal", key="view_rp")
 
@@ -416,11 +439,11 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         
-        st.subheader("🔹 Despesas Fonte 15001")
+        # --- DESPESAS PRÓPRIO EDUCAÇÃO ---
+        st.subheader("🔹 Despesas Próprio Educação (Fonte 15001)")
         st.markdown("Detalhamento Acumulado e Mensal por Estágio (Empenhado, Liquidado, Pago)")
         view_desp = st.segmented_control("Visualização Despesas:", ["Acumulado", "Mensal"], default="Mensal", key="view_desp")
         
-        # Filter by Nomenclatura instead of Fonte code
         df_15001_todas = df_df_raw[(df_df_raw['Nomenclatura'] == 'Próprio Educação') & (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))].copy()
         
         if view_desp == "Acumulado":
@@ -454,7 +477,7 @@ if df_f_raw is not None and df_r is not None:
                            category_orders={"Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]})
         
         fig_d.update_traces(
-            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Status: %{fullData.name}<br>Valor do Investimento (15001): R$ %{customdata[2]:,.2f}<br>Valor da Dedução: R$ %{customdata[1]:,.2f}<br>Proporção (do Mês/Total): %{customdata[0]}</span><extra></extra>",
+            hovertemplate="<span style='color:white;'><b>%{x}</b><br>Status: %{fullData.name}<br>Valor do Investimento (Próprio Educação): R$ %{customdata[2]:,.2f}<br>Valor da Dedução: R$ %{customdata[1]:,.2f}<br>Proporção (do Mês/Total): %{customdata[0]}</span><extra></extra>",
             hoverlabel=HOVER_STYLE
         )
         fig_d.update_layout(separators=",.") 
@@ -462,6 +485,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         
+        # --- ANÁLISE COMPARATIVA E META ---
         st.subheader("🔹 Análise Comparativa e Meta (Mínimo 25%)")
         view_meta = st.segmented_control("Visualização Meta:", ["Acumulado", "Mensal"], default="Mensal", key="view_meta")
 
@@ -480,7 +504,7 @@ if df_f_raw is not None and df_r is not None:
                               color_discrete_map={"Receitas Base": "#003366", "Aplicação Total": cor_aplicacao})
             
             fig_meta.update_traces(
-                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>",
+                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (Próprio Educação): R$ %{customdata[1]:,.2f}</span><extra></extra>",
                 hoverlabel=HOVER_STYLE
             )
             fig_meta.add_hline(y=total_rec_base * 0.25, line_dash="dash", line_color="#f39c12", annotation_text="Meta Constitucional (25%)", annotation_position="top left")
@@ -504,7 +528,7 @@ if df_f_raw is not None and df_r is not None:
                               category_orders={"Mês": ORDEM_MESES}) 
             
             fig_meta.update_traces(
-                hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>",
+                hovertemplate="<span style='color:white;'><b>%{x} - %{data.name}</b><br>Total (Aplicação): R$ %{y:,.2f}<br>Valor da Dedução: R$ %{customdata[0]:,.2f}<br>Valor do Investimento (Próprio Educação): R$ %{customdata[1]:,.2f}</span><extra></extra>",
                 hoverlabel=HOVER_STYLE
             )
             
@@ -518,8 +542,8 @@ if df_f_raw is not None and df_r is not None:
     # --- SETOR RECURSOS VINCULADOS ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>📖 São José da Barra - Recursos Vinculados</h1>", unsafe_allow_html=True)
-        # Map programs to Nomenclatura values instead of Fonte codes
-        mapa_desp_nomes = {'PNAE': 'PNAE', 'PNATE': 'PNATE', 'PTE': 'PTE', 'QESE': 'QESE'}
+        # Mapa de Nomenclaturas para despesas vinculadas
+        mapa_desp_nomen = {'PNAE': 'PNAE', 'PNATE': 'PNATE', 'PTE': 'PTE', 'QESE': 'QESE'}
         programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
         
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)].copy()
@@ -574,8 +598,8 @@ if df_f_raw is not None and df_r is not None:
 
     # --- RELATÓRIO DE FICHAS GLOBAL ---
     st.markdown("### 📋 Relatório Geral de Fichas")
-    df_f_filt = df_f_raw[df_f_raw['Atividade'].astype(str).str.contains(search_term, na=False, case=False)].copy()
+    df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(search_term, na=False, case=False)].copy()
     st.dataframe(df_f_filt, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Arquivos de dados não encontrados.")
+    st.error("Erro ao carregar os arquivos CSV. Verifique a pasta 'zEducação' ou o upload dos arquivos.")
