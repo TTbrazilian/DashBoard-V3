@@ -273,37 +273,58 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
+        # --- ANÁLISE COMPARATIVA (ÍNDICE 70%) ---
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
-        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal")
-        
+        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal", key="tipo_graf_fundeb")
+
         if tipo_grafico == "Total Acumulado":
-            df_comp = pd.DataFrame({"Tipo": ["Receita Total", "Despesas (70%)"], "Valor": [tot_rec_periodo, desp_70_val]})
-            fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', 
-                              text=[f"", f"{perc_70_indice:.2f}%"],
+            # 1. Cria o DataFrame para o Acumulado
+            df_comp_acum = pd.DataFrame({
+                "Tipo": ["Receita Total", "Despesas (70%)"], 
+                "Valor": [tot_rec_periodo, desp_70_val],
+                "Texto": ["", f"{perc_70_indice:.2f}%"]
+            })
+            
+            # 2. Gera o gráfico Acumulado
+            fig_comp = px.bar(df_comp_acum, x='Tipo', y='Valor', color='Tipo', 
+                              text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
-            fig_comp.add_hline(y=tot_rec_periodo * 0.7, line_dash="dot", line_color="green", annotation_text=f"Meta 70%")
+            
+            # 3. Adiciona linha de meta fixa
+            fig_comp.add_hline(y=tot_rec_periodo * 0.7, line_dash="dot", line_color="green", 
+                               annotation_text="Meta 70%", annotation_position="top left")
+        
         else:
+            # 1. Lógica Mensal - CORREÇÃO: O preenchimento da lista deve estar DENTRO do loop
             dados_m_comp = []
             for m in meses_disponiveis:
                 r_m = obter_soma_mensal(df_r_fundeb, [m])
                 d_m = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
-            perc_m = (d_m / r_m * 100) if r_m > 0 else 0
-            dados_m_comp.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""})
-            dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m, "Texto": f"{perc_m:.2f}%"})
+                perc_m = (d_m / r_m * 100) if r_m > 0 else 0
+                
+                dados_m_comp.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""})
+                dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m, "Texto": f"{perc_m:.2f}%"})
+            
+            df_m_plot = pd.DataFrame(dados_m_comp)
+            
+            # 2. Gera o gráfico Mensal
+            fig_comp = px.bar(df_m_plot, x='Mês', y='Valor', color='Tipo', barmode='group', 
+                              text='Texto',
+                              color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
+                              category_orders={"Mês": ORDEM_MESES})
+            
+            # 3. Adiciona a linha da meta que acompanha os meses
+            df_linha_70 = df_m_plot[df_m_plot['Tipo'] == 'Receita Total'].copy()
+            df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
+            fig_comp.add_trace(go.Scatter(x=df_linha_70['Mês'], y=df_linha_70['Meta 70%'], 
+                                         mode='lines+markers', name='Meta 70% (Mensal)', 
+                                         line=dict(color='green', dash='dot')))
+
+        # --- CONFIGURAÇÕES FINAIS (Comuns a ambos) ---
+        fig_comp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", 
+                               hoverlabel=HOVER_STYLE, textposition='outside')
+        fig_comp.update_layout(separators=",.", xaxis_title=None, yaxis_title="Valor (R$)") 
         
-        fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', 
-                          text='Texto',
-                          color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
-                          category_orders={"Mês": ORDEM_MESES})
-        
-        # Adicionando a linha da meta de 70% também na visão mensal
-        df_linha_70 = pd.DataFrame(dados_m_comp)
-        df_linha_70 = df_linha_70[df_linha_70['Tipo'] == 'Receita Total'].copy()
-        df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
-        fig_comp.add_trace(go.Scatter(x=df_linha_70['Mês'], y=df_linha_70['Meta 70%'], mode='lines+markers', name='Meta 70% (Mensal)', line=dict(color='green', dash='dot')))
-    
-        fig_comp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
-        fig_comp.update_layout(separators=",.") 
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
