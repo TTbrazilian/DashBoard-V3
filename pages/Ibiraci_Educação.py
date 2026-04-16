@@ -185,168 +185,150 @@ if df_f_raw is not None and df_r is not None:
     # --- SETOR FUNDEB ---
     if st.session_state.setor == 'FUNDEB':
         st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - FUNDEB</h1>", unsafe_allow_html=True)
+        
+        # 1. FUNÇÕES DE SUPORTE
         def cat_receita(desc):
-            desc = desc.upper()
+            desc = str(desc).upper().strip()
             if 'VAAR' in desc: return 'VAAR'
             if 'ETI' in desc or 'TEMPO INTEGRAL' in desc: return 'ETI'
             if 'APLICAÇÃO' in desc or 'RENDIMENTOS' in desc: return 'Aplicação'
             return 'Principal'
+
+        def obter_soma_mensal_robusta(df, meses):
+            # Cria um mapeamento de colunas (Ex: {'Janeiro': 'janeiro'}) para evitar KeyError
+            colunas_map = {c.strip().lower(): c for c in df.columns}
+            cols_encontradas = []
+            for m in meses:
+                m_limpo = m.strip().lower()
+                if m_limpo in colunas_map:
+                    cols_encontradas.append(colunas_map[m_limpo])
             
-        # Filtro ajustado para a fonte 15407 (FUNDEB 70% Ibiraci)
-        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].str.contains('15407|1540', na=False)].copy()
-        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
-        
-        df_r_fundeb = df_r[(df_r['Categoria'].str.strip() == 'FUNDEB')].copy()
+            if not cols_encontradas:
+                return 0
+            return df[cols_encontradas].sum().sum()
+
+        # 2. PROCESSAMENTO DE DADOS (RECEITAS)
+        # Filtramos FUNDEB e garantimos que a descrição seja limpa para bater com a lógica
+        df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('1540', na=False)].copy()
-        
-        # Função para somar meses ignorando diferença entre "Janeiro" e "janeiro"
-        def obter_soma_mensal(df, meses):
-            cols = [c for c in df.columns if any(m.lower() == c.lower().strip() for m in meses)]
-            return df[cols].sum().sum()
-
-        tot_rec_periodo = obter_soma_mensal(df_r_fundeb, meses_disponiveis)
+        # O valor de R$ 10.703.377,31 vem da soma das subcategorias (excluindo deduções se houver)
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
+        tot_rec_periodo = obter_soma_mensal_robusta(df_r_fundeb, meses_disponiveis)
+
+        # 3. PROCESSAMENTO DE DADOS (DESPESAS)
+        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].str.contains('1540', na=False)].copy()
+        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
         
-        desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
+        desp_70_val = obter_soma_mensal_robusta(
+            df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')],
+            meses_disponiveis
+        )
         
         perc_70_indice = (desp_70_val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
-        
+
+        # 4. MÉTRICAS (CARDS)
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
+        with m1: st.metric("Previsão Orçamentária 2026", formar_real(tot_prev_2026))
         with m2: st.metric(f"Total Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(tot_rec_periodo))
         with m3:
-            if perc_70_indice >= 70: st.metric("Aplicação em Pessoal (Mín. 70%)", f"✅ {perc_70_indice:.2f}%", delta=f"{perc_70_indice-70:.2f}%")
-            else: st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70_indice:.2f}%", delta=f"{perc_70_indice-70:.2f}%", delta_color="inverse")
-        
+            label_70 = "Aplicação em Pessoal (Mín. 70%)"
+            if perc_70_indice >= 70:
+                st.metric(label_70, f"✅ {perc_70_indice:.2f}%", delta=f"{perc_70_indice-70:.2f}%")
+            else:
+                st.metric(label_70, f"⚠️ {perc_70_indice:.2f}%", delta=f"{perc_70_indice-70:.2f}%", delta_color="inverse")
+
         st.markdown("---")
+
+        # 5. GRÁFICO DE RECEITAS
         st.subheader("🔹 1. Receitas FUNDEB")
-        tipo_r = st.segmented_control("Visualização Receita:", ["Acumulado", "Mensal"], default="Mensal", key="r_btn")
+        tipo_r = st.segmented_control("Visualização Receita:", ["Acumulado", "Mensal"], default="Mensal", key="r_btn_f")
         
         if tipo_r == "Acumulado":
-            df_r_plot = df_r_fundeb.groupby('Subcategoria').apply(lambda x: obter_soma_mensal(x, meses_disponiveis)).reset_index()
+            df_r_plot = df_r_fundeb.groupby('Subcategoria').apply(lambda x: obter_soma_mensal_robusta(x, meses_disponiveis)).reset_index()
             df_r_plot.columns = ['Categoria', 'Valor']
             fig_r = px.bar(df_r_plot, x='Categoria', y='Valor', color='Categoria', text_auto='.2s',
-                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
+                          color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
         else:
             dados_m_r = []
             for m in meses_disponiveis:
                 for cat in df_r_fundeb['Subcategoria'].unique():
-                    val = obter_soma_mensal(df_r_fundeb[df_r_fundeb['Subcategoria'] == cat], [m])
+                    val = obter_soma_mensal_robusta(df_r_fundeb[df_r_fundeb['Subcategoria'] == cat], [m])
                     dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
             fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
-                            color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'},
-                            category_orders={"Mês": ORDEM_MESES})
+                          color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'},
+                          category_orders={"Mês": ORDEM_MESES})
         
-        fig_r.update_layout(separators=",.", yaxis={'showticklabels': False})
-        fig_r.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
+        fig_r.update_layout(separators=",.", yaxis_title="Valor (R$)")
+        fig_r.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>", hoverlabel=HOVER_STYLE)
         st.plotly_chart(fig_r, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
+
+        # 6. GRÁFICO DE DESPESAS
         st.subheader("🔹 2. Despesas FUNDEB")
-        tipo_f = st.segmented_control("Visualização Despesa:", ["Acumulado", "Mensal"], default="Mensal", key="f_btn")
+        tipo_f = st.segmented_control("Visualização Despesa:", ["Acumulado", "Mensal"], default="Mensal", key="f_btn_f")
         
         if tipo_f == "Acumulado":
-            total_desp_acum = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'][meses_disponiveis].sum().sum()
+            total_desp_acum = obter_soma_mensal_robusta(df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'], meses_disponiveis)
             df_f_plot = []
             for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
-                val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
+                val = obter_soma_mensal_robusta(df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')], meses_disponiveis)
                 prop = (val / total_desp_acum * 100) if total_desp_acum > 0 else 0
                 df_f_plot.append({"Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
             fig_f = px.bar(pd.DataFrame(df_f_plot), x='Fonte', y='Valor', color='Fonte', text_auto='.2s',
-                            custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
+                          custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
         else:
             dados_m_f = []
             for m in meses_disponiveis:
-                total_desp_mes = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'][m].sum()
+                total_mes = obter_soma_mensal_robusta(df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'], [m])
                 for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
-                    val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
-                    prop = (val / total_desp_mes * 100) if total_desp_mes > 0 else 0
+                    val = obter_soma_mensal_robusta(df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == fonte) & (df_df_fundeb['Tipo'] == 'Liquidado')], [m])
+                    prop = (val / total_mes * 100) if total_mes > 0 else 0
                     dados_m_f.append({"Mês": m, "Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
             fig_f = px.bar(pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
-                            custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'},
-                            category_orders={"Mês": ORDEM_MESES})
+                          custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'},
+                          category_orders={"Mês": ORDEM_MESES})
         
-        fig_f.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}</span><extra></extra>", hoverlabel=HOVER_STYLE)
-        fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
+        fig_f.update_layout(separators=",.", yaxis_title="Valor (R$)")
+        fig_f.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Prop: %{customdata[0]}<extra></extra>", hoverlabel=HOVER_STYLE)
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
-        # --- ANÁLISE COMPARATIVA (ÍNDICE 70%) ---
-        # --- ANÁLISE COMPARATIVA (ÍNDICE 70%) ---
+
+        # 7. COMPARATIVO (ÍNDICE 70%)
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
-        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal", key="tipo_graf_70_v3")
+        tipo_comp = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal", key="comp_btn_f")
         
-        if tipo_grafico == "Total Acumulado":
-            df_comp = pd.DataFrame({
+        if tipo_comp == "Total Acumulado":
+            df_c = pd.DataFrame({
                 "Tipo": ["Receita Total", "Despesas (70%)"], 
                 "Valor": [tot_rec_periodo, desp_70_val],
                 "Texto": ["", f"{perc_70_indice:.2f}%"]
             })
-            
-            fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', 
-                              text='Texto',
+            fig_comp = px.bar(df_c, x='Tipo', y='Valor', color='Tipo', text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
-            
-            fig_comp.add_hline(y=tot_rec_periodo * 0.7, line_dash="dot", line_color="green", 
-                               annotation_text="Meta 70%", annotation_position="top left")
+            fig_comp.add_hline(y=tot_rec_periodo * 0.7, line_dash="dot", line_color="green", annotation_text="Meta 70%")
         else:
-            # --- LÓGICA MENSAL ---
-            dados_m_comp = []
-            # Tradutor de colunas para evitar o erro de 'Março ' com espaço
-            colunas_limpas = {c.strip().capitalize(): c for c in df_df_fundeb.columns}
-
+            dados_c = []
             for m in meses_disponiveis:
-                r_m = obter_soma_mensal(df_r_fundeb, [m])
-                
-                # Busca a coluna correta tratando espaços e capitalização
-                m_formatado = m.strip().capitalize()
-                col_real = colunas_limpas.get(m_formatado, m)
-                
-                if col_real in df_df_fundeb.columns:
-                    d_m = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & 
-                                       (df_df_fundeb['Tipo'] == 'Liquidado')][col_real].sum()
-                else:
-                    d_m = 0
-                
-                perc_m = (d_m / r_m * 100) if r_m > 0 else 0
-                dados_m_comp.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""})
-                dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m, "Texto": f"{perc_m:.2f}%"})
+                r_m = obter_soma_mensal_robusta(df_r_fundeb, [m])
+                d_m = obter_soma_mensal_robusta(df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')], [m])
+                p_m = (d_m / r_m * 100) if r_m > 0 else 0
+                dados_c.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""})
+                dados_c.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m, "Texto": f"{p_m:.2f}%"})
             
-            df_m_plot = pd.DataFrame(dados_m_comp)
-            fig_comp = px.bar(df_m_plot, x='Mês', y='Valor', color='Tipo', barmode='group', 
-                              text='Texto',
+            fig_comp = px.bar(pd.DataFrame(dados_c), x='Mês', y='Valor', color='Tipo', barmode='group', text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
                               category_orders={"Mês": ORDEM_MESES})
             
-            # Adiciona a linha da meta
-            df_linha = df_m_plot[df_m_plot['Tipo'] == 'Receita Total'].copy()
-            df_linha['Meta 70%'] = df_linha['Valor'] * 0.7
-            fig_comp.add_trace(go.Scatter(x=df_linha['Mês'], y=df_linha['Meta 70%'], 
-                                         mode='lines+markers', name='Meta 70%', 
-                                         line=dict(color='green', dash='dot')))
+            # Linha de Meta Dinâmica
+            df_l = pd.DataFrame([{"Mês": m, "Meta": obter_soma_mensal_robusta(df_r_fundeb, [m])*0.7} for m in meses_disponiveis])
+            fig_comp.add_trace(go.Scatter(x=df_l['Mês'], y=df_l['Meta'], mode='lines+markers', name='Meta 70%', line=dict(color='green', dash='dot')))
 
-        # --- CORREÇÃO DO VALUEERROR ---
-        # Aplicamos o textposition apenas nas barras (selector=dict(type='bar'))
-        fig_comp.update_traces(selector=dict(type='bar'), textposition='outside')
-        
-        # Configurações gerais
-        fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}")
-        fig_comp.update_layout(separators=",.", xaxis_title=None, yaxis_title="Valor (R$)", 
-                               legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)) 
-        
+        fig_comp.update_traces(selector=dict(type='bar'), textposition='outside', hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}")
+        fig_comp.update_layout(separators=",.", yaxis_title="Valor (R$)", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
-
-        st.markdown("### 📋 Relatório de Fichas FUNDEB")
-        col_liq_fichas = [c for c in df_f_fundeb.columns if any(m in c for m in meses_disponiveis) and 'Liquidado' in c]
-        df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
-        df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '540' in str(x) else 'FUNDEB 30%')
-        cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
-        orc_col = [c for c in df_f_fundeb.columns if 'Orçado' in c]
-        if orc_col: cols_show.append(orc_col[0])
-        cols_show.append('Soma_Liquidado')
-        st.dataframe(df_f_fundeb[cols_show], use_container_width=True, hide_index=True)
         
         # --- SETOR RECURSOS PRÓPRIOS ---
     # --- SETOR RECURSOS PRÓPRIOS ---
