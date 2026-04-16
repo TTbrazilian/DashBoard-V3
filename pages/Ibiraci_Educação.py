@@ -274,66 +274,67 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
         # --- ANÁLISE COMPARATIVA (ÍNDICE 70%) ---
+        # --- ANÁLISE COMPARATIVA (ÍNDICE 70%) ---
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
-        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal", key="tipo_graf_70_final")
+        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal", key="tipo_graf_70_v3")
         
         if tipo_grafico == "Total Acumulado":
-            # --- LÓGICA ACUMULADO ---
-            df_comp_acum = pd.DataFrame({
+            df_comp = pd.DataFrame({
                 "Tipo": ["Receita Total", "Despesas (70%)"], 
                 "Valor": [tot_rec_periodo, desp_70_val],
                 "Texto": ["", f"{perc_70_indice:.2f}%"]
             })
             
-            fig_comp = px.bar(df_comp_acum, x='Tipo', y='Valor', color='Tipo', 
+            fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', 
                               text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
             
             fig_comp.add_hline(y=tot_rec_periodo * 0.7, line_dash="dot", line_color="green", 
                                annotation_text="Meta 70%", annotation_position="top left")
-
         else:
             # --- LÓGICA MENSAL ---
             dados_m_comp = []
-            
-            # Criamos um mapeamento para lidar com os espaços extras nos nomes das colunas (ex: 'Março ')
-            colunas_reais = {c.strip(): c for c in df_df_fundeb.columns}
+            # Tradutor de colunas para evitar o erro de 'Março ' com espaço
+            colunas_limpas = {c.strip().capitalize(): c for c in df_df_fundeb.columns}
 
             for m in meses_disponiveis:
-                # 1. Busca a receita (usando a sua função que já deve tratar os nomes)
                 r_m = obter_soma_mensal(df_r_fundeb, [m])
                 
-                # 2. Busca a despesa tratando o possível espaço no nome da coluna
-                col_mes = colunas_reais.get(m, m) 
-                if col_mes in df_df_fundeb.columns:
+                # Busca a coluna correta tratando espaços e capitalização
+                m_formatado = m.strip().capitalize()
+                col_real = colunas_limpas.get(m_formatado, m)
+                
+                if col_real in df_df_fundeb.columns:
                     d_m = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & 
-                                       (df_df_fundeb['Tipo'] == 'Liquidado')][col_mes].sum()
+                                       (df_df_fundeb['Tipo'] == 'Liquidado')][col_real].sum()
                 else:
                     d_m = 0
                 
                 perc_m = (d_m / r_m * 100) if r_m > 0 else 0
-                
                 dados_m_comp.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""})
                 dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m, "Texto": f"{perc_m:.2f}%"})
             
             df_m_plot = pd.DataFrame(dados_m_comp)
-            
             fig_comp = px.bar(df_m_plot, x='Mês', y='Valor', color='Tipo', barmode='group', 
                               text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
                               category_orders={"Mês": ORDEM_MESES})
             
-            # Meta mensal
-            df_linha_70 = df_m_plot[df_m_plot['Tipo'] == 'Receita Total'].copy()
-            df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
-            fig_comp.add_trace(go.Scatter(x=df_linha_70['Mês'], y=df_linha_70['Meta 70%'], 
-                                         mode='lines+markers', name='Meta 70% (Mensal)', 
+            # Adiciona a linha da meta
+            df_linha = df_m_plot[df_m_plot['Tipo'] == 'Receita Total'].copy()
+            df_linha['Meta 70%'] = df_linha['Valor'] * 0.7
+            fig_comp.add_trace(go.Scatter(x=df_linha['Mês'], y=df_linha['Meta 70%'], 
+                                         mode='lines+markers', name='Meta 70%', 
                                          line=dict(color='green', dash='dot')))
 
-        # --- CONFIGURAÇÕES FINAIS ---
-        fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}", 
-                               textposition='outside')
-        fig_comp.update_layout(separators=",.", xaxis_title=None, yaxis_title="Valor (R$)") 
+        # --- CORREÇÃO DO VALUEERROR ---
+        # Aplicamos o textposition apenas nas barras (selector=dict(type='bar'))
+        fig_comp.update_traces(selector=dict(type='bar'), textposition='outside')
+        
+        # Configurações gerais
+        fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}")
+        fig_comp.update_layout(separators=",.", xaxis_title=None, yaxis_title="Valor (R$)", 
+                               legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)) 
         
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
