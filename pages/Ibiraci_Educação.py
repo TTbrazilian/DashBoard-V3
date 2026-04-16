@@ -8,7 +8,7 @@ import streamlit.components.v1 as components
 import random
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Delfinópolis - Gestão Educação", layout="wide")
+st.set_page_config(page_title="Ibiraci - Gestão Educação", layout="wide")
 
 # --- ESTILIZAÇÃO E GRADE PADRONIZADA ---
 st.markdown(
@@ -126,9 +126,10 @@ def buscar_arquivo(nome):
 
 @st.cache_data
 def load_all_data():
-    arquivo_f = "zEducação/Ibiraci.csv"
-    arquivo_r = "zEducação/Ibiraci_R.csv"
-    arquivo_df = "zEducação/Ibiraci_DF.csv"
+    # AJUSTADO PARA OS ARQUIVOS DE IBIRACI
+    arquivo_f = "Ibiraci.csv"
+    arquivo_r = "Ibiraci_R.csv"
+    arquivo_df = "Ibiraci_DF.csv"
     
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
@@ -146,7 +147,8 @@ def load_all_data():
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
     
-    meses_limpeza = ORDEM_MESES + ['Total', 'Orçado', 'Dedução', 'Orçado Receitas']
+    # Adicionado tratamento para meses em minúsculo (comum no Ibiraci_R.csv)
+    meses_limpeza = ORDEM_MESES + [m.lower() for m in ORDEM_MESES] + ['Total', 'TOTAL', 'Orçado', 'Dedução', 'Orçado Receitas']
     
     for col in df_f.columns:
         if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
@@ -182,7 +184,7 @@ if df_f_raw is not None and df_r is not None:
 
     # --- SETOR FUNDEB ---
     if st.session_state.setor == 'FUNDEB':
-        st.markdown("<h1 style='text-align: left;'>📖 Delfinópolis - FUNDEB</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - FUNDEB</h1>", unsafe_allow_html=True)
         def cat_receita(desc):
             desc = desc.upper()
             if 'VAAR' in desc: return 'VAAR'
@@ -190,15 +192,21 @@ if df_f_raw is not None and df_r is not None:
             if 'APLICAÇÃO' in desc or 'RENDIMENTOS' in desc: return 'Aplicação'
             return 'Principal'
             
-        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407', '15403'])].copy()
+        # Filtro ajustado para a fonte 15407 (FUNDEB 70% Ibiraci)
+        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].str.contains('15407|1540', na=False)].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(lambda x: 'FUNDEB 70%' if '15407' in str(x) else 'FUNDEB 30%')
         
         df_r_fundeb = df_r[(df_r['Categoria'].str.strip() == 'FUNDEB')].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('540|546', na=False)].copy()
+        df_f_fundeb = df_f_raw[df_f_raw['Fonte'].str.contains('1540', na=False)].copy()
         
-        tot_rec_periodo = df_r_fundeb[meses_disponiveis].sum().sum()
+        # Função para somar meses ignorando diferença entre "Janeiro" e "janeiro"
+        def obter_soma_mensal(df, meses):
+            cols = [c for c in df.columns if any(m.lower() == c.lower().strip() for m in meses)]
+            return df[cols].sum().sum()
+
+        tot_rec_periodo = obter_soma_mensal(df_r_fundeb, meses_disponiveis)
         tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
         
         desp_70_val = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][meses_disponiveis].sum().sum()
@@ -217,7 +225,7 @@ if df_f_raw is not None and df_r is not None:
         tipo_r = st.segmented_control("Visualização Receita:", ["Acumulado", "Mensal"], default="Mensal", key="r_btn")
         
         if tipo_r == "Acumulado":
-            df_r_plot = df_r_fundeb.groupby('Subcategoria')[meses_disponiveis].sum().sum(axis=1).reset_index()
+            df_r_plot = df_r_fundeb.groupby('Subcategoria').apply(lambda x: obter_soma_mensal(x, meses_disponiveis)).reset_index()
             df_r_plot.columns = ['Categoria', 'Valor']
             fig_r = px.bar(df_r_plot, x='Categoria', y='Valor', color='Categoria', text_auto='.2s',
                             color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'})
@@ -225,7 +233,7 @@ if df_f_raw is not None and df_r is not None:
             dados_m_r = []
             for m in meses_disponiveis:
                 for cat in df_r_fundeb['Subcategoria'].unique():
-                    val = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][m].sum()
+                    val = obter_soma_mensal(df_r_fundeb[df_r_fundeb['Subcategoria'] == cat], [m])
                     dados_m_r.append({"Mês": m, "Categoria": cat, "Valor": val})
             fig_r = px.bar(pd.DataFrame(dados_m_r), x='Mês', y='Valor', color='Categoria', text_auto='.2s', barmode='stack',
                             color_discrete_map={'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'},
@@ -277,23 +285,23 @@ if df_f_raw is not None and df_r is not None:
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
-                r_m = df_r_fundeb[m].sum()
+                r_m = obter_soma_mensal(df_r_fundeb, [m])
                 d_m = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
-                perc_m = (d_m / r_m * 100) if r_m > 0 else 0
-                dados_m_comp.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""})
-                dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m, "Texto": f"{perc_m:.2f}%"})
-            
-            fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', 
-                              text='Texto',
-                              color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
-                              category_orders={"Mês": ORDEM_MESES})
-            
-            # Adicionando a linha da meta de 70% também na visão mensal
-            df_linha_70 = pd.DataFrame(dados_m_comp)
-            df_linha_70 = df_linha_70[df_linha_70['Tipo'] == 'Receita Total'].copy()
-            df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
-            fig_comp.add_trace(go.Scatter(x=df_linha_70['Mês'], y=df_linha_70['Meta 70%'], mode='lines+markers', name='Meta 70% (Mensal)', line=dict(color='green', dash='dot')))
+            perc_m = (d_m / r_m * 100) if r_m > 0 else 0
+            dados_m_comp.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""})
+            dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m, "Texto": f"{perc_m:.2f}%"})
         
+        fig_comp = px.bar(pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo', barmode='group', 
+                          text='Texto',
+                          color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
+                          category_orders={"Mês": ORDEM_MESES})
+        
+        # Adicionando a linha da meta de 70% também na visão mensal
+        df_linha_70 = pd.DataFrame(dados_m_comp)
+        df_linha_70 = df_linha_70[df_linha_70['Tipo'] == 'Receita Total'].copy()
+        df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
+        fig_comp.add_trace(go.Scatter(x=df_linha_70['Mês'], y=df_linha_70['Meta 70%'], mode='lines+markers', name='Meta 70% (Mensal)', line=dict(color='green', dash='dot')))
+    
         fig_comp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
         fig_comp.update_layout(separators=",.") 
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
@@ -310,32 +318,29 @@ if df_f_raw is not None and df_r is not None:
         
         # --- SETOR RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
-        st.markdown("<h1 style='text-align: left;'>📖 Delfinópolis - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
         # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte
         df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
         
-        # 2. Correção na Coleta de Deduções: Filtra pela categoria 'Dedução' conforme consta no CSV
-        # O script agora busca tanto o termo 'Dedução' na categoria quanto no texto para evitar perdas
+        # 2. Correção na Coleta de Deduções
         df_r_ded = df_r[df_r['Categoria'].str.contains('Dedução', case=False, na=False)].copy()
         
         # Seletor Global de Fase para Despesas 15001
         fase_despesa = st.segmented_control(" (Impacta Indicadores Superiores):", ["Empenhado", "Liquidado", "Pago"], default="Liquidado", key="fase_desp_rp")
 
-        # 3. Despesas 15001
+        # 3. Despesas 15001 (Recursos Próprios MDE Ibiraci)
         df_df_15001 = df_df_raw[(df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == fase_despesa)].copy()
         
         total_rec_base = df_r_base[meses_disponiveis].sum().sum()
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         
-        # O total de deduções é extraído como valor absoluto para somar ao esforço de aplicação (conforme manual de contabilidade aplicada ao setor público)
         total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
         
         # Lógica de cálculo para o índice
         esforco_total = total_desp_15001 + total_deducoes
         perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         
-        # Cálculo de quanto falta gastar para o secretário atingir a meta
         meta_financeira_25 = total_rec_base * 0.25
         saldo_necessario_25 = max(0, meta_financeira_25 - esforco_total)
         
@@ -472,7 +477,6 @@ if df_f_raw is not None and df_r is not None:
                 r_m = df_r_base[m].sum()
                 d_m = df_df_15001[m].sum()
                 ded_m = abs(df_r_ded[m].sum())
-                
                 perc_m = ((d_m + ded_m) / r_m * 100) if r_m > 0 else 0
                 
                 dados_meta_m.append({"Mês": m, "Tipo": "Receitas Base", "Valor": r_m, "Dedução": 0, "Desp": 0, "Texto": ""})
@@ -498,7 +502,7 @@ if df_f_raw is not None and df_r is not None:
 
     # --- SETOR RECURSOS VINCULADOS ---
     elif st.session_state.setor == 'Recursos Vinculados':
-        st.markdown("<h1 style='text-align: left;'>📖 Delfinópolis - Recursos Vinculados</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - Recursos Vinculados</h1>", unsafe_allow_html=True)
         mapa_desp = {'PNAE': ['1552', '2552'], 'PNATE': ['1553', '2553'], 'PTE': ['1576', '2576'], 'QESE': ['1550', '2550']}
         programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
         
@@ -513,7 +517,6 @@ if df_f_raw is not None and df_r is not None:
             st.metric(f"Liquidado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_liq_vinc))
 
         st.markdown("---")
-        
         st.subheader("🔹 1. Detalhamento de Receitas e Despesas por Programa")
         tipo_vinc = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Mensal", key="vinc_btn")
 
@@ -534,7 +537,6 @@ if df_f_raw is not None and df_r is not None:
                 fig_rec_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
                 fig_rec_v.update_layout(separators=",.") 
                 st.plotly_chart(fig_rec_v, use_container_width=True, config=CONFIG_PT)
-
             else:
                 dados_d_v = []
                 for m in meses_disponiveis:
@@ -550,7 +552,6 @@ if df_f_raw is not None and df_r is not None:
                     fig_desp_v.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Tipo: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>", hoverlabel=HOVER_STYLE)
                     fig_desp_v.update_layout(separators=",.") 
                     st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
-            
             st.markdown("---")
 
     # --- RELATÓRIO DE FICHAS GLOBAL ---
@@ -559,4 +560,4 @@ if df_f_raw is not None and df_r is not None:
     st.dataframe(df_f_filt, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro ao carregar os arquivos CSV. Verifique se os arquivos de Delfinópolis estão no diretório correto.")
+    st.error("Erro ao carregar os arquivos CSV. Verifique se os arquivos de Ibiraci estão no diretório correto.")
