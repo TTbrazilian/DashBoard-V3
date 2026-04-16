@@ -550,25 +550,22 @@ if df_f_raw is not None and df_r is not None:
         # Filtra as receitas e normaliza os nomes das colunas (limpa espaços e padroniza Capitalize)
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)].copy()
         
-        # --- CORREÇÃO KEYERROR: Normalização de Colunas ---
-        # Mapeia colunas do CSV para o padrão da lista meses_disponiveis
+        # --- NORMALIZAÇÃO DE COLUNAS (Evita KeyError: 'Março ') ---
         colunas_limpas_r = {c.strip().capitalize(): c for c in df_r_vinc.columns}
         colunas_limpas_df = {c.strip().capitalize(): c for c in df_df_raw.columns}
         
-        # Identifica quais colunas de meses realmente existem no arquivo físico
         meses_reais_r = [colunas_limpas_r[m] for m in meses_disponiveis if m in colunas_limpas_r]
         meses_reais_df = [colunas_limpas_df[m] for m in meses_disponiveis if m in colunas_limpas_df]
 
+        # --- MÉTRICAS SUPERIORES ---
         m1, m2, m3 = st.columns(3)
         with m1: 
             st.metric("Previsão Vinculados 2026", formar_real(df_r_vinc['Orçado Receitas'].sum()))
         with m2: 
-            # Soma apenas os meses que existem de fato no DataFrame de Receitas
             total_arrec_vinc = df_r_vinc[meses_reais_r].sum().sum() if meses_reais_r else 0
             st.metric(f"Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_arrec_vinc))
         with m3:
             fontes_v = [f for sub in mapa_desp.values() for f in sub]
-            # Soma apenas os meses que existem de fato no DataFrame de Despesas
             df_vinc_filtro = df_df_raw[(df_df_raw['Fonte'].isin(fontes_v)) & (df_df_raw['Tipo'] == 'Liquidado')]
             total_liq_vinc = df_vinc_filtro[meses_reais_df].sum().sum() if meses_reais_df else 0
             st.metric(f"Liquidado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_liq_vinc))
@@ -587,16 +584,11 @@ if df_f_raw is not None and df_r is not None:
                 desp = df_df_raw[(df_df_raw['Fonte'].isin(mapa_desp[prog])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_reais_df].sum().sum()
                 
                 df_acum = pd.DataFrame({"Tipo": ["Receita", "Despesa"], "Valor": [rec, desp]})
-                
-                fig_rec_v = px.bar(df_acum, x='Tipo', y='Valor', color='Tipo', text_auto='.2s',
+                fig_vinc = px.bar(df_acum, x='Tipo', y='Valor', color='Tipo', text_auto='.2s',
                                   color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'})
-                fig_rec_v.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>")
-                st.plotly_chart(fig_rec_v, use_container_width=True, config=CONFIG_PT)
-            
             else:
                 dados_d_v = []
                 for m in meses_disponiveis:
-                    # Tradução de meses para o nome real da coluna
                     c_r = colunas_limpas_r.get(m)
                     c_df = colunas_limpas_df.get(m)
                     
@@ -606,14 +598,26 @@ if df_f_raw is not None and df_r is not None:
                     dados_d_v.append({"Mês": m, "Tipo": "Receita", "Valor": rec_m})
                     dados_d_v.append({"Mês": m, "Tipo": "Despesa", "Valor": desp_m})
 
-                if dados_d_v:
-                    fig_desp_v = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Tipo', barmode='group',
-                                       color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'},
-                                       category_orders={"Mês": ORDEM_MESES})
-                    fig_desp_v.update_traces(textposition='outside', texttemplate='%{y:.2s}')
-                    fig_desp_v.update_layout(separators=",.", yaxis_title="Valor (R$)") 
-                    st.plotly_chart(fig_desp_v, use_container_width=True, config=CONFIG_PT)
+                fig_vinc = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Tipo', barmode='group',
+                                 color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'},
+                                 category_orders={"Mês": ORDEM_MESES})
+
+            # --- FORMATAÇÃO PADRÃO DO HOVER (Selector evita erro de ValueError) ---
+            fig_vinc.update_traces(
+                selector=dict(type='bar'),
+                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Tipo: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
+                hoverlabel=HOVER_STYLE,
+                textposition='outside'
+            )
+
+            fig_vinc.update_layout(
+                separators=",.", 
+                xaxis_title=None, 
+                yaxis_title="Valor (R$)",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
             
+            st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
             st.markdown("---")
 
     # --- RELATÓRIO DE FICHAS GLOBAL ---
