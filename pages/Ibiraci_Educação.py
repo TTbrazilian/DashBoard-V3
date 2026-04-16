@@ -275,17 +275,17 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
         # --- ANÁLISE COMPARATIVA (ÍNDICE 70%) ---
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
-        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal", key="tipo_graf_70")
+        tipo_grafico = st.segmented_control("Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal", key="tipo_graf_70_final")
         
         if tipo_grafico == "Total Acumulado":
             # --- LÓGICA ACUMULADO ---
-            df_comp = pd.DataFrame({
+            df_comp_acum = pd.DataFrame({
                 "Tipo": ["Receita Total", "Despesas (70%)"], 
                 "Valor": [tot_rec_periodo, desp_70_val],
                 "Texto": ["", f"{perc_70_indice:.2f}%"]
             })
             
-            fig_comp = px.bar(df_comp, x='Tipo', y='Valor', color='Tipo', 
+            fig_comp = px.bar(df_comp_acum, x='Tipo', y='Valor', color='Tipo', 
                               text='Texto',
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"})
             
@@ -295,10 +295,22 @@ if df_f_raw is not None and df_r is not None:
         else:
             # --- LÓGICA MENSAL ---
             dados_m_comp = []
+            
+            # Criamos um mapeamento para lidar com os espaços extras nos nomes das colunas (ex: 'Março ')
+            colunas_reais = {c.strip(): c for c in df_df_fundeb.columns}
+
             for m in meses_disponiveis:
+                # 1. Busca a receita (usando a sua função que já deve tratar os nomes)
                 r_m = obter_soma_mensal(df_r_fundeb, [m])
-                # Filtra despesa do mês específico 'm'
-                d_m = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')][m].sum()
+                
+                # 2. Busca a despesa tratando o possível espaço no nome da coluna
+                col_mes = colunas_reais.get(m, m) 
+                if col_mes in df_df_fundeb.columns:
+                    d_m = df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & 
+                                       (df_df_fundeb['Tipo'] == 'Liquidado')][col_mes].sum()
+                else:
+                    d_m = 0
+                
                 perc_m = (d_m / r_m * 100) if r_m > 0 else 0
                 
                 dados_m_comp.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""})
@@ -311,17 +323,17 @@ if df_f_raw is not None and df_r is not None:
                               color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
                               category_orders={"Mês": ORDEM_MESES})
             
-            # Adiciona a linha da meta mensal apenas no gráfico mensal
+            # Meta mensal
             df_linha_70 = df_m_plot[df_m_plot['Tipo'] == 'Receita Total'].copy()
             df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
             fig_comp.add_trace(go.Scatter(x=df_linha_70['Mês'], y=df_linha_70['Meta 70%'], 
                                          mode='lines+markers', name='Meta 70% (Mensal)', 
                                          line=dict(color='green', dash='dot')))
 
-        # --- CONFIGURAÇÕES FINAIS (Aplicadas ao objeto fig_comp gerado acima) ---
-        fig_comp.update_traces(hovertemplate="<span style='color:white;'><b>%{x}</b><br>Valor: R$ %{y:,.2f}</span><extra></extra>", 
-                               hoverlabel=HOVER_STYLE, textposition='outside')
-        fig_comp.update_layout(separators=",.", xaxis_title=None, yaxis_title="Valor (R$)", showlegend=True) 
+        # --- CONFIGURAÇÕES FINAIS ---
+        fig_comp.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}", 
+                               textposition='outside')
+        fig_comp.update_layout(separators=",.", xaxis_title=None, yaxis_title="Valor (R$)") 
         
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
