@@ -420,8 +420,8 @@ if df_f_raw is not None and df_r is not None:
         with m1: st.metric("Total das Despesas (Fonte 15001)", formar_real(total_desp_15001))
         with m2: st.metric("Saldo para atingir a meta (25%)", formar_real(saldo_necessario_25))
         with m3:
-            if perc_25 >= 25: st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
-            else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
+            # Supondo que perc_25 seja seu cálculo
+            metric_contabil("Índice de Aplicação (Mín. 25%)", perc_25, 25.0)
             
         st.markdown("---")
         
