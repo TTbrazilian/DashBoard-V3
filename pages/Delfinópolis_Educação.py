@@ -81,6 +81,22 @@ if 'setor' not in st.session_state:
     st.session_state.setor = 'FUNDEB'
 
 # --- FUNÇÕES UTILITÁRIAS ---
+def metric_contabil(label, valor_atual, meta):
+    """
+    Exibe uma métrica formatada. 
+    Se o valor for menor que a meta, o delta fica vermelho.
+    Se for maior ou igual, fica verde.
+    """
+    delta = valor_atual - meta
+    # Define o ícone de status
+    status_icon = "✅" if valor_atual >= meta else "⚠️"
+    
+    return st.metric(
+        label=label,
+        value=f"{status_icon} {valor_atual:.2f}%",
+        delta=f"{delta:.2f}%",
+        delta_color="normal"  # No modo 'normal', negativo é vermelho e positivo é verde
+    )
 def limpar_valor(valor):
     if pd.isna(valor) or str(valor).strip() in ["", "-", "R$ 0,00", "0"]:
         return 0.0
@@ -209,8 +225,8 @@ if df_f_raw is not None and df_r is not None:
         with m1: st.metric("Previsão Orçamentária Receitas 2026", formar_real(tot_prev_2026))
         with m2: st.metric(f"Total Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(tot_rec_periodo))
         with m3:
-            if perc_70_indice >= 70: st.metric("Aplicação em Pessoal (Mín. 70%)", f"✅ {perc_70_indice:.2f}%", delta=f"{perc_70_indice-70:.2f}%")
-            else: st.metric("Aplicação em Pessoal (Mín. 70%)", f"⚠️ {perc_70_indice:.2f}%", delta=f"{perc_70_indice-70:.2f}%", delta_color="inverse")
+            # Supondo que perc_70_indice seja seu cálculo
+            metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
         
         st.markdown("---")
         st.subheader("🔹 1. Receitas FUNDEB")
@@ -343,8 +359,8 @@ if df_f_raw is not None and df_r is not None:
         with m1: st.metric("Total das Despesas (Fonte 15001)", formar_real(total_desp_15001))
         with m2: st.metric("Saldo para atingir a meta (25%)", formar_real(saldo_necessario_25))
         with m3:
-            if perc_25 >= 25: st.metric("Índice de Aplicação (Mín. 25%)", f"✅ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%")
-            else: st.metric("Índice de Aplicação (Mín. 25%)", f"⚠️ {perc_25:.2f}%", delta=f"{perc_25-25:.2f}%", delta_color="inverse")
+            # Supondo que perc_25 seja seu cálculo
+            metric_contabil("Índice de Aplicação (Mín. 25%)", perc_25, 25.0)
             
         st.markdown("---")
         
