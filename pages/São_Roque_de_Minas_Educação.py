@@ -328,21 +328,23 @@ if df_f_raw is not None and df_r is not None:
             "Visualização Despesa:", ["Acumulado", "Mensal"], default="Mensal", key="f_btn"
         )
 
-        # --- 1. PREPARAÇÃO DOS DADOS (Obrigatório para os valores mudarem) ---
+        # --- 1. TRATAMENTO DE DADOS (Obrigatório para os valores aparecerem) ---
+        # Filtra apenas o que é Liquidado
         df_fundeb_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'].copy()
 
-        # Função interna para converter "R$ 1.234,56" em float 1234.56
-        def converter_moeda(valor):
+        # Função para transformar "R$ 1.234,56" em 1234.56 (Float)
+        def limpar_p_numero(valor):
             if isinstance(valor, str):
+                # Remove R$, pontos de milhar e troca vírgula por ponto decimal
                 return float(valor.replace("R$", "").replace(".", "").replace(",", ".").strip())
             return valor
 
-        # Limpa os valores de todos os meses selecionados
-        for mes in meses_disponiveis:
-            df_fundeb_liq[mes] = df_fundeb_liq[mes].apply(converter_moeda)
+        # Converte as colunas de meses para números reais (essencial para a soma funcionar)
+        for m in meses_disponiveis:
+            df_fundeb_liq[m] = df_fundeb_liq[m].apply(limpar_p_numero)
 
-        # --- 2. MAPEAMENTO DAS FONTES ESPECÍFICAS ---
-        def mapear_categoria(fonte):
+        # --- 2. MAPEAMENTO DAS FONTES ---
+        def classificar_fundeb(fonte):
             f = str(fonte).strip()
             if f in ['15407', '25407']:
                 return 'FUNDEB 70%'
@@ -350,28 +352,29 @@ if df_f_raw is not None and df_r is not None:
                 return 'FUNDEB 30%'
             return None
 
-        df_fundeb_liq['Fonte_Grupo'] = df_fundeb_liq['Fonte'].apply(mapear_categoria)
-        # Mantém apenas as 4 fontes do FUNDEB
+        df_fundeb_liq['Fonte_Grupo'] = df_fundeb_liq['Fonte'].apply(classificar_fundeb)
+        # Descarta qualquer linha que não seja das fontes especificadas
         df_fundeb_liq = df_fundeb_liq.dropna(subset=['Fonte_Grupo'])
 
-        # --- 3. LÓGICA DE VISUALIZAÇÃO ---
+        # --- 3. LÓGICA DO GRÁFICO ---
         if tipo_f == "Acumulado":
-            # Agrupa por 70%/30% e soma o período
+            # Agrupa por 70/30 e soma o total de todos os meses selecionados
             df_f_final = df_fundeb_liq.groupby('Fonte_Grupo')[meses_disponiveis].sum().sum(axis=1).reset_index()
             df_f_final.columns = ['Fonte', 'Valor']
             
-            total_geral = df_f_final['Valor'].sum()
-            df_f_final['Proporção'] = df_f_final['Valor'].apply(lambda x: f"{(x/total_geral*100):.2f}%" if total_geral > 0 else "0.00%")
+            total_desp_acum = df_f_final['Valor'].sum()
+            df_f_final['Proporção'] = df_f_final['Valor'].apply(lambda x: f"{(x/total_desp_acum*100):.2f}%" if total_desp_acum > 0 else "0.00%")
             
             fig_f = px.bar(
                 df_f_final, x='Fonte', y='Valor', color='Fonte',
-                text_auto='.2s', custom_data=['Proporção'],
-                color_discrete_map={'FUNDEB 70%': '#660000', 'FUNDEB 30%': '#cc0000'},
+                text_auto='.2s', 
+                custom_data=['Proporção'],
+                color_discrete_map={'FUNDEB 70%': '#660000', 'FUNDEB 30%': '#cc0000'}
             )
         else:
+            # Lógica Mensal
             dados_m_f = []
             for m in meses_disponiveis:
-                # Soma mensal por grupo
                 resumo_mes = df_fundeb_liq.groupby('Fonte_Grupo')[m].sum().reset_index()
                 total_mes = resumo_mes[m].sum()
                 
@@ -385,17 +388,22 @@ if df_f_raw is not None and df_r is not None:
             df_f_final = pd.DataFrame(dados_m_f)
             fig_f = px.bar(
                 df_f_final, x='Mês', y='Valor', color='Fonte',
-                text_auto='.2s', barmode='stack', custom_data=['Proporção'],
+                text_auto='.2s', barmode='stack', 
+                custom_data=['Proporção'],
                 color_discrete_map={'FUNDEB 70%': '#660000', 'FUNDEB 30%': '#cc0000'},
-                category_orders={"Mês": ORDEM_MESES},
+                category_orders={"Mês": ORDEM_MESES}
             )
 
-        # --- 4. ESTILIZAÇÃO MANTIDA ---
+        # --- 4. ESTILIZAÇÃO E EXIBIÇÃO ---
         fig_f.update_traces(
             hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}<extra></extra>",
             hoverlabel=HOVER_STYLE,
         )
-        fig_f.update_layout(separators=",.", yaxis={'showticklabels': False, 'title': ''})
+        fig_f.update_layout(
+            separators=",.", 
+            yaxis={'showticklabels': False, 'title': ''},
+            xaxis={'title': ''}
+        )
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
