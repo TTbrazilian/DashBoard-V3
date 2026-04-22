@@ -324,75 +324,6 @@ if df_f_raw is not None and df_r is not None:
 
         # ---- 2. Despesas FUNDEB ----
             
-        st.subheader("🔹 2. Despesas FUNDEB")
-        tipo_f = st.segmented_control("Visualização Despesa:", ["Acumulado", "Mensal"], default="Mensal", key="f_btn")
-
-        # --- 1. FILTRAGEM CIRÚRGICA (LIQUIDADO APENAS) ---
-        df_f = df_df_fundeb.copy()
-
-        # Remove qualquer espaço e força a comparação apenas com 'Liquidado'
-        df_f['Tipo'] = df_f['Tipo'].astype(str).str.strip()
-        df_f = df_f[df_f['Tipo'] == 'Liquidado']
-
-        # Função de limpeza para converter R$ em Float
-        def fix_money(v):
-            if isinstance(v, str):
-                v = v.replace("R$", "").replace(" ", "").strip()
-                if not v or v == "0,00": return 0.0
-                return float(v.replace(".", "").replace(",", "."))
-            return float(v) if v else 0.0
-
-        # Limpar as colunas dos meses
-        for m in meses_disponiveis:
-            if m in df_f.columns:
-                df_f[m] = df_f[m].apply(fix_money)
-
-        # --- 2. MAPEAMENTO POR CÓDIGO DE FONTE (SÃO ROQUE) ---
-        def mapear_fontes_exato(linha):
-            # Usamos o código da fonte para evitar erro por nome de categoria
-            f = str(linha['Fonte']).strip()
-            if f in ['15407', '25407']: return 'FUNDEB 70%'
-            if f in ['15403', '25403']: return 'FUNDEB 30%'
-            return None
-
-        df_f['Categoria_F'] = df_f.apply(mapear_fontes_exato, axis=1)
-
-        # Manter apenas o que foi classificado como FUNDEB
-        df_f = df_f[df_f['Categoria_F'].notna()].copy()
-
-        # --- 3. CONSOLIDAÇÃO (SOMA AS LINHAS DO MESMO TIPO/FONTE) ---
-        # Aqui ele vai somar as 2 linhas do 70%, resultando nos R$ 232.624,65
-        df_final = df_f.groupby('Categoria_F')[meses_disponiveis].sum().reset_index()
-
-        # --- 4. CONSTRUÇÃO DO GRÁFICO ---
-        if tipo_f == "Acumulado":
-            total_f = df_final[meses_disponiveis].sum().sum()
-            dados_graf = []
-            for cat in ['FUNDEB 70%', 'FUNDEB 30%']:
-                val = df_final[df_final['Categoria_F'] == cat][meses_disponiveis].sum().sum()
-                p = (val / total_f * 100) if total_f > 0 else 0
-                dados_graf.append({"Fonte": cat, "Valor": val, "Proporção": f"{p:.2f}%"})
-            
-            fig_f = px.bar(pd.DataFrame(dados_graf), x='Fonte', y='Valor', color='Fonte', text_auto='.2s',
-                        custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
-        else:
-            # VISUALIZAÇÃO MENSAL
-            dados_m = []
-            for m in meses_disponiveis:
-                total_m = df_final[m].sum()
-                for cat in ['FUNDEB 70%', 'FUNDEB 30%']:
-                    val = df_final[df_final['Categoria_F'] == cat][m].sum()
-                    p = (val / total_m * 100) if total_m > 0 else 0
-                    dados_m.append({"Mês": m, "Fonte": cat, "Valor": val, "Proporção": f"{p:.2f}%"})
-            
-            fig_f = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
-                        custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'},
-                        category_orders={"Mês": ORDEM_MESES})
-
-        # Formatação de Hover e Layout
-        fig_f.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}<extra></extra>")
-        fig_f.update_layout(separators=",.", yaxis={'showticklabels': False, 'title': ''}, xaxis={'title': ''})
-        st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
         # ---- 3. Comparativo de Aplicação (Índice 70%) ----
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
@@ -489,280 +420,106 @@ if df_f_raw is not None and df_r is not None:
     # =========================================================================
     # SETOR RECURSOS PRÓPRIOS
     # =========================================================================
+    
     elif st.session_state.setor == 'Recursos Próprios':
-        st.markdown(
-            "<h1 style='text-align: left;'>📖 São Roque de Minas - Recursos Próprios (25%)</h1>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("<h1 style='text-align: left;'>📖 São Roque de Minas - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
 
-        # 1. Base de Cálculo (Denominador): Impostos e Cota-Parte
-        # Nota: a categoria 'Cota-Parte ' possui espaço ao final nos dados deste município
-        df_r_base = df_r[
-            df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])
-        ].copy()
+        # --- 0. FUNÇÃO DE LIMPEZA ROBUSTA ---
+        def limpar_valor(v):
+            if isinstance(v, str):
+                v = v.replace("R$", "").replace(" ", "").strip()
+                if not v or v == "0,00": return 0.0
+                # Se houver parênteses ou sinal de negativo no final (comum em deduções)
+                v = v.replace("(", "").replace(")", "")
+                return float(v.replace(".", "").replace(",", "."))
+            return float(v) if v else 0.0
 
-        # 2. Dedução FUNDEB
-        df_r_ded = df_r[df_r['Categoria'].str.strip() == 'Dedução FUNDEB'].copy()
+        # --- 1. PREPARAÇÃO DAS RECEITAS (Base 25% e Dedução) ---
+        df_r_clean = df_r.copy()
+        for m in meses_disponiveis:
+            df_r_clean[m] = df_r_clean[m].apply(limpar_valor)
 
-        # Seletor Global de Fase para Despesas 15001
+        # Base de Cálculo: Impostos e Cota-Parte
+        df_r_base = df_r_clean[df_r_clean['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
+        
+        # Dedução FUNDEB (Sempre pegamos o valor absoluto para somar ao esforço)
+        df_r_ded = df_r_clean[df_r_clean['Categoria'].str.strip() == 'Dedução FUNDEB'].copy()
+
+        # --- 2. PREPARAÇÃO DAS DESPESAS 15001 ---
+        # Garantir que estamos usando o df de despesas limpo
+        df_desp_rp = df_df_raw.copy()
+        for m in meses_disponiveis:
+            if m in df_desp_rp.columns:
+                df_desp_rp[m] = df_desp_rp[m].apply(limpar_valor)
+
+        # Seletor de Fase
         fase_despesa = st.segmented_control(
-            " (Impacta Indicadores Superiores):",
+            "Fase da Despesa (Impacta Indicadores Superiores):",
             ["Empenhado", "Liquidado", "Pago"],
             default="Liquidado",
-            key="fase_desp_rp",
+            key="fase_desp_rp"
         )
 
-        # 3. Despesas 15001
-        df_df_15001 = df_df_raw[
-            (df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == fase_despesa)
+        # Filtrar apenas Fonte 15001 e a Fase selecionada
+        df_15001_filtrado = df_desp_rp[
+            (df_desp_rp['Fonte'].astype(str).str.strip() == '15001') & 
+            (df_desp_rp['Tipo'].astype(str).str.strip() == fase_despesa)
         ].copy()
 
-        total_rec_base    = df_r_base[meses_disponiveis].sum().sum()
-        total_desp_15001  = df_df_15001[meses_disponiveis].sum().sum()
-        total_deducoes    = abs(df_r_ded[meses_disponiveis].sum().sum())
+        # --- 3. CÁLCULOS TOTAIS (CORRIGIDOS) ---
+        total_rec_base = df_r_base[meses_disponiveis].sum().sum()
+        total_desp_15001 = df_15001_filtrado[meses_disponiveis].sum().sum()
+        # As deduções no CSV são negativas, usamos abs() para somar ao investimento
+        total_deducoes = abs(df_r_ded[meses_disponiveis].sum().sum())
 
-        esforco_total      = total_desp_15001 + total_deducoes
-        perc_25            = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
+        esforco_total = total_desp_15001 + total_deducoes
+        perc_25 = (esforco_total / total_rec_base * 100) if total_rec_base > 0 else 0
         meta_financeira_25 = total_rec_base * 0.25
         saldo_necessario_25 = max(0, meta_financeira_25 - esforco_total)
 
+        # --- 4. DASHBOARD DE MÉTRICAS ---
         m1, m2, m3 = st.columns(3)
         with m1:
-            st.metric("Total das Despesas (Fonte 15001)", formar_real(total_desp_15001))
+            st.metric("Despesas Fonte 15001", formar_real(total_desp_15001))
         with m2:
-            st.metric("Saldo para atingir a meta (25%)", formar_real(saldo_necessario_25))
+            st.metric("Total Deduções FUNDEB", formar_real(total_deducoes))
         with m3:
             metric_contabil("Índice de Aplicação (Mín. 25%)", perc_25, 25.0)
 
         st.markdown("---")
 
-        # --- RECEITAS ---
-        st.subheader("🔹 Receitas Recursos Próprios (Impostos e Cota-Parte)")
-        view_rp = st.segmented_control(
-            "Visualização Receitas:", ["Acumulado", "Mensal"], default="Mensal", key="view_rp"
-        )
-
-        lista_completa = ["📊 Acumulado Geral"] + df_r_base['Descrição da Receita'].unique().tolist()
-        if 'idx_nav_rp' not in st.session_state:
-            st.session_state.idx_nav_rp = 0
-
-        grid = st.columns([0.5, 1.2, 1.2, 1.2, 1.2, 1.2, 0.5])
-        with grid[0]:
-            if st.button("◀", key="rp_left"):
-                st.session_state.idx_nav_rp = max(0, st.session_state.idx_nav_rp - 5)
-                st.rerun()
-
-        fim_idx = min(st.session_state.idx_nav_rp + 5, len(lista_completa))
-        fatia   = lista_completa[st.session_state.idx_nav_rp:fim_idx]
-
-        for i, item in enumerate(fatia):
-            with grid[i + 1]:
-                label = abreviar_extremo(item)
-                if st.button(label, key=f"rp_btn_{item}", help=item, use_container_width=True):
-                    st.session_state['ativo_rp'] = item.replace("📊 ", "")
-                    st.rerun()
-
-        with grid[6]:
-            if st.button("▶", key="rp_right"):
-                if st.session_state.idx_nav_rp + 5 < len(lista_completa):
-                    st.session_state.idx_nav_rp += 5
-                    st.rerun()
-
+        # --- 5. GRÁFICO DE RECEITAS (FEVEREIRO CORRIGIDO) ---
+        st.subheader("🔹 Receitas Recursos Próprios")
+        view_rp = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Mensal", key="v_rp")
+        
+        # Lógica de navegação simplificada e filtrada
         ativo = st.session_state.get('ativo_rp', "Acumulado Geral")
-        st.markdown(f"#### 📈 {ativo}")
-        df_aux = (
-            df_r_base.copy()
-            if ativo == "Acumulado Geral"
-            else df_r_base[df_r_base['Descrição da Receita'] == ativo].copy()
-        )
+        df_plot_rec = df_r_base if ativo == "Acumulado Geral" else df_r_base[df_r_base['Descrição da Receita'] == ativo]
 
-        if view_rp == "Acumulado":
-            fig_rp = px.bar(
-                x=[ativo], y=[df_aux[meses_disponiveis].sum().sum()],
-                text_auto='.3s', color_discrete_sequence=['#003366'],
-            )
+        if view_rp == "Mensal":
+            dados_m = [{"Mês": m, "Valor": df_plot_rec[m].sum()} for m in meses_disponiveis]
+            fig_r = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s', color_discrete_sequence=['#003366'])
         else:
-            dados_m = [{"Mês": m, "Valor": df_aux[m].sum()} for m in meses_disponiveis]
-            fig_rp = px.bar(
-                pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s',
-                color_discrete_sequence=['#003366'],
-                category_orders={"Mês": ORDEM_MESES},
-            )
+            fig_r = px.bar(x=[ativo], y=[df_plot_rec[meses_disponiveis].sum().sum()], text_auto='.3s')
+        
+        st.plotly_chart(fig_r, use_container_width=True)
 
-        fig_rp.update_traces(
-            hovertemplate=(
-                "<span style='color:white;'><b>%{x}</b><br>"
-                "Setor: Recursos Próprios<br>Fonte: " + ativo +
-                "<br>Valor: R$ %{y:,.2f}</span><extra></extra>"
-            ),
-            hoverlabel=HOVER_STYLE,
-        )
-        fig_rp.update_layout(separators=",.")
-        st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
-
-        st.markdown("---")
-
-        # --- DESPESAS FONTE 15001 ---
-        st.subheader("🔹 Despesas Fonte 15001")
-        st.markdown("Detalhamento Acumulado e Mensal por Estágio (Empenhado, Liquidado, Pago)")
-        view_desp = st.segmented_control(
-            "Visualização Despesas:", ["Acumulado", "Mensal"], default="Mensal", key="view_desp"
-        )
-
-        df_15001_todas = df_df_raw[
-            (df_df_raw['Fonte'] == '15001') &
-            (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))
-        ].copy()
-
-        if view_desp == "Acumulado":
-            total_desp_acum_rp = df_15001_todas[meses_disponiveis].sum().sum()
-            df_desp_plot = []
-            for fase in ["Empenhado", "Liquidado", "Pago"]:
-                val  = df_15001_todas[df_15001_todas['Tipo'] == fase][meses_disponiveis].sum().sum()
-                prop = (val / total_desp_acum_rp * 100) if total_desp_acum_rp > 0 else 0
-                df_desp_plot.append({
-                    "Fase": fase, "Valor": val,
-                    "Proporção": f"{prop:.2f}%",
-                    "Dedução": total_deducoes, "Despesa": val,
-                })
-            df_desp_plot = pd.DataFrame(df_desp_plot)
-            df_desp_plot['Fase'] = pd.Categorical(
-                df_desp_plot['Fase'], ["Empenhado", "Liquidado", "Pago"]
-            )
-            fig_d = px.bar(
-                df_desp_plot, x='Fase', y='Valor', color='Fase', text_auto='.3s',
-                custom_data=['Proporção', 'Dedução', 'Despesa'],
-                color_discrete_map={
-                    'Empenhado': "#fa3d3d", 'Liquidado': "#860000", 'Pago': "#470000"
-                },
-            )
-        else:
-            dados_d_m = []
-            for m in meses_disponiveis:
-                total_mes_rp = df_15001_todas[m].sum()
-                deducao_mes  = abs(df_r_ded[m].sum())
-                for fase in ['Empenhado', 'Liquidado', 'Pago']:
-                    val  = df_15001_todas[df_15001_todas['Tipo'] == fase][m].sum()
-                    prop = (val / total_mes_rp * 100) if total_mes_rp > 0 else 0
-                    dados_d_m.append({
-                        "Mês": m, "Fase": fase, "Valor": val,
-                        "Proporção": f"{prop:.2f}%",
-                        "Dedução": deducao_mes, "Despesa": val,
-                    })
-            df_dados_d_m = pd.DataFrame(dados_d_m)
-            df_dados_d_m['Fase'] = pd.Categorical(
-                df_dados_d_m['Fase'], ["Empenhado", "Liquidado", "Pago"]
-            )
-            fig_d = px.bar(
-                df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group',
-                text_auto='.2s', custom_data=['Proporção', 'Dedução', 'Despesa'],
-                color_discrete_map={
-                    'Empenhado': '#fa3d3d', 'Liquidado': '#860000', 'Pago': '#470000'
-                },
-                category_orders={
-                    "Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]
-                },
-            )
-
-        fig_d.update_traces(
-            hovertemplate=(
-                "<span style='color:white;'><b>%{x}</b><br>"
-                "Status: %{fullData.name}<br>"
-                "Valor do Investimento (15001): R$ %{customdata[2]:,.2f}<br>"
-                "Valor da Dedução: R$ %{customdata[1]:,.2f}<br>"
-                "Proporção (do Mês/Total): %{customdata[0]}</span><extra></extra>"
-            ),
-            hoverlabel=HOVER_STYLE,
-        )
-        fig_d.update_layout(separators=",.")
-        st.plotly_chart(fig_d, use_container_width=True, config=CONFIG_PT)
-
-        st.markdown("---")
-
-        # --- ANÁLISE COMPARATIVA E META ---
-        st.subheader("🔹 Análise Comparativa e Meta (Mínimo 25%)")
-        view_meta = st.segmented_control(
-            "Visualização Meta:", ["Acumulado", "Mensal"], default="Mensal", key="view_meta"
-        )
-
-        cor_aplicacao = "#27ae60" if perc_25 >= 25 else "#e74c3c"
-
-        if view_meta == "Acumulado":
-            df_meta = pd.DataFrame({
-                "Categoria": ["Receitas Base", "Aplicação Total"],
-                "Valor":     [total_rec_base, esforco_total],
-                "Deducao":   [0, total_deducoes],
-                "Despesa15001": [0, total_desp_15001],
-            })
-            fig_meta = px.bar(
-                df_meta, x='Categoria', y='Valor', color='Categoria',
-                text=["", f"{perc_25:.2f}%"],
-                custom_data=['Deducao', 'Despesa15001'],
-                color_discrete_map={
-                    "Receitas Base": "#003366", "Aplicação Total": cor_aplicacao
-                },
-            )
-            fig_meta.update_traces(
-                hovertemplate=(
-                    "<span style='color:white;'><b>%{x}</b><br>"
-                    "Total (Aplicação): R$ %{y:,.2f}<br>"
-                    "Valor da Dedução: R$ %{customdata[0]:,.2f}<br>"
-                    "Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>"
-                ),
-                hoverlabel=HOVER_STYLE,
-            )
-            fig_meta.add_hline(
-                y=total_rec_base * 0.25, line_dash="dash", line_color="#f39c12",
-                annotation_text="Meta Constitucional (25%)",
-                annotation_position="top left",
-            )
-        else:
-            dados_meta_m = []
-            for m in meses_disponiveis:
-                r_m   = df_r_base[m].sum()
-                d_m   = df_df_15001[m].sum()
-                ded_m = abs(df_r_ded[m].sum())
-                perc_m = ((d_m + ded_m) / r_m * 100) if r_m > 0 else 0
-                dados_meta_m.append({
-                    "Mês": m, "Tipo": "Receitas Base",
-                    "Valor": r_m, "Dedução": 0, "Desp": 0, "Texto": "",
-                })
-                dados_meta_m.append({
-                    "Mês": m, "Tipo": "Aplicação Total",
-                    "Valor": d_m + ded_m, "Dedução": ded_m,
-                    "Desp": d_m, "Texto": f"{perc_m:.2f}%",
-                })
-
-            df_meta_m = pd.DataFrame(dados_meta_m)
-            fig_meta = px.bar(
-                df_meta_m, x='Mês', y='Valor', color='Tipo', barmode='group',
-                text='Texto', custom_data=['Dedução', 'Desp'],
-                color_discrete_map={
-                    "Receitas Base": "#003366", "Aplicação Total": cor_aplicacao
-                },
-                category_orders={"Mês": ORDEM_MESES},
-            )
-            fig_meta.update_traces(
-                hovertemplate=(
-                    "<span style='color:white;'><b>%{x} - %{data.name}</b><br>"
-                    "Total (Aplicação): R$ %{y:,.2f}<br>"
-                    "Valor da Dedução: R$ %{customdata[0]:,.2f}<br>"
-                    "Valor do Investimento (15001): R$ %{customdata[1]:,.2f}</span><extra></extra>"
-                ),
-                hoverlabel=HOVER_STYLE,
-            )
-            df_linha_meta = df_meta_m[df_meta_m['Tipo'] == 'Receitas Base'].copy()
-            df_linha_meta['Meta Mensal (25%)'] = df_linha_meta['Valor'] * 0.25
-            fig_meta.add_trace(
-                go.Scatter(
-                    x=df_linha_meta['Mês'], y=df_linha_meta['Meta Mensal (25%)'],
-                    mode='lines+markers', name='Meta 25% (Mensal)',
-                    line=dict(color='#f39c12', dash='dash'),
-                )
-            )
-
-        fig_meta.update_layout(separators=",.")
-        st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
+        # --- 6. COMPARATIVO FINAL ---
+        st.subheader("🔹 Análise Comparativa e Meta")
+        
+        # Gráfico que mostra Receita Base vs O que foi aplicado (Despesa + Dedução)
+        dados_comp = [
+            {"Categoria": "Receita Base (100%)", "Valor": total_rec_base},
+            {"Categoria": "Aplicação Real (15001 + Ded.)", "Valor": esforco_total}
+        ]
+        fig_comp = px.bar(pd.DataFrame(dados_comp), x='Categoria', y='Valor', color='Categoria',
+                        color_discrete_map={"Receita Base (100%)": "#003366", "Aplicação Real (15001 + Ded.)": "#27ae60"})
+        
+        # Linha da Meta 25%
+        fig_comp.add_hline(y=meta_financeira_25, line_dash="dash", line_color="#f39c12", 
+                        annotation_text="Meta 25%", annotation_position="top left")
+        
+        st.plotly_chart(fig_comp, use_container_width=True)
 
     # =========================================================================
     # SETOR RECURSOS VINCULADOS
