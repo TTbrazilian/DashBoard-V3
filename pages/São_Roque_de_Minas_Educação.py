@@ -328,46 +328,39 @@ if df_f_raw is not None and df_r is not None:
             "Visualização Despesa:", ["Acumulado", "Mensal"], default="Mensal", key="f_btn"
         )
 
+        # Filtro base para garantir que pegamos apenas o que foi Liquidado
+        df_fundeb_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'].copy()
+
         if tipo_f == "Acumulado":
-            total_desp_acum = (
-                df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'][meses_disponiveis]
-                .sum()
-                .sum()
-            )
+            # Soma total de todas as fontes FUNDEB no período selecionado
+            total_desp_acum = df_fundeb_liq[meses_disponiveis].sum().sum()
+            
             df_f_plot = []
-            for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
-                val = (
-                    df_df_fundeb[
-                        (df_df_fundeb['Fonte_Nome'] == fonte) &
-                        (df_df_fundeb['Tipo'] == 'Liquidado')
-                    ][meses_disponiveis]
-                    .sum()
-                    .sum()
-                )
+            # Usando unique() para garantir que pegamos as fontes existentes no seu DF (70% e 30%)
+            for fonte in df_fundeb_liq['Fonte_Nome'].unique():
+                val = df_fundeb_liq[df_fundeb_liq['Fonte_Nome'] == fonte][meses_disponiveis].sum().sum()
                 prop = (val / total_desp_acum * 100) if total_desp_acum > 0 else 0
                 df_f_plot.append({"Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"})
+            
+            df_f_final = pd.DataFrame(df_f_plot)
             fig_f = px.bar(
-                pd.DataFrame(df_f_plot), x='Fonte', y='Valor', color='Fonte',
+                df_f_final, x='Fonte', y='Valor', color='Fonte',
                 text_auto='.2s', custom_data=['Proporção'],
                 color_discrete_map={'FUNDEB 70%': '#660000', 'FUNDEB 30%': '#cc0000'},
             )
         else:
             dados_m_f = []
             for m in meses_disponiveis:
-                total_desp_mes = (
-                    df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'][m].sum()
-                )
-                for fonte in ['FUNDEB 70%', 'FUNDEB 30%']:
-                    val = (
-                        df_df_fundeb[
-                            (df_df_fundeb['Fonte_Nome'] == fonte) &
-                            (df_df_fundeb['Tipo'] == 'Liquidado')
-                        ][m].sum()
-                    )
+                # Total do mês específico
+                total_desp_mes = df_fundeb_liq[m].sum()
+                
+                for fonte in df_fundeb_liq['Fonte_Nome'].unique():
+                    val = df_fundeb_liq[df_fundeb_liq['Fonte_Nome'] == fonte][m].sum()
                     prop = (val / total_desp_mes * 100) if total_desp_mes > 0 else 0
                     dados_m_f.append(
                         {"Mês": m, "Fonte": fonte, "Valor": val, "Proporção": f"{prop:.2f}%"}
                     )
+            
             fig_f = px.bar(
                 pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte',
                 text_auto='.2s', barmode='stack', custom_data=['Proporção'],
@@ -375,83 +368,78 @@ if df_f_raw is not None and df_r is not None:
                 category_orders={"Mês": ORDEM_MESES},
             )
 
+        # Estilização mantida
         fig_f.update_traces(
-            hovertemplate=(
-                "<span style='color:white;'><b>%{x}</b><br>"
-                "Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}</span><extra></extra>"
-            ),
+            hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}<extra></extra>",
             hoverlabel=HOVER_STYLE,
         )
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
+        
+        
 
         st.markdown("---")
 
         # ---- 3. Comparativo de Aplicação (Índice 70%) ----
         st.subheader("🔹 3. Comparativo de Aplicação (Índice 70%)")
         tipo_grafico = st.segmented_control(
-            "Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal"
+            "Visualização Comparativo:", ["Total Acumulado", "Mensal"], default="Mensal", key="comp_btn"
         )
 
         if tipo_grafico == "Total Acumulado":
+            # Garantir que tot_rec_periodo e desp_70_val venham do cálculo global atualizado
             df_comp = pd.DataFrame(
                 {"Tipo": ["Receita Total", "Despesas (70%)"],
-                 "Valor": [tot_rec_periodo, desp_70_val]}
+                "Valor": [tot_rec_periodo, desp_70_val]}
             )
             fig_comp = px.bar(
                 df_comp, x='Tipo', y='Valor', color='Tipo',
-                text=["", f"{perc_70_indice:.2f}%"],
+                text_auto='.3s',
                 color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
             )
+            # Adiciona o texto do percentual manualmente sobre a barra de despesa
+            fig_comp.add_annotation(x="Despesas (70%)", y=desp_70_val, text=f"{perc_70_indice:.2f}%", showarrow=False, yshift=10)
+            
             fig_comp.add_hline(
                 y=tot_rec_periodo * 0.7, line_dash="dot", line_color="green",
-                annotation_text="Meta 70%",
+                annotation_text="Meta 70%", annotation_position="top left"
             )
         else:
             dados_m_comp = []
             for m in meses_disponiveis:
+                # Receita FUNDEB do mês (Ex: Código 1751...)
                 r_m = df_r_fundeb[m].sum()
-                d_m = (
-                    df_df_fundeb[
-                        (df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') &
-                        (df_df_fundeb['Tipo'] == 'Liquidado')
-                    ][m].sum()
-                )
+                
+                # Despesa FUNDEB 70% Liquidada do mês
+                d_m = df_df_fundeb[
+                    (df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & 
+                    (df_df_fundeb['Tipo'] == 'Liquidado')
+                ][m].sum()
+                
                 perc_m = (d_m / r_m * 100) if r_m > 0 else 0
-                dados_m_comp.append(
-                    {"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""}
-                )
-                dados_m_comp.append(
-                    {"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m,
-                     "Texto": f"{perc_m:.2f}%"}
-                )
+                
+                dados_m_comp.append({"Mês": m, "Tipo": "Receita Total", "Valor": r_m, "Texto": ""})
+                dados_m_comp.append({"Mês": m, "Tipo": "Despesas (70%)", "Valor": d_m, "Texto": f"{perc_m:.1f}%"})
 
+            df_m_comp = pd.DataFrame(dados_m_comp)
             fig_comp = px.bar(
-                pd.DataFrame(dados_m_comp), x='Mês', y='Valor', color='Tipo',
+                df_m_comp, x='Mês', y='Valor', color='Tipo',
                 barmode='group', text='Texto',
                 color_discrete_map={"Receita Total": "#003366", "Despesas (70%)": "#660000"},
                 category_orders={"Mês": ORDEM_MESES},
             )
 
-            df_linha_70 = pd.DataFrame(dados_m_comp)
-            df_linha_70 = df_linha_70[df_linha_70['Tipo'] == 'Receita Total'].copy()
-            df_linha_70['Meta 70%'] = df_linha_70['Valor'] * 0.7
-            fig_comp.add_trace(
-                go.Scatter(
-                    x=df_linha_70['Mês'], y=df_linha_70['Meta 70%'],
-                    mode='lines+markers', name='Meta 70% (Mensal)',
-                    line=dict(color='green', dash='dot'),
-                )
-            )
+            # Linha de Meta 70% dinâmica por mês
+            df_meta = df_m_comp[df_m_comp['Tipo'] == 'Receita Total'].copy()
+            df_meta['Meta 70%'] = df_meta['Valor'] * 0.7
+            
+            fig_comp.add_trace(go.Scatter(
+                x=df_meta['Mês'], y=df_meta['Meta 70%'],
+                mode='lines+markers', name='Meta 70%',
+                line=dict(color='#28a745', width=2, dash='dot')
+            ))
 
-        fig_comp.update_traces(
-            hovertemplate=(
-                "<span style='color:white;'><b>%{x}</b><br>"
-                "Valor: R$ %{y:,.2f}</span><extra></extra>"
-            ),
-            hoverlabel=HOVER_STYLE,
-        )
-        fig_comp.update_layout(separators=",.")
+        fig_comp.update_layout(separators=",.", legend=dict(orientation="h", y=-0.2))
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
         # ---- Relatório de Fichas FUNDEB ----
