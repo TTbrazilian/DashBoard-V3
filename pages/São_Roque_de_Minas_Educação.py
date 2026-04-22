@@ -137,9 +137,9 @@ def buscar_arquivo(nome):
 @st.cache_data
 def load_all_data():
     # AJUSTADO PARA OS ARQUIVOS DE SÃO ROQUE DE MINAS
-    arquivo_f = "São Roque de Minas.csv"
-    arquivo_r = "São Roque de Minas_R.csv"
-    arquivo_df = "São Roque de Minas_DF.csv"
+    arquivo_f = "zEducação/São Roque de Minas.csv"
+    arquivo_r = "zEducação/São Roque de Minas_R.csv"
+    arquivo_df = "zEducação/São Roque de Minas_DF.csv"
     
     path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
     if not path_f or not path_r or not path_df: return None, None, None
@@ -327,4 +327,3 @@ if df_f_raw is not None and df_r is not None:
         fig_comp.update_traces(selector=dict(type='bar'), textposition='outside', hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}")
         fig_comp.update_layout(separators=",.", yaxis_title="Valor (R$)", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
-        
