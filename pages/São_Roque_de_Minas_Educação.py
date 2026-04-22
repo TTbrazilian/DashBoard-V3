@@ -327,74 +327,72 @@ if df_f_raw is not None and df_r is not None:
         st.subheader("🔹 2. Despesas FUNDEB")
         tipo_f = st.segmented_control("Visualização Despesa:", ["Acumulado", "Mensal"], default="Mensal", key="f_btn")
 
-        # --- 1. LIMPEZA E FILTRAGEM TOTAL (A Prova de Erros) ---
-        df_f = df_df_fundeb.copy()
+        # --- 1. FILTRAGEM TOTAL (OPERAÇÃO LIMPEZA) ---
+        # Fazemos uma cópia profunda para isolar o problema
+        df_fundeb_fixed = df_df_fundeb.copy()
 
-        # Função de limpeza ultra-estrita
-        def limpar_valor_monetario(v):
+        # Passo 1: Limpar a coluna 'Tipo' e garantir que SÓ fiquem as linhas 'Liquidado'
+        df_fundeb_fixed['Tipo'] = df_fundeb_fixed['Tipo'].astype(str).str.strip()
+        # Filtro radical: Se não for EXATAMENTE 'Liquidado', a linha é excluída aqui.
+        df_fundeb_fixed = df_fundeb_fixed[df_fundeb_fixed['Tipo'] == 'Liquidado']
+
+        # Passo 2: Limpeza dos valores (converte R$ 1.234,56 para 1234.56)
+        def converter_na_marreta(v):
             if isinstance(v, str):
                 v = v.replace("R$", "").replace(" ", "").strip()
                 if not v or v == "0,00": return 0.0
-                # Remove ponto de milhar e troca vírgula por ponto decimal
-                v = v.replace(".", "").replace(",", ".")
-                try:
-                    return float(v)
-                except:
-                    return 0.0
+                return float(v.replace(".", "").replace(",", "."))
             return float(v) if v else 0.0
 
-        # Aplicar limpeza em todas as colunas de meses para garantir que sejam números
         for m in meses_disponiveis:
-            if m in df_f.columns:
-                df_f[m] = df_f[m].apply(limpar_valor_monetario)
+            if m in df_fundeb_fixed.columns:
+                df_fundeb_fixed[m] = df_fundeb_fixed[m].apply(converter_na_marreta)
 
-        # --- 2. ISOLAMENTO DO LIQUIDADO ---
-        # Usamos .str.strip() e .upper() para evitar erros de digitação no CSV ("liquidado", " Liquidado")
-        df_f['Tipo_Limpo'] = df_f['Tipo'].astype(str).str.strip().str.upper()
-        df_liquidado_apenas = df_f[df_f['Tipo_Limpo'] == 'LIQUIDADO'].copy()
-
-        # --- 3. MAPEAMENTO DAS FONTES DE SÃO ROQUE ---
-        def mapear_sr(fonte):
-            f = str(fonte).strip()
-            if f in ['15407', '25407']: return 'FUNDEB 70%'
-            if f in ['15403', '25403']: return 'FUNDEB 30%'
+        # --- 2. MAPEAMENTO POR CÓDIGO FONTE ---
+        # Mapeamos 15407/25407 para 70% e 15403/25403 para 30%
+        def link_fontes(cod):
+            c = str(cod).strip()
+            if c in ['15407', '25407']: return 'FUNDEB 70%'
+            if c in ['15403', '25403']: return 'FUNDEB 30%'
             return None
 
-        df_liquidado_apenas['Categoria_Agrupada'] = df_liquidado_apenas['Fonte'].apply(mapear_sr)
+        df_fundeb_fixed['Cat_Grafico'] = df_fundeb_fixed['Fonte'].apply(link_fontes)
 
-        # Removemos tudo que não for FUNDEB (PNAE, etc.)
-        df_fundeb_final = df_liquidado_apenas[df_liquidado_apenas['Categoria_Agrupada'].notna()].copy()
+        # Dropamos qualquer linha que não seja FUNDEB
+        df_fundeb_ready = df_fundeb_fixed[df_fundeb_fixed['Cat_Grafico'].notna()].copy()
 
-        # --- 4. CONSOLIDAÇÃO ---
-        # Agrupamos por Categoria para somar as fontes (Ex: 15407 + 25407), MAS APENAS DO LIQUIDADO
-        df_consolidado = df_fundeb_final.groupby('Categoria_Agrupada')[meses_disponiveis].sum().reset_index()
+        # --- 3. CONSOLIDAÇÃO FINAL ---
+        # Agrupamos por categoria. Como só existem linhas de 'Liquidado', a soma será correta.
+        df_final = df_fundeb_ready.groupby('Cat_Grafico')[meses_disponiveis].sum().reset_index()
 
-        # --- 5. LÓGICA DO GRÁFICO ---
+        # --- 4. CONSTRUÇÃO DO GRÁFICO ---
         if tipo_f == "Acumulado":
-            total_periodo = df_consolidado[meses_disponiveis].sum().sum()
-            resumo = []
+            total_periodo = df_final[meses_disponiveis].sum().sum()
+            dados_acum = []
             for cat in ['FUNDEB 70%', 'FUNDEB 30%']:
-                val = df_consolidado[df_consolidado['Categoria_Agrupada'] == cat][meses_disponiveis].sum().sum()
-                prop = (val / total_periodo * 100) if total_periodo > 0 else 0
-                resumo.append({"Fonte": cat, "Valor": val, "Proporção": f"{prop:.2f}%"})
+                val = df_final[df_final['Cat_Grafico'] == cat][meses_disponiveis].sum().sum()
+                p = (val / total_periodo * 100) if total_periodo > 0 else 0
+                dados_acum.append({"Fonte": cat, "Valor": val, "Proporção": f"{p:.2f}%"})
             
-            fig_f = px.bar(pd.DataFrame(resumo), x='Fonte', y='Valor', color='Fonte', text_auto='.2s',
+            df_plot = pd.DataFrame(dados_acum)
+            fig_f = px.bar(df_plot, x='Fonte', y='Valor', color='Fonte', text_auto='.2s',
                         custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'})
         else:
-            # Mensal
-            dados_m = []
+            # MENSAL
+            dados_mensais = []
             for m in meses_disponiveis:
-                total_m = df_consolidado[m].sum()
+                total_m = df_final[m].sum()
                 for cat in ['FUNDEB 70%', 'FUNDEB 30%']:
-                    val = df_consolidado[df_consolidado['Categoria_Agrupada'] == cat][m].sum()
-                    prop = (val / total_m * 100) if total_m > 0 else 0
-                    dados_m.append({"Mês": m, "Fonte": cat, "Valor": val, "Proporção": f"{prop:.2f}%"})
+                    val = df_final[df_final['Cat_Grafico'] == cat][m].sum()
+                    p = (val / total_m * 100) if total_m > 0 else 0
+                    dados_mensais.append({"Mês": m, "Fonte": cat, "Valor": val, "Proporção": f"{p:.2f}%"})
             
-            fig_f = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
+            df_plot = pd.DataFrame(dados_mensais)
+            fig_f = px.bar(df_plot, x='Mês', y='Valor', color='Fonte', text_auto='.2s', barmode='stack',
                         custom_data=['Proporção'], color_discrete_map={'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'},
                         category_orders={"Mês": ORDEM_MESES})
 
-        # Estilização
+        # --- 5. UI ---
         fig_f.update_traces(hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}<extra></extra>")
         fig_f.update_layout(separators=",.", yaxis={'showticklabels': False, 'title': ''}, xaxis={'title': ''})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
