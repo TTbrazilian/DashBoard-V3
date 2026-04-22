@@ -220,7 +220,7 @@ if df_f_raw is not None and df_r is not None:
         )
 
         def cat_receita(desc):
-            desc = str(desc).upper()
+            desc = desc.upper()
             if 'VAAR' in desc:
                 return 'VAAR'
             if 'ETI' in desc or 'TEMPO INTEGRAL' in desc:
@@ -229,45 +229,36 @@ if df_f_raw is not None and df_r is not None:
                 return 'Aplicação'
             return 'Principal'
 
-        # --- PREPARAÇÃO SEGURA DAS FONTES ---
-        # Garante que a fonte seja string para não quebrar com float (ex: '15407.0')
-        df_df_raw['Fonte_Str'] = df_df_raw['Fonte'].astype(str).str.strip().str.replace('.0', '', regex=False)
-        df_f_raw['Fonte_Str'] = df_f_raw['Fonte'].astype(str).str.strip().str.replace('.0', '', regex=False)
-
-        def classificar_fonte(f):
-            if f in ['15407', '25407']:
-                return 'FUNDEB 70%'
-            elif f in ['15403', '25403']:
-                return 'FUNDEB 30%'
-            return 'Outros'
-
         # --- Filtros de dados ---
-        fontes_fundeb = ['15407', '15403', '25407', '25403']
-        df_df_fundeb = df_df_raw[df_df_raw['Fonte_Str'].isin(fontes_fundeb)].copy()
-        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte_Str'].apply(classificar_fonte)
+        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407', '15403', '25407', '25403'])].copy()
+        df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(
+            lambda x: 'FUNDEB 70%' if x in ['15407', '25407'] else 'FUNDEB 30%'
+        )
 
         df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
 
-        # Fichas FUNDEB (Corrigido para usar as mesmas fontes e a mesma classificação)
-        df_f_fundeb = df_f_raw[df_f_raw['Fonte_Str'].isin(fontes_fundeb)].copy()
-        df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte_Str'].apply(classificar_fonte)
+        # Fichas FUNDEB: Fontes 154xx / 254xx
+        df_f_fundeb = df_f_raw[
+            df_f_raw['Fonte'].str.contains('154|254', na=False)
+        ].copy()
 
         # --- Métricas ---
         tot_rec_periodo  = df_r_fundeb[meses_disponiveis].sum().sum()
         tot_prev_2026    = df_r_fundeb['Orçamento Receitas'].sum()
 
-        # CORREÇÃO CRÍTICA DO ÍNDICE:
-        # Apenas Fonte 15407 (Exercício Corrente) entra no cálculo do índice.
-        # Despesas pagas com Superávit (25407) não podem compor o cálculo sobre a receita do ano.
-        desp_70_indice_val = (
+        # Colunas de liquidado para os meses disponíveis no arquivo DF
+        cols_liq_df = [f"{m}_Liquidado" if f"{m}_Liquidado" in df_df_fundeb.columns else m
+                       for m in meses_disponiveis]
+        # O arquivo DF tem colunas diretas por mês (sem sufixo de tipo)
+        desp_70_val = (
             df_df_fundeb[
-                (df_df_fundeb['Fonte_Str'] == '15407') &
+                (df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') &
                 (df_df_fundeb['Tipo'] == 'Liquidado')
             ][meses_disponiveis].sum().sum()
         )
 
-        perc_70_indice = (desp_70_indice_val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
+        perc_70_indice = (desp_70_val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
 
         m1, m2, m3 = st.columns(3)
         with m1:
@@ -405,7 +396,7 @@ if df_f_raw is not None and df_r is not None:
         if tipo_grafico == "Total Acumulado":
             df_comp = pd.DataFrame(
                 {"Tipo": ["Receita Total", "Despesas (70%)"],
-                 "Valor": [tot_rec_periodo, desp_70_indice_val]} # Usando a variável corrigida
+                 "Valor": [tot_rec_periodo, desp_70_val]}
             )
             fig_comp = px.bar(
                 df_comp, x='Tipo', y='Valor', color='Tipo',
@@ -422,7 +413,7 @@ if df_f_raw is not None and df_r is not None:
                 r_m = df_r_fundeb[m].sum()
                 d_m = (
                     df_df_fundeb[
-                        (df_df_fundeb['Fonte_Str'] == '15407') & # Filtro corrigido para Exercício Corrente
+                        (df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') &
                         (df_df_fundeb['Tipo'] == 'Liquidado')
                     ][m].sum()
                 )
@@ -466,11 +457,15 @@ if df_f_raw is not None and df_r is not None:
         # ---- Relatório de Fichas FUNDEB ----
         st.markdown("### 📋 Relatório de Fichas FUNDEB")
 
+        # Colunas de liquidado no formato "Mês_Liquidado"
         col_liq_fichas = [
             f"{m}_Liquidado" for m in meses_disponiveis
             if f"{m}_Liquidado" in df_f_fundeb.columns
         ]
         df_f_fundeb['Soma_Liquidado'] = df_f_fundeb[col_liq_fichas].sum(axis=1)
+        df_f_fundeb['Fonte_Agrupada'] = df_f_fundeb['Fonte'].apply(
+            lambda x: 'FUNDEB 70%' if '154' in str(x) or '254' in str(x) else 'FUNDEB 30%'
+        )
 
         cols_show = ['Atividade', 'Ficha', 'Fonte_Agrupada']
         orc_col = [c for c in df_f_fundeb.columns if 'Orçado' in c]
@@ -488,6 +483,7 @@ if df_f_raw is not None and df_r is not None:
             df_show = df_show[mask]
 
         st.dataframe(df_show[cols_show], use_container_width=True, hide_index=True)
+
     # =========================================================================
     # SETOR RECURSOS PRÓPRIOS
     # =========================================================================
