@@ -328,80 +328,83 @@ if df_f_raw is not None and df_r is not None:
             "Visualização Despesa:", ["Acumulado", "Mensal"], default="Mensal", key="f_btn"
         )
 
-        # 1. Filtro rigoroso: Apenas Liquidado
+        # 1. Filtro inicial apenas para o que é Liquidado
         df_fundeb_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'].copy()
 
-        # 2. Função de limpeza para converter as strings do CSV em números reais
-        def limpar_moeda(valor):
-            if isinstance(valor, str):
-                # Remove R$, remove ponto de milhar e troca vírgula por ponto
-                return float(valor.replace("R$", "").replace(".", "").replace(",", ".").strip())
-            return valor
+        # 2. FUNÇÃO DE LIMPEZA PESADA (Garante que R$ 232.624,65 vire 232624.65)
+        def limpar_valor_final(v):
+            if isinstance(v, str):
+                v = v.replace("R$", "").strip()
+                if not v or v == "0,00": return 0.0
+                # Remove o ponto do milhar e troca a vírgula decimal por ponto
+                v = v.replace(".", "").replace(",", ".")
+                try:
+                    return float(v)
+                except:
+                    return 0.0
+            return float(v) if v else 0.0
 
-        # Aplicar a limpeza nas colunas de meses
-        for m in meses_disponiveis:
-            df_fundeb_liq[m] = df_fundeb_liq[m].apply(limpar_moeda)
+        # Aplicar limpeza em todas as colunas de meses
+        colunas_meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-        # 3. Mapeamento exato das fontes conforme você passou
-        def mapear_fundeb(fonte):
-            f = str(fonte).strip()
-            if f in ['15407', '25407']:
-                return "FUNDEB 70%"
-            elif f in ['15403', '25403']:
-                return "FUNDEB 30%"
-            return None
+        for col in colunas_meses:
+            if col in df_fundeb_liq.columns:
+                df_fundeb_liq[col] = df_fundeb_liq[col].apply(limpar_valor_final)
 
-        df_fundeb_liq['Fonte_Nome'] = df_fundeb_liq['Fonte'].apply(mapear_fundeb)
-        df_fundeb_liq = df_fundeb_liq.dropna(subset=['Fonte_Nome'])
+        # 3. MAPEAMENTO DIRETO PELOS CÓDIGOS QUE VOCÊ MANDOU
+        # Usamos string para evitar erro de interpretação de tipo no CSV
+        mapeamento = {
+            '15407': 'FUNDEB 70%',
+            '25407': 'FUNDEB 70%',
+            '15403': 'FUNDEB 30%',
+            '25403': 'FUNDEB 30%'
+        }
 
-        # 4. Lógica de Agrupamento para o Gráfico
+        df_fundeb_liq['Fonte_Grupo'] = df_fundeb_liq['Fonte'].astype(str).str.strip().map(mapeamento)
+
+        # Remove tudo que não for FUNDEB 70 ou 30
+        df_fundeb_liq = df_fundeb_liq.dropna(subset=['Fonte_Grupo'])
+
+        # 4. CONSTRUÇÃO DO GRÁFICO
+        meses_alvo = [m for m in meses_disponiveis if m in colunas_meses]
+
         if tipo_f == "Acumulado":
-            # Soma todas as colunas de meses selecionadas e agrupa por 70/30
-            df_f_final = df_fundeb_liq.groupby('Fonte_Nome')[meses_disponiveis].sum().sum(axis=1).reset_index()
+            df_f_final = df_fundeb_liq.groupby('Fonte_Grupo')[meses_alvo].sum().sum(axis=1).reset_index()
             df_f_final.columns = ['Fonte', 'Valor']
             
-            total_geral = df_f_final['Valor'].sum()
-            df_f_final['Proporção'] = df_f_final['Valor'].apply(lambda x: f"{(x/total_geral*100):.2f}%" if total_geral > 0 else "0.00%")
-
+            total_g = df_f_final['Valor'].sum()
+            df_f_final['Proporção'] = df_f_final['Valor'].apply(lambda x: f"{(x/total_g*100):.2f}%" if total_g > 0 else "0.00%")
+            
             fig_f = px.bar(
                 df_f_final, x='Fonte', y='Valor', color='Fonte',
                 text_auto='.2s', custom_data=['Proporção'],
-                color_discrete_map={'FUNDEB 70%': '#660000', 'FUNDEB 30%': '#cc0000'},
+                color_discrete_map={'FUNDEB 70%': '#660000', 'FUNDEB 30%': '#cc0000'}
             )
         else:
-            # Lógica Mensal: Agrupa por Mês e Fonte
-            dados_mensais = []
-            for m in meses_disponiveis:
-                resumo_mes = df_fundeb_liq.groupby('Fonte_Nome')[m].sum().reset_index()
-                total_mes = resumo_mes[m].sum()
-                
-                for _, row in resumo_mes.iterrows():
-                    prop = (row[m] / total_mes * 100) if total_mes > 0 else 0
-                    dados_mensais.append({
-                        "Mês": m, "Fonte": row['Fonte_Nome'], 
-                        "Valor": row[m], "Proporção": f"{prop:.2f}%"
-                    })
+            dados_m = []
+            for m in meses_alvo:
+                temp = df_fundeb_liq.groupby('Fonte_Grupo')[m].sum().reset_index()
+                total_m = temp[m].sum()
+                for _, row in temp.iterrows():
+                    p = (row[m] / total_m * 100) if total_m > 0 else 0
+                    dados_m.append({"Mês": m, "Fonte": row['Fonte_Grupo'], "Valor": row[m], "Proporção": f"{p:.2f}%"})
             
-            df_f_final = pd.DataFrame(dados_mensais)
             fig_f = px.bar(
-                df_f_final, x='Mês', y='Valor', color='Fonte',
+                pd.DataFrame(dados_m), x='Mês', y='Valor', color='Fonte',
                 text_auto='.2s', barmode='stack', custom_data=['Proporção'],
                 color_discrete_map={'FUNDEB 70%': '#660000', 'FUNDEB 30%': '#cc0000'},
-                category_orders={"Mês": ORDEM_MESES},
+                category_orders={"Mês": ORDEM_MESES}
             )
 
-        # Estilização do Plotly
+        # Formatação visual
         fig_f.update_traces(
             hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}<extra></extra>",
-            hoverlabel=HOVER_STYLE,
+            hoverlabel=HOVER_STYLE
         )
-        fig_f.update_layout(
-            separators=",.", 
-            yaxis={'showticklabels': False, 'title': ''},
-            xaxis={'title': ''}
-        )
-
+        fig_f.update_layout(separators=",.", yaxis={'showticklabels': False, 'title': ''}, xaxis={'title': ''})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
+
         st.markdown("---")
 
         # ---- 3. Comparativo de Aplicação (Índice 70%) ----
