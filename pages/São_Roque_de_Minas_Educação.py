@@ -328,11 +328,21 @@ if df_f_raw is not None and df_r is not None:
             "Visualização Despesa:", ["Acumulado", "Mensal"], default="Mensal", key="f_btn"
         )
 
-        # 1. Filtro base e Mapeamento das Fontes (Garante que os códigos 15407, 25407, 15403, 25403 sejam lidos)
+        # --- 1. PREPARAÇÃO DOS DADOS (Obrigatório para os valores mudarem) ---
         df_fundeb_liq = df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'].copy()
 
-        # Criamos uma coluna temporária para agrupar as fontes conforme sua regra
-        def agrupar_fundeb(fonte):
+        # Função interna para converter "R$ 1.234,56" em float 1234.56
+        def converter_moeda(valor):
+            if isinstance(valor, str):
+                return float(valor.replace("R$", "").replace(".", "").replace(",", ".").strip())
+            return valor
+
+        # Limpa os valores de todos os meses selecionados
+        for mes in meses_disponiveis:
+            df_fundeb_liq[mes] = df_fundeb_liq[mes].apply(converter_moeda)
+
+        # --- 2. MAPEAMENTO DAS FONTES ESPECÍFICAS ---
+        def mapear_categoria(fonte):
             f = str(fonte).strip()
             if f in ['15407', '25407']:
                 return 'FUNDEB 70%'
@@ -340,23 +350,19 @@ if df_f_raw is not None and df_r is not None:
                 return 'FUNDEB 30%'
             return None
 
-        df_fundeb_liq['Fonte_Grupo'] = df_fundeb_liq['Fonte'].apply(agrupar_fundeb)
-
-        # Removemos qualquer dado que não pertença a essas 4 fontes
+        df_fundeb_liq['Fonte_Grupo'] = df_fundeb_liq['Fonte'].apply(mapear_categoria)
+        # Mantém apenas as 4 fontes do FUNDEB
         df_fundeb_liq = df_fundeb_liq.dropna(subset=['Fonte_Grupo'])
 
+        # --- 3. LÓGICA DE VISUALIZAÇÃO ---
         if tipo_f == "Acumulado":
-            # Soma total de todas as fontes FUNDEB no período selecionado
-            total_desp_acum = df_fundeb_liq[meses_disponiveis].sum().sum()
+            # Agrupa por 70%/30% e soma o período
+            df_f_final = df_fundeb_liq.groupby('Fonte_Grupo')[meses_disponiveis].sum().sum(axis=1).reset_index()
+            df_f_final.columns = ['Fonte', 'Valor']
             
-            df_f_plot = []
-            # Itera sobre os grupos (70% e 30%)
-            for grupo in df_fundeb_liq['Fonte_Grupo'].unique():
-                val = df_fundeb_liq[df_fundeb_liq['Fonte_Grupo'] == grupo][meses_disponiveis].sum().sum()
-                prop = (val / total_desp_acum * 100) if total_desp_acum > 0 else 0
-                df_f_plot.append({"Fonte": grupo, "Valor": val, "Proporção": f"{prop:.2f}%"})
+            total_geral = df_f_final['Valor'].sum()
+            df_f_final['Proporção'] = df_f_final['Valor'].apply(lambda x: f"{(x/total_geral*100):.2f}%" if total_geral > 0 else "0.00%")
             
-            df_f_final = pd.DataFrame(df_f_plot)
             fig_f = px.bar(
                 df_f_final, x='Fonte', y='Valor', color='Fonte',
                 text_auto='.2s', custom_data=['Proporção'],
@@ -365,29 +371,31 @@ if df_f_raw is not None and df_r is not None:
         else:
             dados_m_f = []
             for m in meses_disponiveis:
-                # Total do mês específico (apenas das fontes filtradas)
-                total_desp_mes = df_fundeb_liq[m].sum()
+                # Soma mensal por grupo
+                resumo_mes = df_fundeb_liq.groupby('Fonte_Grupo')[m].sum().reset_index()
+                total_mes = resumo_mes[m].sum()
                 
-                for grupo in df_fundeb_liq['Fonte_Grupo'].unique():
-                    val = df_fundeb_liq[df_fundeb_liq['Fonte_Grupo'] == grupo][m].sum()
-                    prop = (val / total_desp_mes * 100) if total_desp_mes > 0 else 0
-                    dados_m_f.append(
-                        {"Mês": m, "Fonte": grupo, "Valor": val, "Proporção": f"{prop:.2f}%"}
-                    )
+                for _, row in resumo_mes.iterrows():
+                    prop = (row[m] / total_mes * 100) if total_mes > 0 else 0
+                    dados_m_f.append({
+                        "Mês": m, "Fonte": row['Fonte_Grupo'], 
+                        "Valor": row[m], "Proporção": f"{prop:.2f}%"
+                    })
             
+            df_f_final = pd.DataFrame(dados_m_f)
             fig_f = px.bar(
-                pd.DataFrame(dados_m_f), x='Mês', y='Valor', color='Fonte',
+                df_f_final, x='Mês', y='Valor', color='Fonte',
                 text_auto='.2s', barmode='stack', custom_data=['Proporção'],
                 color_discrete_map={'FUNDEB 70%': '#660000', 'FUNDEB 30%': '#cc0000'},
                 category_orders={"Mês": ORDEM_MESES},
             )
 
-        # Estilização
+        # --- 4. ESTILIZAÇÃO MANTIDA ---
         fig_f.update_traces(
             hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<br>Proporção: %{customdata[0]}<extra></extra>",
             hoverlabel=HOVER_STYLE,
         )
-        fig_f.update_layout(separators=",.", yaxis={'showticklabels': False, 'title': ''}, xaxis={'title': ''})
+        fig_f.update_layout(separators=",.", yaxis={'showticklabels': False, 'title': ''})
         st.plotly_chart(fig_f, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
