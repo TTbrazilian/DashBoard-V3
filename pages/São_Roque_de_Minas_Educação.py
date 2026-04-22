@@ -209,20 +209,24 @@ if df_f_raw is not None and df_r is not None:
             return df[cols_encontradas].sum().sum() if cols_encontradas else 0
 
         # 2. PROCESSAMENTO DE DADOS (RECEITAS)
-        df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
+        # Ajuste: Garantindo que pega a categoria FUNDEB ignorando espaços extras
+        df_r_fundeb = df_r[df_r['Categoria'].str.strip().str.upper() == 'FUNDEB'].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
         # Filtra apenas a linha do Principal para pegar o valor orçado correto
         df_principal = df_r_fundeb[df_r_fundeb['Subcategoria'] == 'Principal']
-        tot_prev_2026 = df_principal['Orçamento Receitas'].sum()
+        # Ajuste: Garantindo que a coluna de orçamento seja lida corretamente
+        col_orc = 'Orçamento Receitas' if 'Orçamento Receitas' in df_r_fundeb.columns else 'Orçado Receitas'
+        tot_prev_2026 = df_principal[col_orc].sum()
         
         tot_rec_periodo = obter_soma_mensal_robusta(df_r_fundeb, meses_disponiveis)
 
         # 3. PROCESSAMENTO DE DADOS (DESPESAS)
-        # Ajustado para São Roque de Minas: Filtrando pela nomenclatura FUNDEB no arquivo DF
-        df_df_fundeb = df_df_raw[df_df_raw['Nomenclatura'].str.contains('FUNDEB', na=False)].copy()
+        # Ajustado para São Roque de Minas: O arquivo DF usa 'Nomenclatura' para identificar FUNDEB 70% e 30%
+        df_df_fundeb = df_df_raw[df_df_raw['Nomenclatura'].str.contains('FUNDEB', na=False, case=False)].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Nomenclatura'].str.strip()
         
+        # Filtro específico para o índice de 70% (Liquidado)
         desp_70_val = obter_soma_mensal_robusta(
             df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')],
             meses_disponiveis
