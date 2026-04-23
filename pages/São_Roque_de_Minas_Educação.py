@@ -242,7 +242,7 @@ if df_f_raw is not None and df_r is not None:
         df_f_fundeb = df_f_raw[df_f_raw['Fonte'].astype(str).isin(todas_fontes_fundeb)].copy()
         
         tot_rec_periodo = df_r_fundeb[meses_disponiveis].sum().sum()
-        tot_prev_2026 = df_r_fundeb['Orçado Receitas'].sum()
+        tot_prev_2026 = df_r_fundeb['Orçamento Receitas'].sum()
         
         # Condição global para considerar estritamente 'Liquidado' em todas as despesas
         cond_liquidado = df_df_fundeb['Tipo'].str.strip() == 'Liquidado'
