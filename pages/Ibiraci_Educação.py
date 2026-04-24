@@ -289,23 +289,18 @@ if df_f_raw is not None and df_r is not None:
                     "Total_Painel": tot_desp_periodo,
                 })
 
-            from plotly.subplots import make_subplots
-
-            fig_rd = make_subplots(
-                rows=1, cols=2,
-                subplot_titles=["Receitas FUNDEB", "Despesas FUNDEB (Liquidado)"],
-                horizontal_spacing=0.08
-            )
+            # Alterado para gráfico único com eixo multicategoria
+            fig_rd = go.Figure()
 
             COR_REC  = {'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'}
             COR_DESP = {'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'}
 
-            # Receitas — uma trace por subcategoria (para legenda colorida)
+            # Receitas — eixo X: ["Acumulado", "Receitas"]
             for item in dados_rec:
                 fig_rd.add_trace(
                     go.Bar(
                         name=item['Legenda'],
-                        x=[item['Eixo_X']],
+                        x=[["Acumulado"], ["Receitas"]],
                         y=[item['Valor']],
                         marker_color=COR_REC.get(item['Legenda'], '#336699'),
                         text=f"R$ {item['Valor']:,.0f}".replace(",","X").replace(".",",").replace("X","."),
@@ -331,16 +326,15 @@ if df_f_raw is not None and df_r is not None:
                             "Participação: %{customdata[5]}"
                             "</span><extra></extra>"
                         ),
-                    ),
-                    row=1, col=1
+                    )
                 )
 
-            # Despesas — uma trace por fonte
+            # Despesas — eixo X: ["Acumulado", "Despesas"]
             for item in dados_desp:
                 fig_rd.add_trace(
                     go.Bar(
                         name=item['Legenda'],
-                        x=[item['Eixo_X']],
+                        x=[["Acumulado"], ["Despesas"]],
                         y=[item['Valor']],
                         marker_color=COR_DESP.get(item['Legenda'], '#990000'),
                         text=f"R$ {item['Valor']:,.0f}".replace(",","X").replace(".",",").replace("X","."),
@@ -366,8 +360,7 @@ if df_f_raw is not None and df_r is not None:
                             "Participação: %{customdata[5]}"
                             "</span><extra></extra>"
                         ),
-                    ),
-                    row=1, col=2
+                    )
                 )
 
             fig_rd.update_layout(
@@ -381,13 +374,8 @@ if df_f_raw is not None and df_r is not None:
             fig_rd.update_yaxes(showticklabels=False)
 
         else:  # MENSAL
-            from plotly.subplots import make_subplots
-
-            fig_rd = make_subplots(
-                rows=1, cols=2,
-                subplot_titles=["Receitas FUNDEB por Mês", "Despesas FUNDEB por Mês (Liquidado)"],
-                horizontal_spacing=0.08
-            )
+            # Alterado para gráfico único
+            fig_rd = go.Figure()
 
             COR_REC  = {'Principal':'#002147', 'VAAR':'#003366', 'ETI':'#00509d', 'Aplicação':'#6699cc'}
             COR_DESP = {'FUNDEB 70%':'#660000', 'FUNDEB 30%':'#cc0000'}
@@ -406,10 +394,12 @@ if df_f_raw is not None and df_r is not None:
                     show_leg  = cat not in legendas_usadas
                     legendas_usadas.add(cat)
                     part = f"{(val/tot_rec_m*100):.1f}%" if tot_rec_m > 0 else "—"
+                    
+                    # Eixo X Multicategoria: [[Mês], ["Receitas"]]
                     fig_rd.add_trace(
                         go.Bar(
                             name=cat,
-                            x=[m],
+                            x=[[m], ["Receitas"]],
                             y=[val],
                             marker_color=COR_REC.get(cat, '#336699'),
                             legendgroup=cat,
@@ -430,8 +420,7 @@ if df_f_raw is not None and df_r is not None:
                                 "Participação: %{customdata[5]}"
                                 "</span><extra></extra>"
                             ),
-                        ),
-                        row=1, col=1
+                        )
                     )
 
                 for fonte in fontes_desp:
@@ -441,10 +430,12 @@ if df_f_raw is not None and df_r is not None:
                     show_leg = fonte not in legendas_usadas
                     legendas_usadas.add(fonte)
                     prop = f"{(val/tot_desp_m*100):.1f}%" if tot_desp_m > 0 else "—"
+                    
+                    # Eixo X Multicategoria: [[Mês], ["Despesas"]]
                     fig_rd.add_trace(
                         go.Bar(
                             name=fonte,
-                            x=[m],
+                            x=[[m], ["Despesas"]],
                             y=[val],
                             marker_color=COR_DESP.get(fonte, '#990000'),
                             legendgroup=fonte,
@@ -466,8 +457,7 @@ if df_f_raw is not None and df_r is not None:
                                 "Participação: %{customdata[5]}"
                                 "</span><extra></extra>"
                             ),
-                        ),
-                        row=1, col=2
+                        )
                     )
 
             fig_rd.update_layout(
