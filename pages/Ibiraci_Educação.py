@@ -219,12 +219,8 @@ if df_f_raw is not None and df_r is not None:
         df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
         
-        # --- CORREÇÃO DEFINITIVA DA PREVISÃO ---
-        # Filtra apenas a linha do Principal para pegar o valor orçado correto (R$ 10.703.377,31)
         df_principal = df_r_fundeb[df_r_fundeb['Subcategoria'] == 'Principal']
         tot_prev_2026 = df_principal['Orçado Receitas'].sum()
-        
-        # Para o arrecadado, somamos todas as fontes que entraram (Principal + VAAR + ETI + Rendimentos)
         tot_rec_periodo = obter_soma_mensal_robusta(df_r_fundeb, meses_disponiveis)
 
         # 3. PROCESSAMENTO DE DADOS (DESPESAS)
@@ -235,17 +231,13 @@ if df_f_raw is not None and df_r is not None:
             df_df_fundeb[(df_df_fundeb['Fonte_Nome'] == 'FUNDEB 70%') & (df_df_fundeb['Tipo'] == 'Liquidado')],
             meses_disponiveis
         )
-        
         perc_70_indice = (desp_70_val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
 
         # 4. MÉTRICAS (CARDS)
         m1, m2, m3 = st.columns(3)
         with m1: st.metric("Previsão Orçamentária 2026", formar_real(tot_prev_2026))
         with m2: st.metric(f"Total Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(tot_rec_periodo))
-        with m3:
-            label_70 = "Aplicação em Pessoal (Mín. 70%)"
-            # Supondo que perc_70_indice seja seu cálculo
-        metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
+        with m3: metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
 
         st.markdown("---")
 
@@ -339,7 +331,6 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
         
         # --- SETOR RECURSOS PRÓPRIOS ---
-    # --- SETOR RECURSOS PRÓPRIOS ---
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
         
