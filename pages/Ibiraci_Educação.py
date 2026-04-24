@@ -753,9 +753,6 @@ if df_f_raw is not None and df_r is not None:
         m1, m2, m3 = st.columns(3)
         with m1: 
             st.metric("Previsão Vinculados 2026", formar_real(df_r_vinc['Orçado Receitas'].sum()))
-        with m2: 
-            total_arrec_vinc = df_r_vinc[meses_reais_r].sum().sum() if meses_reais_r else 0
-            st.metric(f"Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_arrec_vinc))
         with m3:
             fontes_v = [f for sub in mapa_desp.values() for f in sub]
             df_vinc_filtro = df_df_raw[(df_df_raw['Fonte'].isin(fontes_v)) & (df_df_raw['Tipo'] == 'Liquidado')]
