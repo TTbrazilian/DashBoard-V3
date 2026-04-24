@@ -230,9 +230,9 @@ if df_f_raw is not None and df_r is not None:
         perc_70_indice = (desp_70_val / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
 
         # 4. MÉTRICAS
-        m1, m3 = st.columns(3)
+        m1, m2 = st.columns(3)
         with m1: st.metric("Previsão Orçamentária 2026", formar_real(tot_prev_2026))
-        with m3: metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
+        with m2: metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
 
         st.markdown("---")
 
