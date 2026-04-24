@@ -1,0 +1,41 @@
+Código,Categoria,Descrição da Receita,Janeiro,Fevereiro,Março,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,Total,Orçado Receitas
+11180111000,Impostos,Propriedade Predial e Territorial Urbana - Principal ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 410.000,00"
+11180112000,Impostos,Propriedade Predial e Territorial Urbana - Multas e Juros ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+11180113000,Impostos,Propriedade Predial e Territorial Urbana - Dívida Ativa ,"R$ 8.114,73","R$ 8.495,43",,,,,,,,,,,"R$ 16.610,16","R$ 300.000,00"
+11180114000,Impostos,Propriedade Predial e Territorial Urbana - Dívida Ativa - Multas e Juros ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+11180141000,Impostos,Transmissão “Inter Vivos” de Bens Imóveis e de Direitos Reais sobre Imóveis - Principal ,"R$ 1.143.642,32","R$ 17.143,18",,,,,,,,,,,"R$ 1.160.785,50","R$ 1.724.015,02"
+11180142000,Impostos,Transmissão “Inter Vivos” de Bens Imóveis e de Direitos Reais sobre Imóveis - Multas e Juros ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+11180143000,Impostos,Transmissão “Inter Vivos” de Bens Imóveis e de Direitos Reais sobre Imóveis - Dívida ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+11180144000,Impostos,Transmissão “Inter Vivos” de Bens Imóveis e de Direitos Reais sobre Imóveis - Dívida ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+11130311000,Impostos,Renda - Retido na Fonte - Trabalho - Principal ,"R$ 82.147,32","R$ 44.442,57",,,,,,,,,,,"R$ 126.589,89","R$ 1.000.000,00"
+11130341000,Impostos,Renda - Retido na Fonte - Outros Rendimentos ,"R$ 2.137,11","R$ 1.014,29",,,,,,,,,,,"R$ 3.151,40","R$ 20.000,00"
+11180231000,Impostos,Serviços de Qualquer Natureza - Principal ,"R$ 46.391,13","R$ 74.981,10",,,,,,,,,,,"R$ 121.372,23","R$ 2.010.000,00"
+11180232000,Impostos,Serviços de Qualquer Natureza - Multas e Juros ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 5.000,00"
+11180233000,Impostos, Serviços de Qualquer Natureza - Dívida Ativa ,"R$ 862,74","R$ 1.711,57",,,,,,,,,,,"R$ 2.574,31","R$ 65.000,00"
+11180234000,Impostos,Serviços de Qualquer Natureza - Dívida Ativa - Multas e Juros ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+17180121000,Cota-Parte ,Fundo de Participação dos Municípios - Cota Mensal - Principal ,"R$ 1.620.336,13","R$ 2.037.247,93",,,,,,,,,,,"R$ 3.657.584,06","R$ 14.000.000,00"
+17180131000,Cota-Parte ,Fundo de Participação do Municípios – 1% Cota entregue no mês de dezembro - Principal ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 300.000,00"
+17180141000,Cota-Parte ,Cota-Parte do Fundo de Participação dos Municípios - 1% Cota entregue no mês de julho e setembro - Principal ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 300.000,00"
+17180151000,Cota-Parte ,Imposto Sobre a Propriedade Territorial Rural - Principal,"R$ 82.153,62","R$ 8.226,62",,,,,,,,,,,"R$ 90.380,24","R$ 720.000,00"
+17280111000,Cota-Parte ,ICMS - Principal ,"R$ 1.018.078,49","R$ 649.887,90",,,,,,,,,,,"R$ 1.667.966,39","R$ 12.196.400,00"
+17280121000,Cota-Parte ,IPVA - Principal ,"R$ 736.447,25","R$ 176.610,65",,,,,,,,,,,"R$ 913.057,90","R$ 1.500.000,00"
+17280131000,Cota-Parte ,IPI - Municípios - Principal ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 70.000,00"
+9517180121000,Dedução ,Cota-Parte do Fundo de Participação dos Municípios - Cota Mensal - Principal,"-R$ 324.067,17","-R$ 407.449,55",,,,,,,,,,,"-R$ 731.516,72","-R$ 2.600.000,00"
+9517180151000,Dedução ,Cota-Parte do Imposto Sobre a Propriedade Territorial Rural - Principal ,"-R$ 16.430,72","-R$ 1.645,31",,,,,,,,,,,"-R$ 18.076,03","-R$ 144.000,00"
+9517180611000,Dedução ,Transferência Financeira do ICMS – Desoneração – L.C. No 87/96 - Principal ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 0,00"
+9517280111000,Dedução ,Cota-Parte do ICMS - Principal ,"-R$ 202.304,75","-R$ 128.729,47",,,,,,,,,,,"-R$ 331.034,22","-R$ 2.239.280,00"
+9517280121000,Dedução ,Cota-Parte do IPVA - Principal ,"-R$ 147.289,38","-R$ 35.322,09",,,,,,,,,,,"-R$ 182.611,47","-R$ 300.000,00"
+9517280131000,Dedução ,Cota-Parte do IPI - Municípios - Principal,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","-R$ 14.000,00"
+17515001000,FUNDEB,Principal ,"R$ 1.019.548,25","R$ 649.088,70",,,,,,,,,,,"R$ 1.668.636,95","R$ 10.288.477,70"
+13210111002,FUNDEB,Rendimentos ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 1.000,00"
+17155201000,FUNDEB,VAAR ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+17155301000,FUNDEB,ETI,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+17155200000,FUNDEB,VAAT,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+17145201000,Tranferência Programas Federais ,PNAE,"R$ 0,00","R$ 29.275,50",,,,,,,,,,,"R$ 29.275,50","R$ 234.204,00"
+13210111016,Remunerações Bancárias,Rendimentos ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 0,00"
+17145301000,Tranferência Programas Federais ,PNATE,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 42.674,48"
+13210111017,Remunerações Bancárias,Rendimentos ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 0,00"
+17295201001,Tranferência Programas Estaduais,PTE,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
+13210111023,Remunerações Bancárias,Rendimentos ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00","R$ 0,00"
+17145001000,Tranferência Programas Federais ,QESE,"R$ 109.848,43","R$ 65.175,75",,,,,,,,,,,"R$ 175.024,18","R$ 881.730,91"
+13210111015,Remunerações Bancárias,Rendimentos ,"R$ 0,00","R$ 0,00",,,,,,,,,,,"R$ 0,00",
