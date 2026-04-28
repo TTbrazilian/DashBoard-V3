@@ -201,114 +201,123 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - FUNDEB</h1>", unsafe_allow_html=True)
 
         # ── FUNÇÕES DE SUPORTE ────────────────────────────────────────────────
+        def _lv(valor):
+            """Converte string 'R$ X.XXX,XX' para float."""
+            if pd.isna(valor) or str(valor).strip() in ["", "-", "R$ 0,00", "0"]:
+                return 0.0
+            s = str(valor).replace('R$','').replace(' ','').replace('.','').replace(',','.')
+            try:
+                if '(' in s and ')' in s: s = '-' + s.replace('(','').replace(')','')
+                return float(s)
+            except:
+                return 0.0
+
+        def limpar_df_cols(df, cols):
+            """Aplica _lv em cada coluna da lista que existir no df."""
+            for c in cols:
+                if c in df.columns:
+                    df[c] = df[c].apply(_lv)
+            return df
+
+        def soma_cols(df, cols):
+            """Soma colunas existentes no df, ignorando ausentes."""
+            presentes = [c for c in cols if c in df.columns]
+            return df[presentes].sum().sum() if presentes else 0.0
+
         def cat_receita(desc):
-            desc = str(desc).upper().strip()
-            if 'VAAR' in desc or 'VAAT' in desc: return 'VAAR/VAAT'
-            if 'ETI' in desc or 'TEMPO INTEGRAL' in desc: return 'ETI'
-            if 'APLICAÇÃO' in desc or 'RENDIMENTOS' in desc: return 'Rendimentos'
+            """Classifica descrição de receita — usa strip() para eliminar espaços."""
+            d = str(desc).upper().strip()
+            if 'VAAR' in d or 'VAAT' in d:  return 'VAAR/VAAT'
+            if 'ETI' in d or 'TEMPO INTEGRAL' in d: return 'ETI'
+            if 'APLICAÇÃO' in d or 'RENDIMENTOS' in d: return 'Rendimentos'
             return 'Principal'
 
-        def obter_soma_mensal_robusta(df, meses):
-            """Soma colunas de meses independentemente de maiúsculas/minúsculas."""
-            colunas_map = {c.strip().lower(): c for c in df.columns}
-            cols = [colunas_map[m.strip().lower()] for m in meses if m.strip().lower() in colunas_map]
-            return df[cols].sum().sum() if cols else 0.0
-
-        def limpar_col(df, col):
-            """Aplica limpar_valor a uma coluna específica, retornando série limpa."""
-            if col not in df.columns:
-                return pd.Series([0.0] * len(df), index=df.index)
-            def _lv(v):
-                if pd.isna(v) or str(v).strip() in ["", "-", "R$ 0,00", "0"]:
-                    return 0.0
-                s = str(v).replace('R$','').replace(' ','').replace('.','').replace(',','.')
-                try:
-                    if '(' in s and ')' in s: s = '-' + s.replace('(','').replace(')','')
-                    return float(s)
-                except: return 0.0
-            return df[col].apply(_lv)
-
-        # ── NOMES EXATOS DAS COLUNAS FINANCEIRAS NO R ─────────────────────────
-        # Confirmados na auditoria: espaço interno em 'Município '
-        ORC_MUNICIPIO_COL = 'Orçado Receitas (Município )'   # orçamento do município
-        REPASSE_COL       = 'Repasse'                         # repasse federal (Portaria)
+        # ── COLUNAS FINANCEIRAS DO ARQUIVO R ─────────────────────────────────
+        # Confirmado na auditoria:
+        #   - 'Orçado Receitas'  → orçamento do município
+        #   - 'Repasse'          → previsão Portaria Interministerial
+        #   - 'Janeiro', 'Fevereiro' → strings "R$ X.XXX,XX"
+        #   - Descrições com espaço no final: 'Principal ', 'Rendimentos ', 'VAAR '
+        COLS_NUM_R = ['Janeiro', 'Fevereiro', 'Orçado Receitas', 'Repasse', '2025',
+                      'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto',
+                      'Setembro', 'Outubro', 'Novembro', 'Dezembro', 'Total']
 
         # ── RECEITAS ─────────────────────────────────────────────────────────
         df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
+
+        # Limpar todas as colunas numéricas (chegam como string "R$ X.XXX,XX")
+        df_r_fundeb = limpar_df_cols(df_r_fundeb, COLS_NUM_R)
+
+        # Eliminar espaço no final das descrições antes de classificar
+        df_r_fundeb['Descrição da Receita'] = df_r_fundeb['Descrição da Receita'].str.strip()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
 
-        # Limpar colunas financeiras do df_r_fundeb (podem vir como string "R$ X")
-        df_r_fundeb[ORC_MUNICIPIO_COL] = limpar_col(df_r_fundeb, ORC_MUNICIPIO_COL)
-        df_r_fundeb[REPASSE_COL]       = limpar_col(df_r_fundeb, REPASSE_COL)
-        for m in meses_disponiveis:
-            if m in df_r_fundeb.columns:
-                df_r_fundeb[m] = limpar_col(df_r_fundeb, m)
-
-        # Previsão Orçamento Município = coluna 'Orçado Receitas (Município )' — linha Principal
+        # Valores corretos após limpeza:
+        #   Principal  → Orçado Receitas = 6.650.000,00 | Jan = 537.352,71 | Fev = 627.996,62
+        #   Rendimentos→ Orçado Receitas = 100.000,00   | Jan = 1.900,89   | Fev = 2.941,79
         tot_prev_municipio = df_r_fundeb[
             df_r_fundeb['Subcategoria'] == 'Principal'
-        ][ORC_MUNICIPIO_COL].sum()
+        ]['Orçado Receitas'].sum()                          # → R$ 6.650.000,00
 
-        # Previsão Portaria Interministerial = coluna 'Repasse'
-        tot_prev_portaria = df_r_fundeb[REPASSE_COL].sum()
+        tot_prev_portaria = df_r_fundeb['Repasse'].sum()    # → R$ 6.351.300,40
 
-        # Total arrecadado no período (todas as subcategorias)
-        tot_rec_periodo = obter_soma_mensal_robusta(df_r_fundeb, meses_disponiveis)
+        tot_rec_periodo = soma_cols(df_r_fundeb, meses_disponiveis)  # → R$ 1.170.192,01
 
-        # ETI: valor recebido no período
-        tot_eti = obter_soma_mensal_robusta(
+        tot_eti = soma_cols(
             df_r_fundeb[df_r_fundeb['Subcategoria'] == 'ETI'], meses_disponiveis
-        )
+        )                                                   # → R$ 0,00
 
         # ── DESPESAS ─────────────────────────────────────────────────────────
-        # São Tomás de Aquino: apenas fontes 15407 e 15403 (sem pares 25xxx).
-        # Filtro por Tipo == 'Liquidado' exclui Empenhado e Pago.
+        # Fontes: 15407 (FUNDEB 70%) e 15403 (FUNDEB 30%) — sem pares 25xxx
+        # Colunas Janeiro/Fevereiro já limpas pelo load_all_data (são numéricas no DF)
+        COLS_NUM_DF = meses_disponiveis  # ['Janeiro', 'Fevereiro']
+
         df_df_fundeb = df_df_raw[
             df_df_raw['Fonte'].isin(['15407', '15403'])
         ].copy()
-
-        # Limpar colunas de meses do DF (podem vir como string)
-        for m in meses_disponiveis:
-            if m in df_df_fundeb.columns:
-                df_df_fundeb[m] = limpar_col(df_df_fundeb, m)
+        df_df_fundeb = limpar_df_cols(df_df_fundeb, COLS_NUM_DF)
 
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(
             lambda x: 'FUNDEB 70%' if x == '15407' else 'FUNDEB 30%'
         )
 
         # Índice 70%: Liquidado 15407 ÷ (Principal + Rendimentos arrecadados)
-        base_indice_70 = obter_soma_mensal_robusta(
+        # Valores: base = 537.352,71 + 627.996,62 + 1.900,89 + 2.941,79 = 1.170.192,01
+        base_indice_70 = soma_cols(
             df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal', 'Rendimentos'])],
             meses_disponiveis
-        )
-        desp_70_vigente = obter_soma_mensal_robusta(
+        )                                                   # → R$ 1.170.192,01
+
+        desp_70_vigente = soma_cols(
             df_df_fundeb[
                 (df_df_fundeb['Fonte'] == '15407') &
                 (df_df_fundeb['Tipo'] == 'Liquidado')
             ],
             meses_disponiveis
-        )
-        perc_70_indice = (desp_70_vigente / base_indice_70 * 100) if base_indice_70 > 0 else 0.0
+        )                                                   # → R$ 1.010.067,36
 
-        # Total despesas liquidadas no período
-        tot_desp_vigente = obter_soma_mensal_robusta(
-            df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'],
+        desp_30_vigente = soma_cols(
+            df_df_fundeb[
+                (df_df_fundeb['Fonte'] == '15403') &
+                (df_df_fundeb['Tipo'] == 'Liquidado')
+            ],
             meses_disponiveis
-        )
+        )                                                   # → R$ 40.399,44
+
+        tot_desp_vigente = desp_70_vigente + desp_30_vigente  # → R$ 1.050.466,80
+
+        perc_70_indice = (desp_70_vigente / base_indice_70 * 100) if base_indice_70 > 0 else 0.0
+        # → 86,31%
 
         # ── CARDS DE PREVISÃO ─────────────────────────────────────────────────
         st.markdown("##### Previsões Orçamentárias")
         p1, p2, p3 = st.columns(3)
         with p1:
-            st.metric(
-                "Previsão Receitas (Orçamento Município)",
-                formar_real(tot_prev_municipio)
-            )
+            st.metric("Previsão Receitas (Orçamento Município)",
+                      formar_real(tot_prev_municipio))
         with p2:
-            st.metric(
-                "Previsão de Receitas (Port. Intermin. nº 14/dez 2025)",
-                formar_real(tot_prev_portaria)
-            )
+            st.metric("Previsão de Receitas (Port. Intermin. nº 14/dez 2025)",
+                      formar_real(tot_prev_portaria))
         with p3:
             st.metric("Atualização Quadrimestral", "—")
 
@@ -319,23 +328,19 @@ if df_f_raw is not None and df_r is not None:
 
         t1, t2, t3 = st.columns(3)
         with t1:
-            st.metric(
-                f"Total Receitas ({meses_disponiveis[0]}–{meses_disponiveis[-1]})",
-                formar_real(tot_rec_periodo)
-            )
+            st.metric(f"Total Receitas ({meses_disponiveis[0]}–{meses_disponiveis[-1]})",
+                      formar_real(tot_rec_periodo))
         with t2:
-            st.metric("Total Despesas Liquidadas – Ano Vigente", formar_real(tot_desp_vigente))
+            st.metric("Total Despesas Liquidadas – Ano Vigente",
+                      formar_real(tot_desp_vigente))
         with t3:
             saldo     = tot_rec_periodo - tot_desp_vigente
             exec_perc = (tot_desp_vigente / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
-            st.metric(
-                "Saldo (Receitas − Despesas Vigentes)",
-                formar_real(saldo),
-                delta=f"{exec_perc:.1f}% executado",
-                delta_color="inverse"
-            )
+            st.metric("Saldo (Receitas − Despesas Vigentes)",
+                      formar_real(saldo),
+                      delta=f"{exec_perc:.1f}% executado",
+                      delta_color="inverse")
 
-        # Mensal primeiro
         tipo_rd = st.segmented_control(
             "Visualização:", ["Mensal", "Acumulado"], default="Mensal", key="rd_btn_f"
         )
@@ -357,19 +362,16 @@ if df_f_raw is not None and df_r is not None:
             legendas_usadas = set()
 
             for m in meses_disponiveis:
-                tot_rec_m  = obter_soma_mensal_robusta(df_r_fundeb, [m])
-                tot_desp_m = obter_soma_mensal_robusta(
+                tot_rec_m  = soma_cols(df_r_fundeb, [m])
+                tot_desp_m = soma_cols(
                     df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'], [m]
                 )
 
-                # Receitas empilhadas por subcategoria
                 for cat in categorias_rec:
-                    val = obter_soma_mensal_robusta(
-                        df_r_fundeb[df_r_fundeb['Subcategoria'] == cat], [m]
-                    )
+                    val = soma_cols(df_r_fundeb[df_r_fundeb['Subcategoria'] == cat], [m])
                     desc_list = df_r_fundeb[
                         df_r_fundeb['Subcategoria'] == cat
-                    ]['Descrição da Receita'].str.strip().unique().tolist()
+                    ]['Descrição da Receita'].unique().tolist()
                     show_leg    = f"rec_{cat}" not in legendas_usadas
                     legendas_usadas.add(f"rec_{cat}")
                     part        = f"{(val/tot_rec_m*100):.1f}%" if tot_rec_m > 0 else "—"
@@ -401,9 +403,9 @@ if df_f_raw is not None and df_r is not None:
                         ),
                     ))
 
-                # Despesas liquidadas (15407 e 15403)
-                for fonte_cod, label_desp in [('15407', 'FUNDEB 70% – Vigente'), ('15403', 'FUNDEB 30% – Vigente')]:
-                    val = obter_soma_mensal_robusta(
+                for fonte_cod, label_desp in [('15407', 'FUNDEB 70% – Vigente'),
+                                              ('15403', 'FUNDEB 30% – Vigente')]:
+                    val = soma_cols(
                         df_df_fundeb[
                             (df_df_fundeb['Fonte'] == fonte_cod) &
                             (df_df_fundeb['Tipo'] == 'Liquidado')
@@ -445,12 +447,12 @@ if df_f_raw is not None and df_r is not None:
             legendas_usadas = set()
 
             for cat in categorias_rec:
-                val = obter_soma_mensal_robusta(
+                val = soma_cols(
                     df_r_fundeb[df_r_fundeb['Subcategoria'] == cat], meses_disponiveis
                 )
                 desc_list = df_r_fundeb[
                     df_r_fundeb['Subcategoria'] == cat
-                ]['Descrição da Receita'].str.strip().unique().tolist()
+                ]['Descrição da Receita'].unique().tolist()
                 part        = f"{(val/tot_rec_periodo*100):.1f}%" if tot_rec_periodo > 0 else "—"
                 texto_barra = formar_real(val) if val > 0 else ""
 
@@ -480,8 +482,9 @@ if df_f_raw is not None and df_r is not None:
                     ),
                 ))
 
-            for fonte_cod, label_desp in [('15407', 'FUNDEB 70% – Vigente'), ('15403', 'FUNDEB 30% – Vigente')]:
-                val = obter_soma_mensal_robusta(
+            for fonte_cod, label_desp in [('15407', 'FUNDEB 70% – Vigente'),
+                                          ('15403', 'FUNDEB 30% – Vigente')]:
+                val = soma_cols(
                     df_df_fundeb[
                         (df_df_fundeb['Fonte'] == fonte_cod) &
                         (df_df_fundeb['Tipo'] == 'Liquidado')
@@ -531,18 +534,19 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
 
-        # ── GRÁFICO 2: ÍNDICE 70% — SOMENTE ACUMULADO ────────────────────────
+        # ── GRÁFICO 2: ÍNDICE 70% ─────────────────────────────────────────────
         st.subheader("🔹 2. Índice de Aplicação em Pessoal (Mín. 70%)")
 
         st.info(
-            "**Base de cálculo:** receitas de Principal + Rendimentos "
-            "(VAAR/VAAT e ETI não compõem o denominador). "
-            "**Numerador:** despesas liquidadas pela fonte 15407 (ano vigente)."
+            "**Base de cálculo:** receitas de Principal + Rendimentos arrecadadas no período. "
+            "**Numerador:** despesas liquidadas pela fonte 15407."
         )
 
         i1, i2, i3 = st.columns(3)
-        with i1: st.metric("Base de Cálculo (Principal + Rendimentos)", formar_real(base_indice_70))
-        with i2: st.metric("Despesas FUNDEB 70% – Liquidado", formar_real(desp_70_vigente))
+        with i1: st.metric("Base de Cálculo (Principal + Rendimentos)",
+                            formar_real(base_indice_70))
+        with i2: st.metric("Despesas FUNDEB 70% – Liquidado",
+                            formar_real(desp_70_vigente))
         with i3: metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
 
         cor_barra = "#27ae60" if perc_70_indice >= 70 else "#e74c3c"
@@ -595,7 +599,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
 
-        # ── GRÁFICO 3: PERCENTUAL TEMPO INTEGRAL (ETI) ───────────────────────
+        # ── GRÁFICO 3: ETI ────────────────────────────────────────────────────
         st.subheader("🔹 3. Percentual Tempo Integral (ETI)")
 
         meta_eti_perc = 4.0
@@ -604,8 +608,10 @@ if df_f_raw is not None and df_r is not None:
 
         e1, e2, e3 = st.columns(3)
         with e1: st.metric("Receita ETI Recebida (período)", formar_real(tot_eti))
-        with e2: st.metric(f"Valor Equivalente a {meta_eti_perc:.0f}% da Receita Base", formar_real(val_meta_eti))
-        with e3: metric_contabil(f"ETI sobre Receita Base (Ref. {meta_eti_perc:.0f}%)", perc_eti_real, meta_eti_perc)
+        with e2: st.metric(f"Valor Equivalente a {meta_eti_perc:.0f}% da Receita Base",
+                            formar_real(val_meta_eti))
+        with e3: metric_contabil(f"ETI sobre Receita Base (Ref. {meta_eti_perc:.0f}%)",
+                                  perc_eti_real, meta_eti_perc)
 
         cor_eti = "#27ae60" if perc_eti_real >= meta_eti_perc else "#e74c3c"
         fig_eti = go.Figure()
