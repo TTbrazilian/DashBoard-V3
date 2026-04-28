@@ -190,7 +190,116 @@ if df_f_raw is not None and df_r is not None:
     # SETOR FUNDEB
     # =========================================================================
     if st.session_state.setor == 'FUNDEB':
-        st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - FUNDEB</h1>", unsafe_allow_html=True)
+        # ── INÍCIO DA INTEGRAÇÃO DO CABEÇALHO COM O SINO DE ALERTAS ───────────
+        html_cabecalho = """
+        <style>
+        /* Flexbox para manter o Título na esquerda e o Sino na direita */
+        .header-setor {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .titulo-container h1 {
+            margin: 0;
+            padding: 0;
+            font-size: 2.2rem;
+            color: inherit;
+        }
+        .alerta-container {
+            position: relative;
+            display: inline-block;
+        }
+        .sino-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px 10px;
+            color: inherit;
+            position: relative;
+        }
+        .sino-btn svg { width: 28px; height: 28px; }
+        .sino-btn:hover { opacity: 0.7; }
+        
+        /* Badge vermelha */
+        .badge {
+            position: absolute;
+            top: 0px; right: 5px;
+            background-color: #e74c3c; color: white;
+            border-radius: 50%; padding: 2px 6px;
+            font-size: 11px; font-weight: bold;
+        }
+        
+        /* Dropdown - CSS Puro para funcionar perfeitamente no Streamlit */
+        .dropdown-alerta {
+            display: none;
+            position: absolute;
+            top: 45px; right: 0; width: 340px;
+            background-color: white; border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            border: 1px solid #eee; z-index: 99999;
+        }
+        /* Mostra o menu ao passar o mouse por cima do container do sino */
+        .alerta-container:hover .dropdown-alerta {
+            display: block;
+        }
+        
+        .dropdown-header {
+            padding: 12px 15px; border-bottom: 1px solid #eee;
+            display: flex; justify-content: space-between; align-items: center;
+            background-color: #f8f9fa; border-radius: 8px 8px 0 0;
+        }
+        .dropdown-header h3 { margin: 0; font-size: 14px; color: #333; }
+        .setor-tag {
+            background-color: #e3f2fd; color: #1976d2;
+            padding: 3px 8px; border-radius: 12px;
+            font-size: 11px; font-weight: bold;
+        }
+        .lista-alertas {
+            list-style: none; margin: 0; padding: 0;
+            max-height: 250px; overflow-y: auto;
+        }
+        .lista-alertas li {
+            padding: 12px 15px; border-bottom: 1px solid #f5f5f5;
+            font-size: 13px; color: #555; text-align: left; line-height: 1.4;
+        }
+        .lista-alertas li:last-child { border-bottom: none; }
+        .alerta-item.significativo { border-left: 4px solid #f39c12; }
+        .alerta-item.critico { border-left: 4px solid #e74c3c; }
+        </style>
+
+        <div class="header-setor">
+            <div class="titulo-container">
+                <h1>📖 Ibiraci - FUNDEB</h1>
+            </div>
+            <div class="alerta-container">
+                <button class="sino-btn" aria-label="Ver alertas">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                    <span class="badge">1</span>
+                </button>
+                <div class="dropdown-alerta">
+                    <div class="dropdown-header">
+                        <h3>Destaques de Movimentação</h3>
+                        <span class="setor-tag">FUNDEB</span>
+                    </div>
+                    <ul class="lista-alertas">
+                        <li class="alerta-item critico">
+                            <strong>Ficha: Exemplo FUNDEB 70%</strong><br>
+                            <span style="color: #e74c3c; font-weight: bold;">Aumento de 24.50%</span><br>
+                            <small>De R$ 50.000 para R$ 62.250</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        """
+        st.markdown(html_cabecalho, unsafe_allow_html=True)
+        # ── FIM DA INTEGRAÇÃO DO CABEÇALHO ────────────────────────────────────
 
         # ── FUNÇÕES DE SUPORTE ────────────────────────────────────────────────
         def cat_receita(desc):
