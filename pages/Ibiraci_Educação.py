@@ -1177,86 +1177,157 @@ if df_f_raw is not None and df_r is not None:
     # --- SETOR RECURSOS VINCULADOS ---
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - Recursos Vinculados</h1>", unsafe_allow_html=True)
-        
-        mapa_desp = {'PNAE': ['1552', '2552'], 'PNATE': ['1553', '2553'], 'PTE': ['1576', '2576'], 'QESE': ['1550', '2550']}
-        programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
-        
-        # Filtra as receitas e normaliza os nomes das colunas (limpa espaços e padroniza Capitalize)
-        df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)].copy()
-        
-        # --- NORMALIZAÇÃO DE COLUNAS (Evita KeyError: 'Março ') ---
-        colunas_limpas_r = {c.strip().capitalize(): c for c in df_r_vinc.columns}
-        colunas_limpas_df = {c.strip().capitalize(): c for c in df_df_raw.columns}
-        
-        meses_reais_r = [colunas_limpas_r[m] for m in meses_disponiveis if m in colunas_limpas_r]
-        meses_reais_df = [colunas_limpas_df[m] for m in meses_disponiveis if m in colunas_limpas_df]
 
-        # --- MÉTRICAS SUPERIORES ---
-        m1, m2, m3 = st.columns(3)
-        with m1: 
-            st.metric("Previsão Vinculados 2026", formar_real(df_r_vinc['Orçado Receitas'].sum()))
-        with m2: 
-            total_arrec_vinc = df_r_vinc[meses_reais_r].sum().sum() if meses_reais_r else 0
-            st.metric(f"Arrecadado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_arrec_vinc))
-        with m3:
-            fontes_v = [f for sub in mapa_desp.values() for f in sub]
-            df_vinc_filtro = df_df_raw[(df_df_raw['Fonte'].isin(fontes_v)) & (df_df_raw['Tipo'] == 'Liquidado')]
-            total_liq_vinc = df_vinc_filtro[meses_reais_df].sum().sum() if meses_reais_df else 0
-            st.metric(f"Liquidado ({meses_disponiveis[0]}-{meses_disponiveis[-1]})", formar_real(total_liq_vinc))
+        # ── CONFIGURAÇÃO DE PROGRAMAS E FONTES ───────────────────────────────
+        # fontes: ano vigente + superávit anos anteriores (2xxx)
+        mapa_desp = {
+            'PNAE':  ['1552', '2552'],
+            'PNATE': ['1553', '2553'],
+            'PTE':   ['1576', '2576'],
+            'QESE':  ['1550', '2550'],
+        }
+        programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
+
+        # Paleta verde/teal/azul — uma cor por programa
+        COR_PROG = {
+            'PNAE':  '#1a7a4a',   # verde escuro
+            'PNATE': '#17a589',   # teal
+            'PTE':   '#2980b9',   # azul médio
+            'QESE':  '#1565c0',   # azul escuro
+        }
+        COR_DESP = '#860000'     # vermelho escuro para despesas
+
+        # ── FUNÇÃO AUXILIAR ROBUSTA ───────────────────────────────────────────
+        def soma_vinc(df, meses):
+            """Soma colunas de meses ignorando case."""
+            col_map = {c.strip().lower(): c for c in df.columns}
+            cols = [col_map[m.lower()] for m in meses if m.lower() in col_map]
+            return df[cols].sum().sum() if cols else 0.0
+
+        # ── BASE DE DADOS RECEITAS ────────────────────────────────────────────
+        df_r_vinc = df_r[
+            df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)
+        ].copy()
+
+        # ── BOTÃO — MENSAL PRIMEIRO ───────────────────────────────────────────
+        tipo_vinc = st.segmented_control(
+            "Visualização:", ["Mensal", "Acumulado"], default="Mensal", key="vinc_btn"
+        )
 
         st.markdown("---")
-        st.subheader("🔹 1. Detalhamento de Receitas e Despesas por Programa")
-        tipo_vinc = st.segmented_control("Visualização:", ["Acumulado", "Mensal"], default="Mensal", key="vinc_btn")
 
+        # ── DETALHAMENTO POR PROGRAMA ─────────────────────────────────────────
         for prog in programas:
-            st.markdown(f"#### 📊 Programa: {prog}")
-            prev_prog = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog]['Orçado Receitas'].sum()
-            st.markdown(f"**Previsão total de Receitas para 2026:** {formar_real(prev_prog)}")
 
-            if tipo_vinc == "Acumulado":
-                rec = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog][meses_reais_r].sum().sum()
-                desp = df_df_raw[(df_df_raw['Fonte'].isin(mapa_desp[prog])) & (df_df_raw['Tipo'] == 'Liquidado')][meses_reais_df].sum().sum()
-                
-                df_acum = pd.DataFrame({"Tipo": ["Receita", "Despesa"], "Valor": [rec, desp]})
-                fig_vinc = px.bar(df_acum, x='Tipo', y='Valor', color='Tipo', text_auto='.2s',
-                                  color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'})
-            else:
-                dados_d_v = []
+            df_prog_r   = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog]
+            prev_prog   = df_prog_r['Orçado Receitas'].sum()          # Orçamento 2026 (Município)
+            rep_2025    = soma_vinc(df_prog_r, meses_disponiveis)     # Repasse 2025 (arrecadado no período)
+
+            # Previsão de repasse: consideramos o Orçado Receitas como referência de previsão
+            prev_repasse = prev_prog   # mesmo valor — pode ser atualizado quando vier dado externo
+
+            # Liquidado no período
+            desp_liq = df_df_raw[
+                df_df_raw['Fonte'].isin(mapa_desp[prog]) &
+                (df_df_raw['Tipo'] == 'Liquidado')
+            ][meses_disponiveis].sum().sum()
+
+            # ── CARDS DE DESTAQUE POR PROGRAMA ───────────────────────────────
+            st.markdown(
+                f"<h4 style='color:{COR_PROG[prog]}; margin-bottom:4px;'>📊 Programa: {prog}</h4>",
+                unsafe_allow_html=True
+            )
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric(
+                    f"Repasse {meses_disponiveis[0]}–{meses_disponiveis[-1]} (Arrecadado)",
+                    formar_real(rep_2025),
+                )
+            with c2:
+                st.metric(
+                    "Previsão de Repasse (Orçado Receitas)",
+                    formar_real(prev_repasse),
+                )
+            with c3:
+                st.metric(
+                    "Orçamento 2026 (Município)",
+                    formar_real(prev_prog),
+                )
+
+            # ── GRÁFICO ───────────────────────────────────────────────────────
+            if tipo_vinc == "Mensal":
+                dados_m = []
                 for m in meses_disponiveis:
-                    c_r = colunas_limpas_r.get(m)
-                    c_df = colunas_limpas_df.get(m)
-                    
-                    rec_m = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog][c_r].sum() if c_r else 0
-                    desp_m = df_df_raw[(df_df_raw['Fonte'].isin(mapa_desp[prog])) & (df_df_raw['Tipo'] == 'Liquidado')][c_df].sum() if c_df else 0
-                    
-                    dados_d_v.append({"Mês": m, "Tipo": "Receita", "Valor": rec_m})
-                    dados_d_v.append({"Mês": m, "Tipo": "Despesa", "Valor": desp_m})
+                    col_map_r  = {c.strip().lower(): c for c in df_prog_r.columns}
+                    col_map_df = {c.strip().lower(): c for c in df_df_raw.columns}
+                    col_r  = col_map_r.get(m.lower())
+                    col_df = col_map_df.get(m.lower())
 
-                fig_vinc = px.bar(pd.DataFrame(dados_d_v), x='Mês', y='Valor', color='Tipo', barmode='group',
-                                 color_discrete_map={'Receita':'#002147', 'Despesa':'#660000'},
-                                 category_orders={"Mês": ORDEM_MESES})
+                    rec_m  = df_prog_r[col_r].sum() if col_r else 0.0
+                    desp_m = df_df_raw[
+                        df_df_raw['Fonte'].isin(mapa_desp[prog]) &
+                        (df_df_raw['Tipo'] == 'Liquidado')
+                    ][col_df].sum() if col_df else 0.0
 
-            # --- FORMATAÇÃO PADRÃO DO HOVER (Selector evita erro de ValueError) ---
+                    dados_m.append({"Mês": m, "Tipo": "Receita", "Valor": rec_m})
+                    dados_m.append({"Mês": m, "Tipo": "Despesa (Liquidado)", "Valor": desp_m})
+
+                df_plot = pd.DataFrame(dados_m)
+                fig_vinc = px.bar(
+                    df_plot, x='Mês', y='Valor', color='Tipo', barmode='group',
+                    text_auto='.2s',
+                    color_discrete_map={
+                        'Receita':           COR_PROG[prog],
+                        'Despesa (Liquidado)': COR_DESP,
+                    },
+                    category_orders={"Mês": ORDEM_MESES},
+                )
+
+            else:  # ACUMULADO
+                dados_acum = [
+                    {"Tipo": "Receita",             "Valor": rep_2025},
+                    {"Tipo": "Despesa (Liquidado)", "Valor": desp_liq},
+                ]
+                fig_vinc = px.bar(
+                    pd.DataFrame(dados_acum),
+                    x='Tipo', y='Valor', color='Tipo', barmode='group',
+                    text_auto='.2s',
+                    color_discrete_map={
+                        'Receita':           COR_PROG[prog],
+                        'Despesa (Liquidado)': COR_DESP,
+                    },
+                )
+
             fig_vinc.update_traces(
                 selector=dict(type='bar'),
-                hovertemplate="<span style='color:white;'><b>%{x}</b><br>Tipo: %{data.name}<br>Valor: R$ %{y:,.2f}</span><extra></extra>",
+                textposition='outside',
+                hovertemplate=(
+                    "<span style='color:white;'>"
+                    "<b>%{x}</b><br>"
+                    "Programa: " + prog + "<br>"
+                    "Tipo: %{data.name}<br>"
+                    "Valor: <b>R$ %{y:,.2f}</b>"
+                    "</span><extra></extra>"
+                ),
                 hoverlabel=HOVER_STYLE,
-                textposition='outside'
             )
-
             fig_vinc.update_layout(
-                separators=",.", 
-                xaxis_title=None, 
-                yaxis_title="Valor (R$)",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                separators=",.",
+                yaxis=dict(showticklabels=False, title=None),
+                xaxis_title=None,
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.30, xanchor="center", x=0.5),
+                height=380,
             )
-            
             st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
             st.markdown("---")
 
-    # --- RELATÓRIO DE FICHAS GLOBAL ---
+    # ── RELATÓRIO GERAL DE FICHAS ─────────────────────────────────────────────
     st.markdown("### 📋 Relatório Geral de Fichas")
-    df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(search_term, na=False, case=False)].copy()
+    df_f_filt = df_f_raw[
+        df_f_raw['Atividade'].str.contains(search_term, na=False, case=False)
+    ].copy()
     st.dataframe(df_f_filt, use_container_width=True, hide_index=True)
 
 else:
