@@ -214,24 +214,43 @@ if df_f_raw is not None and df_r is not None:
             cols = [colunas_map[m.strip().lower()] for m in meses if m.strip().lower() in colunas_map]
             return df[cols].sum().sum() if cols else 0.0
 
-        # ── RECEITAS ─────────────────────────────────────────────────────────
-        # Coluna de orçamento: 'Orçado Receitas (Município )' com espaço no final
-        # Coluna de repasse federal (Portaria Interministerial): 'Repasse'
-        # Coluna de previsão portaria 2025: '2025'
-        ORC_MUNICIPIO_COL = 'Orçado Receitas (Município )'
-        REPASSE_COL       = 'Repasse'
-        PORTARIA_COL      = '2025'
+        def limpar_col(df, col):
+            """Aplica limpar_valor a uma coluna específica, retornando série limpa."""
+            if col not in df.columns:
+                return pd.Series([0.0] * len(df), index=df.index)
+            def _lv(v):
+                if pd.isna(v) or str(v).strip() in ["", "-", "R$ 0,00", "0"]:
+                    return 0.0
+                s = str(v).replace('R$','').replace(' ','').replace('.','').replace(',','.')
+                try:
+                    if '(' in s and ')' in s: s = '-' + s.replace('(','').replace(')','')
+                    return float(s)
+                except: return 0.0
+            return df[col].apply(_lv)
 
+        # ── NOMES EXATOS DAS COLUNAS FINANCEIRAS NO R ─────────────────────────
+        # Confirmados na auditoria: espaço interno em 'Município '
+        ORC_MUNICIPIO_COL = 'Orçado Receitas (Município )'   # orçamento do município
+        REPASSE_COL       = 'Repasse'                         # repasse federal (Portaria)
+
+        # ── RECEITAS ─────────────────────────────────────────────────────────
         df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
+
+        # Limpar colunas financeiras do df_r_fundeb (podem vir como string "R$ X")
+        df_r_fundeb[ORC_MUNICIPIO_COL] = limpar_col(df_r_fundeb, ORC_MUNICIPIO_COL)
+        df_r_fundeb[REPASSE_COL]       = limpar_col(df_r_fundeb, REPASSE_COL)
+        for m in meses_disponiveis:
+            if m in df_r_fundeb.columns:
+                df_r_fundeb[m] = limpar_col(df_r_fundeb, m)
 
         # Previsão Orçamento Município = coluna 'Orçado Receitas (Município )' — linha Principal
         tot_prev_municipio = df_r_fundeb[
             df_r_fundeb['Subcategoria'] == 'Principal'
         ][ORC_MUNICIPIO_COL].sum()
 
-        # Previsão Portaria Interministerial = coluna 'Repasse' (repasse federal previsto)
-        tot_prev_portaria = df_r_fundeb[REPASSE_COL].sum() if REPASSE_COL in df_r_fundeb.columns else 0.0
+        # Previsão Portaria Interministerial = coluna 'Repasse'
+        tot_prev_portaria = df_r_fundeb[REPASSE_COL].sum()
 
         # Total arrecadado no período (todas as subcategorias)
         tot_rec_periodo = obter_soma_mensal_robusta(df_r_fundeb, meses_disponiveis)
@@ -242,16 +261,20 @@ if df_f_raw is not None and df_r is not None:
         )
 
         # ── DESPESAS ─────────────────────────────────────────────────────────
-        # São Tomás de Aquino possui apenas fontes 15407 e 15403 (sem pares 25xxx).
-        # Filtro por Tipo == 'Liquidado' garante exclusão de Empenhado e Pago.
+        # São Tomás de Aquino: apenas fontes 15407 e 15403 (sem pares 25xxx).
+        # Filtro por Tipo == 'Liquidado' exclui Empenhado e Pago.
         df_df_fundeb = df_df_raw[
             df_df_raw['Fonte'].isin(['15407', '15403'])
         ].copy()
+
+        # Limpar colunas de meses do DF (podem vir como string)
+        for m in meses_disponiveis:
+            if m in df_df_fundeb.columns:
+                df_df_fundeb[m] = limpar_col(df_df_fundeb, m)
+
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(
             lambda x: 'FUNDEB 70%' if x == '15407' else 'FUNDEB 30%'
         )
-        # Todas as fontes são do ano vigente (não há 25xxx neste município)
-        df_df_fundeb['Ano_Vigente'] = True
 
         # Índice 70%: Liquidado 15407 ÷ (Principal + Rendimentos arrecadados)
         base_indice_70 = obter_soma_mensal_robusta(
@@ -272,8 +295,6 @@ if df_f_raw is not None and df_r is not None:
             df_df_fundeb[df_df_fundeb['Tipo'] == 'Liquidado'],
             meses_disponiveis
         )
-        # Sem superávit de anos anteriores neste município
-        tot_desp_superavit = 0.0
 
         # ── CARDS DE PREVISÃO ─────────────────────────────────────────────────
         st.markdown("##### Previsões Orçamentárias")
@@ -326,10 +347,8 @@ if df_f_raw is not None and df_r is not None:
             'Rendimentos': '#1abc9c',
         }
         COR_DESP = {
-            'FUNDEB 70% – Vigente':   '#660000',
-            'FUNDEB 30% – Vigente':   '#cc0000',
-            'FUNDEB 70% – Superávit': '#8B4513',
-            'FUNDEB 30% – Superávit': '#CD853F',
+            'FUNDEB 70% – Vigente': '#660000',
+            'FUNDEB 30% – Vigente': '#cc0000',
         }
 
         if tipo_rd == "Mensal":
@@ -382,7 +401,7 @@ if df_f_raw is not None and df_r is not None:
                         ),
                     ))
 
-                # Despesas ano vigente empilhadas (15407 e 15403)
+                # Despesas liquidadas (15407 e 15403)
                 for fonte_cod, label_desp in [('15407', 'FUNDEB 70% – Vigente'), ('15403', 'FUNDEB 30% – Vigente')]:
                     val = obter_soma_mensal_robusta(
                         df_df_fundeb[
@@ -543,7 +562,7 @@ if df_f_raw is not None and df_r is not None:
             ),
         ))
         fig_70.add_trace(go.Bar(
-            x=["Despesas 70%\n(Ano Vigente – Liquidado)"],
+            x=["Despesas 70%\n(Liquidado)"],
             y=[desp_70_vigente],
             name=f"Despesas 70% — {perc_70_indice:.2f}%",
             marker_color=cor_barra,
@@ -551,7 +570,7 @@ if df_f_raw is not None and df_r is not None:
             textposition='inside',
             insidetextanchor='middle',
             hovertemplate=(
-                "<span style='color:white;'><b>Despesas FUNDEB 70% – Vigente</b><br>"
+                "<span style='color:white;'><b>Despesas FUNDEB 70%</b><br>"
                 "Fonte: 15407 | Liquidado<br>"
                 "Valor: <b>" + formar_real(desp_70_vigente) + "</b><br>"
                 "Índice: <b>" + f"{perc_70_indice:.2f}%" + "</b></span><extra></extra>"
