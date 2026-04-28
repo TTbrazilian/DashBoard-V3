@@ -921,6 +921,170 @@ if df_f_raw is not None and df_r is not None:
             st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
 
 
+    elif st.session_state.setor == 'Recursos Vinculados':
+        st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Vinculados</h1>",
+                    unsafe_allow_html=True)
+
+        # ── CONFIGURAÇÃO DE PROGRAMAS E FONTES ───────────────────────────────
+        # Fontes confirmadas nas fichas de São Tomás de Aquino:
+        #   PNAE  (merenda escolar)          → 1552
+        #   PNATE (transporte escolar)       → 1553  (PNATE federal)
+        #   PTE   (transporte escolar est.)  → 1576  (segundo programa de transporte)
+        #   QESE  (qualidade educação)       → 1550
+        # Não há pares 2xxx com valores nos programas padrão.
+        mapa_desp = {
+            'PNAE':  ['1552'],
+            'PNATE': ['1553'],
+            'PTE':   ['1576'],
+            'QESE':  ['1550'],
+        }
+        programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
+
+        # Paleta verde/teal/azul — uma cor por programa
+        COR_PROG = {
+            'PNAE':  '#1a7a4a',   # verde escuro
+            'PNATE': '#17a589',   # teal
+            'PTE':   '#2980b9',   # azul médio
+            'QESE':  '#1565c0',   # azul escuro
+        }
+        COR_DESP = '#860000'      # vermelho escuro para despesas
+
+        # ── FUNÇÃO AUXILIAR ROBUSTA ───────────────────────────────────────────
+        def soma_vinc(df, meses):
+            """Soma colunas de meses ignorando case."""
+            col_map = {c.strip().lower(): c for c in df.columns}
+            cols = [col_map[m.lower()] for m in meses if m.lower() in col_map]
+            return df[cols].sum().sum() if cols else 0.0
+
+        # ── BASE DE DADOS RECEITAS ────────────────────────────────────────────
+        # Em São Tomás, os programas aparecem na coluna 'Descrição da Receita'
+        # com a sigla em maiúsculas (PNAE, PNATE, PTE, QESE).
+        # A coluna 'Orçado Receitas' já está limpa pelo load_all_data (header=0).
+        # Os meses 'Janeiro' e 'Fevereiro' chegam em maiúsculas.
+        df_r_vinc = df_r[
+            df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)
+        ].copy()
+
+        # ── BOTÃO — MENSAL PRIMEIRO ───────────────────────────────────────────
+        tipo_vinc = st.segmented_control(
+            "Visualização:", ["Mensal", "Acumulado"], default="Mensal", key="vinc_btn"
+        )
+
+        st.markdown("---")
+
+        # ── DETALHAMENTO POR PROGRAMA ─────────────────────────────────────────
+        for prog in programas:
+
+            df_prog_r = df_r_vinc[
+                df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog
+            ].copy()
+
+            # Previsão orçamentária (Orçado Receitas — coluna já numérica)
+            prev_prog    = df_prog_r['Orçado Receitas'].sum()
+
+            # Repasse arrecadado no período (Jan + Fev)
+            rep_periodo  = soma_vinc(df_prog_r, meses_disponiveis)
+
+            # Previsão de repasse = mesmo valor do orçado (referência)
+            prev_repasse = prev_prog
+
+            # Liquidado no período — fontes do mapa_desp (apenas ano vigente)
+            desp_liq = df_df_raw[
+                df_df_raw['Fonte'].isin(mapa_desp[prog]) &
+                (df_df_raw['Tipo'] == 'Liquidado')
+            ][meses_disponiveis].sum().sum()
+
+            # ── CARDS DE DESTAQUE POR PROGRAMA ───────────────────────────────
+            st.markdown(
+                f"<h4 style='color:{COR_PROG[prog]}; margin-bottom:4px;'>📊 Programa: {prog}</h4>",
+                unsafe_allow_html=True
+            )
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric(
+                    f"Repasse {meses_disponiveis[0]}–{meses_disponiveis[-1]} (Arrecadado)",
+                    formar_real(rep_periodo),
+                )
+            with c2:
+                st.metric(
+                    "Previsão de Repasse (Orçado Receitas)",
+                    formar_real(prev_repasse),
+                )
+            with c3:
+                st.metric(
+                    "Orçamento 2026 (Município)",
+                    formar_real(prev_prog),
+                )
+
+            # ── GRÁFICO ───────────────────────────────────────────────────────
+            if tipo_vinc == "Mensal":
+                dados_m = []
+                for m in meses_disponiveis:
+                    # Meses em maiúsculas em São Tomás — acesso direto
+                    col_r  = m if m in df_prog_r.columns else None
+                    col_df = m if m in df_df_raw.columns else None
+
+                    rec_m  = df_prog_r[col_r].sum() if col_r else 0.0
+                    desp_m = df_df_raw[
+                        df_df_raw['Fonte'].isin(mapa_desp[prog]) &
+                        (df_df_raw['Tipo'] == 'Liquidado')
+                    ][col_df].sum() if col_df else 0.0
+
+                    dados_m.append({"Mês": m, "Tipo": "Receita",             "Valor": rec_m})
+                    dados_m.append({"Mês": m, "Tipo": "Despesa (Liquidado)", "Valor": desp_m})
+
+                fig_vinc = px.bar(
+                    pd.DataFrame(dados_m), x='Mês', y='Valor', color='Tipo',
+                    barmode='group', text_auto='.2s',
+                    color_discrete_map={
+                        'Receita':             COR_PROG[prog],
+                        'Despesa (Liquidado)': COR_DESP,
+                    },
+                    category_orders={"Mês": ORDEM_MESES},
+                )
+
+            else:  # ACUMULADO
+                dados_acum = [
+                    {"Tipo": "Receita",             "Valor": rep_periodo},
+                    {"Tipo": "Despesa (Liquidado)", "Valor": desp_liq},
+                ]
+                fig_vinc = px.bar(
+                    pd.DataFrame(dados_acum),
+                    x='Tipo', y='Valor', color='Tipo', barmode='group',
+                    text_auto='.2s',
+                    color_discrete_map={
+                        'Receita':             COR_PROG[prog],
+                        'Despesa (Liquidado)': COR_DESP,
+                    },
+                )
+
+            fig_vinc.update_traces(
+                selector=dict(type='bar'),
+                textposition='outside',
+                hovertemplate=(
+                    "<span style='color:white;'>"
+                    "<b>%{x}</b><br>"
+                    "Programa: " + prog + "<br>"
+                    "Tipo: %{data.name}<br>"
+                    "Valor: <b>R$ %{y:,.2f}</b>"
+                    "</span><extra></extra>"
+                ),
+                hoverlabel=HOVER_STYLE,
+            )
+            fig_vinc.update_layout(
+                separators=",.",
+                yaxis=dict(showticklabels=False, title=None),
+                xaxis_title=None,
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.30,
+                            xanchor="center", x=0.5),
+                height=380,
+            )
+            st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
+            st.markdown("---")
+
+
     # ── Relatório Geral de Fichas ─────────────────────────────────────────────
     st.markdown("### 📋 Relatório Geral de Fichas")
     df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(search_term, na=False, case=False)].copy()
