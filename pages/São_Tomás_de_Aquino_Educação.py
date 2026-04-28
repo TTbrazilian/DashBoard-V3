@@ -233,11 +233,9 @@ if df_f_raw is not None and df_r is not None:
             return 'Principal'
 
         # ── COLUNAS FINANCEIRAS DO ARQUIVO R ─────────────────────────────────
-        # Confirmado na auditoria:
-        #   - 'Orçado Receitas'  → orçamento do município
-        #   - 'Repasse'          → previsão Portaria Interministerial
-        #   - 'Janeiro', 'Fevereiro' → strings "R$ X.XXX,XX"
-        #   - Descrições com espaço no final: 'Principal ', 'Rendimentos ', 'VAAR '
+        # O arquivo R de São Tomás tem colunas numéricas como string "R$ X.XXX,XX".
+        # Todas as colunas possíveis são limpas aqui antes de qualquer acesso.
+        # Descrições têm espaço no final: 'Principal ', 'Rendimentos ', 'VAAR '.
         COLS_NUM_R = ['Janeiro', 'Fevereiro', 'Orçado Receitas', 'Repasse', '2025',
                       'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto',
                       'Setembro', 'Outubro', 'Novembro', 'Dezembro', 'Total']
@@ -245,21 +243,27 @@ if df_f_raw is not None and df_r is not None:
         # ── RECEITAS ─────────────────────────────────────────────────────────
         df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
 
-        # Limpar todas as colunas numéricas (chegam como string "R$ X.XXX,XX")
+        # Limpar TODAS as colunas numéricas — independe do que load_all_data já fez
         df_r_fundeb = limpar_df_cols(df_r_fundeb, COLS_NUM_R)
 
         # Eliminar espaço no final das descrições antes de classificar
         df_r_fundeb['Descrição da Receita'] = df_r_fundeb['Descrição da Receita'].str.strip()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
 
-        # Valores corretos após limpeza:
-        #   Principal  → Orçado Receitas = 6.650.000,00 | Jan = 537.352,71 | Fev = 627.996,62
-        #   Rendimentos→ Orçado Receitas = 100.000,00   | Jan = 1.900,89   | Fev = 2.941,79
-        tot_prev_municipio = df_r_fundeb[
-            df_r_fundeb['Subcategoria'] == 'Principal'
-        ]['Orçado Receitas'].sum()                          # → R$ 6.650.000,00
+        # Acesso seguro: verifica existência da coluna antes de somar
+        # Valores esperados:
+        #   Principal:   Orçado Receitas = 6.650.000,00 | Jan = 537.352,71 | Fev = 627.996,62
+        #   Rendimentos: Orçado Receitas = 100.000,00   | Jan = 1.900,89   | Fev = 2.941,79
+        _fund_principal = df_r_fundeb[df_r_fundeb['Subcategoria'] == 'Principal']
+        tot_prev_municipio = (
+            _fund_principal['Orçado Receitas'].apply(_lv).sum()
+            if 'Orçado Receitas' in _fund_principal.columns else 0.0
+        )                                                   # → R$ 6.650.000,00
 
-        tot_prev_portaria = df_r_fundeb['Repasse'].sum()    # → R$ 6.351.300,40
+        tot_prev_portaria = (
+            df_r_fundeb['Repasse'].apply(_lv).sum()
+            if 'Repasse' in df_r_fundeb.columns else 0.0
+        )                                                   # → R$ 6.351.300,40
 
         tot_rec_periodo = soma_cols(df_r_fundeb, meses_disponiveis)  # → R$ 1.170.192,01
 
