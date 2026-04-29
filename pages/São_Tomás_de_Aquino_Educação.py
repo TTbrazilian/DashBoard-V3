@@ -185,33 +185,21 @@ if df_f_raw is not None and df_r is not None:
             presentes = [c for c in cols if c in df.columns]
             return df[presentes].sum().sum() if presentes else 0.0
 
-        # ── Receitas ─────────────────────────────────────────────────────────
-        # Após load_all_data com header=0 e limpeza de Repasse + Orçado Receitas,
-        # os valores chegam corretamente como float.
+        # ── RECEITAS ─────────────────────────────────────────────────────────
         df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
         df_r_fundeb['Descrição da Receita'] = df_r_fundeb['Descrição da Receita'].str.strip()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
 
-        # Valores esperados na base (Jan+Fev):
-        #   Principal:   537.352,71 + 627.996,62 = 1.165.349,33
-        #   Rendimentos:   1.900,89 +   2.941,79 =     4.842,68
-        #   VAAR/ETI/VAAT: 0
         tot_prev_municipio = df_r_fundeb[
             df_r_fundeb['Subcategoria'] == 'Principal'
-        ]['Orçado Receitas'].sum()                         # R$ 6.650.000,00
+        ]['Orçado Receitas'].sum()                          # R$ 6.650.000,00
 
-        tot_prev_portaria = df_r_fundeb['Repasse'].sum()   # R$ 6.351.300,40
+        tot_prev_portaria  = df_r_fundeb['Repasse'].sum()   # R$ 6.351.300,40
+        tot_rec_periodo    = soma(df_r_fundeb, meses_disponiveis)  # R$ 1.170.192,01
+        tot_eti            = soma(df_r_fundeb[df_r_fundeb['Subcategoria'] == 'ETI'],
+                                  meses_disponiveis)        # R$ 0,00
 
-        tot_rec_periodo = soma(df_r_fundeb, meses_disponiveis)  # R$ 1.170.192,01
-
-        tot_eti = soma(
-            df_r_fundeb[df_r_fundeb['Subcategoria'] == 'ETI'], meses_disponiveis
-        )                                                   # R$ 0,00
-
-        # ── Despesas — apenas fontes do ano vigente (15407 / 15403) ──────────
-        # Valores Liquidado:
-        #   15407 Jan=454.993,58 Fev=555.073,78 → total 1.010.067,36
-        #   15403 Jan= 18.576,50 Fev= 21.822,94 → total    40.399,44
+        # ── DESPESAS — APENAS FONTES DO ANO VIGENTE (15407 / 15403) ──────────
         df_df_fundeb = df_df_raw[
             df_df_raw['Fonte'].isin(['15407', '15403'])
         ].copy()
@@ -219,27 +207,23 @@ if df_f_raw is not None and df_r is not None:
             lambda x: 'FUNDEB 70%' if x == '15407' else 'FUNDEB 30%'
         )
 
-        base_indice_70 = soma(
+        base_indice_70  = soma(
             df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal', 'Rendimentos'])],
             meses_disponiveis
         )                                                   # R$ 1.170.192,01
-
         desp_70_vigente = soma(
             df_df_fundeb[(df_df_fundeb['Fonte'] == '15407') & (df_df_fundeb['Tipo'] == 'Liquidado')],
             meses_disponiveis
         )                                                   # R$ 1.010.067,36
-
         desp_30_vigente = soma(
             df_df_fundeb[(df_df_fundeb['Fonte'] == '15403') & (df_df_fundeb['Tipo'] == 'Liquidado')],
             meses_disponiveis
         )                                                   # R$ 40.399,44
-
-        tot_desp_vigente = desp_70_vigente + desp_30_vigente  # R$ 1.050.466,80
-
-        perc_70_indice = (desp_70_vigente / base_indice_70 * 100) if base_indice_70 > 0 else 0.0
+        tot_desp_vigente = desp_70_vigente + desp_30_vigente   # R$ 1.050.466,80
+        perc_70_indice   = (desp_70_vigente / base_indice_70 * 100) if base_indice_70 > 0 else 0.0
         # 86,32%
 
-        # ── Cards de previsão ─────────────────────────────────────────────────
+        # ── CARDS DE PREVISÃO ─────────────────────────────────────────────────
         st.markdown("##### Previsões Orçamentárias")
         p1, p2, p3 = st.columns(3)
         with p1: st.metric("Previsão Receitas (Orçamento Município)",
@@ -250,7 +234,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
 
-        # ── Gráfico 1: Receitas + Despesas ───────────────────────────────────
+        # ── GRÁFICO 1: RECEITAS + DESPESAS ───────────────────────────────────
         st.subheader("🔹 1. Receitas e Despesas FUNDEB")
 
         t1, t2, t3 = st.columns(3)
@@ -267,8 +251,22 @@ if df_f_raw is not None and df_r is not None:
         tipo_rd = st.segmented_control("Visualização:", ["Mensal", "Acumulado"],
                                        default="Mensal", key="rd_btn_f")
 
-        COR_REC  = {'Principal':'#1a7a4a','VAAR/VAAT':'#2ecc71','ETI':'#17a589','Rendimentos':'#1abc9c'}
-        COR_DESP = {'FUNDEB 70% – Vigente':'#660000','FUNDEB 30% – Vigente':'#cc0000'}
+        # ── CORES RECEITAS: verde/azul por subcategoria ───────────────────────
+        # Principal    → verde escuro
+        # Rendimentos  → azul
+        # VAAR/VAAT    → verde claro
+        # ETI          → azul claro
+        COR_REC = {
+            'Principal':   '#1a7a4a',   # verde escuro
+            'Rendimentos': '#1565c0',   # azul
+            'VAAR/VAAT':   '#66bb6a',   # verde claro
+            'ETI':         '#42a5f5',   # azul claro
+        }
+        # ── CORES DESPESAS: vermelho — 70% mais escuro, 30% mais claro ────────
+        COR_DESP = {
+            'FUNDEB 70% – Vigente': '#8b0000',   # vermelho escuro
+            'FUNDEB 30% – Vigente': '#e53935',   # vermelho mais claro
+        }
 
         fig_rd = go.Figure()
         categorias_rec  = list(df_r_fundeb['Subcategoria'].unique())
@@ -283,17 +281,17 @@ if df_f_raw is not None and df_r is not None:
                     val = soma(df_r_fundeb[df_r_fundeb['Subcategoria'] == cat], [m])
                     desc_list = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat][
                         'Descrição da Receita'].unique().tolist()
-                    show_leg    = f"rec_{cat}" not in legendas_usadas
+                    show_leg = f"rec_{cat}" not in legendas_usadas
                     legendas_usadas.add(f"rec_{cat}")
                     part = f"{(val/tot_rec_m*100):.1f}%" if tot_rec_m > 0 else "—"
                     fig_rd.add_trace(go.Bar(
                         name=cat, x=[[m], ["Receitas"]], y=[val],
-                        marker_color=COR_REC.get(cat,'#27ae60'),
+                        marker_color=COR_REC.get(cat, '#27ae60'),
                         legendgroup=f"rec_{cat}", showlegend=show_leg,
                         text=formar_real(val) if val > 0 else "",
                         textposition='inside', insidetextanchor='middle',
-                        customdata=[[cat,"FUNDEB"," | ".join(desc_list),
-                                     formar_real(val),formar_real(tot_rec_m),part,m]],
+                        customdata=[[cat, "FUNDEB", " | ".join(desc_list),
+                                     formar_real(val), formar_real(tot_rec_m), part, m]],
                         hovertemplate=(
                             "<span style='color:white;'>"
                             "<b>📥 %{customdata[6]} — Receita %{customdata[0]}</b><br>"
@@ -305,8 +303,8 @@ if df_f_raw is not None and df_r is not None:
                         ),
                     ))
 
-                for fonte_cod, label_desp in [('15407','FUNDEB 70% – Vigente'),
-                                              ('15403','FUNDEB 30% – Vigente')]:
+                for fonte_cod, label_desp in [('15407', 'FUNDEB 70% – Vigente'),
+                                              ('15403', 'FUNDEB 30% – Vigente')]:
                     val = soma(df_df_fundeb[
                         (df_df_fundeb['Fonte'] == fonte_cod) &
                         (df_df_fundeb['Tipo'] == 'Liquidado')], [m])
@@ -319,8 +317,8 @@ if df_f_raw is not None and df_r is not None:
                         legendgroup=label_desp, showlegend=show_leg,
                         text=formar_real(val) if val > 0 else "",
                         textposition='inside', insidetextanchor='middle',
-                        customdata=[[fonte_cod,"Liquidado – Ano Vigente",prop,
-                                     formar_real(val),formar_real(tot_desp_m),prop,m]],
+                        customdata=[[fonte_cod, "Liquidado – Ano Vigente", prop,
+                                     formar_real(val), formar_real(tot_desp_m), prop, m]],
                         hovertemplate=(
                             "<span style='color:white;'>"
                             "<b>📤 %{customdata[6]} — %{customdata[0]}</b><br>"
@@ -339,12 +337,12 @@ if df_f_raw is not None and df_r is not None:
                 part = f"{(val/tot_rec_periodo*100):.1f}%" if tot_rec_periodo > 0 else "—"
                 fig_rd.add_trace(go.Bar(
                     name=cat, x=[["Acumulado"], ["Receitas"]], y=[val],
-                    marker_color=COR_REC.get(cat,'#27ae60'),
+                    marker_color=COR_REC.get(cat, '#27ae60'),
                     legendgroup=f"rec_{cat}", showlegend=True,
                     text=formar_real(val) if val > 0 else "",
                     textposition='inside', insidetextanchor='middle',
-                    customdata=[[cat,"FUNDEB"," | ".join(desc_list),
-                                 formar_real(val),formar_real(tot_rec_periodo),part]],
+                    customdata=[[cat, "FUNDEB", " | ".join(desc_list),
+                                 formar_real(val), formar_real(tot_rec_periodo), part]],
                     hovertemplate=(
                         "<span style='color:white;'>"
                         "<b>📥 Receita — %{customdata[0]}</b><br>"
@@ -356,8 +354,8 @@ if df_f_raw is not None and df_r is not None:
                     ),
                 ))
 
-            for fonte_cod, label_desp in [('15407','FUNDEB 70% – Vigente'),
-                                          ('15403','FUNDEB 30% – Vigente')]:
+            for fonte_cod, label_desp in [('15407', 'FUNDEB 70% – Vigente'),
+                                          ('15403', 'FUNDEB 30% – Vigente')]:
                 val = soma(df_df_fundeb[
                     (df_df_fundeb['Fonte'] == fonte_cod) &
                     (df_df_fundeb['Tipo'] == 'Liquidado')], meses_disponiveis)
@@ -368,8 +366,8 @@ if df_f_raw is not None and df_r is not None:
                     legendgroup=label_desp, showlegend=True,
                     text=formar_real(val) if val > 0 else "",
                     textposition='inside', insidetextanchor='middle',
-                    customdata=[[fonte_cod,"Liquidado – Ano Vigente",prop,
-                                 formar_real(val),formar_real(tot_desp_vigente),prop]],
+                    customdata=[[fonte_cod, "Liquidado – Ano Vigente", prop,
+                                 formar_real(val), formar_real(tot_desp_vigente), prop]],
                     hovertemplate=(
                         "<span style='color:white;'>"
                         "<b>📤 Despesa — %{customdata[0]}</b><br>"
@@ -391,91 +389,174 @@ if df_f_raw is not None and df_r is not None:
 
         st.markdown("---")
 
-        # ── Gráfico 2: Índice 70% ─────────────────────────────────────────────
+        # ── GRÁFICO 2: ÍNDICE 70% — MENSAL E ACUMULADO ───────────────────────
+        # Card de índice removido conforme solicitado.
+        # Aplicação (metric_contabil) exibida apenas na visão Acumulado.
+        # Despesas sempre em tons de vermelho.
         st.subheader("🔹 2. Índice de Aplicação em Pessoal (Mín. 70%)")
         st.info("**Base:** Principal + Rendimentos arrecadados. "
                 "**Numerador:** Liquidado fonte 15407.")
 
-        i1, i2, i3 = st.columns(3)
-        with i1: st.metric("Base de Cálculo (Principal + Rendimentos)",
-                            formar_real(base_indice_70))
-        with i2: st.metric("Despesas FUNDEB 70% – Liquidado",
-                            formar_real(desp_70_vigente))
-        with i3: metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
+        tipo_70 = st.segmented_control("Visualização:", ["Mensal", "Acumulado"],
+                                       default="Mensal", key="tipo_70_btn")
 
-        cor_barra = "#27ae60" if perc_70_indice >= 70 else "#e74c3c"
-        fig_70 = go.Figure()
-        fig_70.add_trace(go.Bar(
-            x=["Receita Base\n(Principal + Rendimentos)"], y=[base_indice_70],
-            name="Receita Base", marker_color="#003366",
-            text=[formar_real(base_indice_70)], textposition='inside', insidetextanchor='middle',
-            hovertemplate=("<span style='color:white;'><b>Receita Base FUNDEB</b><br>"
-                           "Valor: <b>" + formar_real(base_indice_70) + "</b></span><extra></extra>"),
-        ))
-        fig_70.add_trace(go.Bar(
-            x=["Despesas 70%\n(Liquidado)"], y=[desp_70_vigente],
-            name=f"Despesas 70% — {perc_70_indice:.2f}%", marker_color=cor_barra,
-            text=[f"{formar_real(desp_70_vigente)}\n({perc_70_indice:.2f}%)"],
-            textposition='inside', insidetextanchor='middle',
-            hovertemplate=("<span style='color:white;'><b>Despesas FUNDEB 70%</b><br>"
-                           "Fonte: 15407 | Liquidado<br>"
-                           "Valor: <b>" + formar_real(desp_70_vigente) + "</b><br>"
-                           "Índice: <b>" + f"{perc_70_indice:.2f}%" + "</b></span><extra></extra>"),
-        ))
-        fig_70.add_hline(y=base_indice_70*0.70, line_dash="dot", line_color="green",
-                         annotation_text=f"Meta 70% = {formar_real(base_indice_70*0.70)}",
-                         annotation_position="top left")
-        fig_70.update_layout(separators=",.", barmode='group', hoverlabel=HOVER_STYLE,
-                             yaxis=dict(showticklabels=False), showlegend=True,
-                             legend=dict(orientation="h", yanchor="bottom", y=-0.20,
-                                         xanchor="center", x=0.5), height=420)
-        st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
+        if tipo_70 == "Acumulado":
+            # Exibe o metric_contabil apenas no acumulado
+            a1, a2 = st.columns(2)
+            with a1: st.metric("Base de Cálculo (Principal + Rendimentos)",
+                                formar_real(base_indice_70))
+            with a2: st.metric("Despesas FUNDEB 70% – Liquidado",
+                                formar_real(desp_70_vigente))
+            metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
+
+            cor_barra = "#27ae60" if perc_70_indice >= 70 else "#e74c3c"
+            fig_70 = go.Figure()
+            fig_70.add_trace(go.Bar(
+                x=["Receita Base\n(Principal + Rendimentos)"], y=[base_indice_70],
+                name="Receita Base", marker_color="#003366",
+                text=[formar_real(base_indice_70)],
+                textposition='inside', insidetextanchor='middle',
+                hovertemplate=("<span style='color:white;'><b>Receita Base FUNDEB</b><br>"
+                               "Valor: <b>" + formar_real(base_indice_70) +
+                               "</b></span><extra></extra>"),
+            ))
+            fig_70.add_trace(go.Bar(
+                x=["Despesas 70%\n(Liquidado)"], y=[desp_70_vigente],
+                name=f"Despesas 70% — {perc_70_indice:.2f}%",
+                marker_color='#8b0000',   # vermelho escuro
+                text=[f"{formar_real(desp_70_vigente)}\n({perc_70_indice:.2f}%)"],
+                textposition='inside', insidetextanchor='middle',
+                hovertemplate=("<span style='color:white;'><b>Despesas FUNDEB 70%</b><br>"
+                               "Fonte: 15407 | Liquidado<br>"
+                               "Valor: <b>" + formar_real(desp_70_vigente) + "</b><br>"
+                               "Índice: <b>" + f"{perc_70_indice:.2f}%" +
+                               "</b></span><extra></extra>"),
+            ))
+            fig_70.add_hline(y=base_indice_70 * 0.70, line_dash="dot", line_color="green",
+                             annotation_text=f"Meta 70% = {formar_real(base_indice_70 * 0.70)}",
+                             annotation_position="top left")
+            fig_70.update_layout(
+                separators=",.", barmode='group', hoverlabel=HOVER_STYLE,
+                yaxis=dict(showticklabels=False), showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.20,
+                            xanchor="center", x=0.5), height=420
+            )
+            st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
+
+        else:  # MENSAL
+            # Sem metric_contabil no mensal
+            dados_70_m = []
+            for m in meses_disponiveis:
+                base_m   = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
+                                    ['Principal', 'Rendimentos'])], [m])
+                liq_70_m = soma(df_df_fundeb[
+                    (df_df_fundeb['Fonte'] == '15407') &
+                    (df_df_fundeb['Tipo'] == 'Liquidado')], [m])
+                liq_30_m = soma(df_df_fundeb[
+                    (df_df_fundeb['Fonte'] == '15403') &
+                    (df_df_fundeb['Tipo'] == 'Liquidado')], [m])
+                perc_m   = (liq_70_m / base_m * 100) if base_m > 0 else 0.0
+                dados_70_m.append({"Mês": m, "Tipo": "Receita Base",
+                                   "Valor": base_m, "Texto": ""})
+                dados_70_m.append({"Mês": m, "Tipo": "FUNDEB 70% (Liquidado)",
+                                   "Valor": liq_70_m, "Texto": f"{perc_m:.1f}%"})
+                dados_70_m.append({"Mês": m, "Tipo": "FUNDEB 30% (Liquidado)",
+                                   "Valor": liq_30_m, "Texto": ""})
+
+            fig_70 = px.bar(
+                pd.DataFrame(dados_70_m), x='Mês', y='Valor', color='Tipo',
+                barmode='group', text='Texto',
+                color_discrete_map={
+                    "Receita Base":            "#003366",
+                    "FUNDEB 70% (Liquidado)":  "#8b0000",   # vermelho escuro
+                    "FUNDEB 30% (Liquidado)":  "#e53935",   # vermelho claro
+                },
+                category_orders={"Mês": ORDEM_MESES}
+            )
+
+            # Linha de meta 70% por mês
+            df_meta_linha = pd.DataFrame([
+                {"Mês": m,
+                 "Meta 70%": soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
+                     ['Principal', 'Rendimentos'])], [m]) * 0.70}
+                for m in meses_disponiveis
+            ])
+            fig_70.add_trace(go.Scatter(
+                x=df_meta_linha['Mês'], y=df_meta_linha['Meta 70%'],
+                mode='lines+markers', name='Meta 70% (Mensal)',
+                line=dict(color='green', dash='dot')
+            ))
+
+            fig_70.update_traces(
+                selector=dict(type='bar'), textposition='outside',
+                hovertemplate=(
+                    "<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
+                    "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"
+                ),
+                hoverlabel=HOVER_STYLE
+            )
+            fig_70.update_layout(
+                separators=",.", yaxis=dict(showticklabels=False), showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.20,
+                            xanchor="center", x=0.5), height=420
+            )
+            st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
 
-        # ── Gráfico 3: ETI ────────────────────────────────────────────────────
+        # ── GRÁFICO 3: ETI ────────────────────────────────────────────────────
+        # Removido o ícone de +/- (metric_contabil substituído por st.metric simples).
+        # Exibe: total das receitas FUNDEB e equivalente a 4%.
         st.subheader("🔹 3. Percentual Tempo Integral (ETI)")
 
         meta_eti_perc = 4.0
-        val_meta_eti  = base_indice_70 * (meta_eti_perc / 100)
+        val_meta_eti  = base_indice_70 * (meta_eti_perc / 100)   # R$ 46.807,68
         perc_eti_real = (tot_eti / base_indice_70 * 100) if base_indice_70 > 0 else 0.0
 
-        e1, e2, e3 = st.columns(3)
-        with e1: st.metric("Receita ETI Recebida (período)", formar_real(tot_eti))
-        with e2: st.metric(f"Valor Equivalente a {meta_eti_perc:.0f}% da Receita Base",
-                            formar_real(val_meta_eti))
-        with e3: metric_contabil(f"ETI sobre Receita Base (Ref. {meta_eti_perc:.0f}%)",
-                                  perc_eti_real, meta_eti_perc)
+        e1, e2 = st.columns(2)
+        with e1:
+            st.metric("Total Receitas FUNDEB (período)", formar_real(tot_rec_periodo))
+        with e2:
+            st.metric(f"Equivalente a {meta_eti_perc:.0f}% da Receita Base",
+                      formar_real(val_meta_eti))
 
         cor_eti = "#27ae60" if perc_eti_real >= meta_eti_perc else "#e74c3c"
         fig_eti = go.Figure()
         fig_eti.add_trace(go.Bar(
-            x=["Receita Base FUNDEB"], y=[base_indice_70], name="Receita Base",
-            marker_color="#003366", text=[formar_real(base_indice_70)],
+            x=["Receita Base FUNDEB"], y=[base_indice_70],
+            name="Receita Base", marker_color="#003366",
+            text=[formar_real(base_indice_70)],
             textposition='inside', insidetextanchor='middle',
             hovertemplate=("<span style='color:white;'><b>Receita Base FUNDEB</b><br>"
-                           "Valor: <b>" + formar_real(base_indice_70) + "</b></span><extra></extra>"),
+                           "Valor: <b>" + formar_real(base_indice_70) +
+                           "</b></span><extra></extra>"),
         ))
         fig_eti.add_trace(go.Bar(
             x=["ETI Recebido (período)"], y=[tot_eti],
-            name=f"ETI — {perc_eti_real:.2f}% da base", marker_color=cor_eti,
+            name=f"ETI — {perc_eti_real:.2f}% da base",
+            marker_color=cor_eti,
             text=[f"{formar_real(tot_eti)}\n({perc_eti_real:.2f}%)"],
             textposition='inside', insidetextanchor='middle',
             hovertemplate=("<span style='color:white;'><b>Receita ETI</b><br>"
                            "Valor recebido: <b>" + formar_real(tot_eti) + "</b><br>"
                            "% sobre receita base: <b>" + f"{perc_eti_real:.2f}%" + "</b><br>"
-                           "Meta: <b>" + f"{meta_eti_perc:.0f}% = " + formar_real(val_meta_eti) +
+                           "Meta: <b>" + f"{meta_eti_perc:.0f}%" +
+                           " = " + formar_real(val_meta_eti) +
                            "</b></span><extra></extra>"),
         ))
-        fig_eti.add_hline(y=val_meta_eti, line_dash="dot", line_color="#f39c12",
-                          annotation_text=f"Referência {meta_eti_perc:.0f}% = {formar_real(val_meta_eti)}",
-                          annotation_position="top left")
-        fig_eti.update_layout(separators=",.", barmode='group', hoverlabel=HOVER_STYLE,
-                              yaxis=dict(showticklabels=False), showlegend=True,
-                              legend=dict(orientation="h", yanchor="bottom", y=-0.20,
-                                          xanchor="center", x=0.5), height=400)
+        fig_eti.add_hline(
+            y=val_meta_eti, line_dash="dot", line_color="#f39c12",
+            annotation_text=f"Referência {meta_eti_perc:.0f}% = {formar_real(val_meta_eti)}",
+            annotation_position="top left"
+        )
+        fig_eti.update_layout(
+            separators=",.", barmode='group', hoverlabel=HOVER_STYLE,
+            yaxis=dict(showticklabels=False), showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.20,
+                        xanchor="center", x=0.5), height=400
+        )
         st.plotly_chart(fig_eti, use_container_width=True, config=CONFIG_PT)
-
+#-----------------RECURSOS PRÓPRIOS-----------------------------
     elif st.session_state.setor == 'Recursos Próprios':
         st.markdown("<h1 style='text-align: left;'>📖 São Tomás de Aquino - Recursos Próprios (25%)</h1>",
                     unsafe_allow_html=True)
