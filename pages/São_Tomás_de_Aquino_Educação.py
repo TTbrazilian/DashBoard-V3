@@ -394,8 +394,6 @@ if df_f_raw is not None and df_r is not None:
         # Aplicação (metric_contabil) exibida apenas na visão Acumulado.
         # Despesas sempre em tons de vermelho.
         st.subheader("🔹 2. Índice de Aplicação em Pessoal (Mín. 70%)")
-        st.info("**Base:** Principal + Rendimentos arrecadados. "
-                "**Numerador:** Liquidado fonte 15407.")
 
         tipo_70 = st.segmented_control("Visualização:", ["Mensal", "Acumulado"],
                                        default="Mensal", key="tipo_70_btn")
