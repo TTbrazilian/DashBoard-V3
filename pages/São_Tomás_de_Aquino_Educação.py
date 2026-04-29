@@ -436,7 +436,7 @@ if df_f_raw is not None and df_r is not None:
             fig_70.update_layout(
                 separators=",.", barmode='group', hoverlabel=HOVER_STYLE,
                 yaxis=dict(showticklabels=False), showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.20,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.25,
                             xanchor="center", x=0.5), height=420
             )
             st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
