@@ -246,7 +246,7 @@ if df_f_raw is not None and df_r is not None:
             saldo     = tot_rec_periodo - tot_desp_vigente
             exec_perc = (tot_desp_vigente / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
             st.metric("Saldo (Receitas − Despesas Vigentes)", formar_real(saldo),
-                      delta=f"{exec_perc:.1f}% executado", delta_color="inverse")
+                      delta=f"{exec_perc:.1f}% Saldo", delta_color="inverse")
 
         tipo_rd = st.segmented_control("Visualização:", ["Mensal", "Acumulado"],
                                        default="Mensal", key="rd_btn_f")
