@@ -915,9 +915,7 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
  
         st.markdown("""
-        > 📌 **Seção em desenvolvimento.** Para ativar esta visão, forneça o arquivo de dados
-        > `São Tomás de Aquino_Macro.csv` com os seguintes campos sugeridos:
-        > `Indicador`, `Valor`, `Meta`, `Mês`, `Ano`.
+        > 📌 **Seção em desenvolvimento.** 
         """)
  
         # ── Estrutura prevista ─────────────────────────────────────────────────
@@ -949,10 +947,7 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
  
         st.markdown("""
-        > 📌 **Seção em desenvolvimento.** Para ativar esta visão, forneça o arquivo de dados
-        > `São Tomás de Aquino_Folha.csv` com os seguintes campos sugeridos:
-        > `Mês`, `Categoria` (Professor / Suporte / Gestão), `Vínculo` (Efetivo / Contratado),
-        > `Valor Bruto`, `Valor Líquido`, `Encargos`.
+        > 📌 **Seção em desenvolvimento.** 
         """)
  
         col1, col2, col3 = st.columns(3)
