@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.io as pio
 import os
 import plotly.graph_objects as go
+import streamlit.components.v1 as components
 
 # ── CONFIGURAÇÃO DA PÁGINA ────────────────────────────────────────────────────
 st.set_page_config(page_title="São Tomás de Aquino - Gestão Educação", layout="wide")
@@ -34,14 +35,6 @@ st.markdown("""
         }
         .stButton button:focus { outline:none!important; box-shadow:none!important; }
         [data-testid="column"]  { display:flex; align-items:center; justify-content:center; }
-
-        /* ── FILTRO DE BARRA LATERAL ─────────────────────────────────────────
-           Página de EDUCAÇÃO: oculta todos os municípios do setor Saúde.
-           O seletor detecta qualquer item da nav que contenha o texto "Saúde".
-        ────────────────────────────────────────────────────────────────────── */
-        [data-testid="stSidebarNav"] ul li:has(span:contains("Saúde")) {
-            display: none !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -187,6 +180,37 @@ if df_f_raw is not None and df_r is not None:
                         ("Folha de Pagamento","Folha de Pagamento")]:
         if st.sidebar.button(label, use_container_width=True):
             st.session_state.setor = key
+
+    # ── FILTRO DA BARRA LATERAL ───────────────────────────────────────────────
+    # CSS :contains() não é suportado por navegadores modernos.
+    # Usamos JavaScript via window.parent.document para ocultar os itens
+    # do setor oposto diretamente no DOM da sidebar do Streamlit.
+    # Esta página é de EDUCAÇÃO → oculta todos os itens que contêm "Saúde".
+    components.html("""
+        <script>
+        (function() {
+            function esconderSaude() {
+                try {
+                    var nav = window.parent.document.querySelector(
+                        '[data-testid="stSidebarNav"]'
+                    );
+                    if (!nav) return;
+                    var itens = nav.querySelectorAll('li');
+                    itens.forEach(function(item) {
+                        if (item.textContent.indexOf('Saúde') !== -1) {
+                            item.style.setProperty('display', 'none', 'important');
+                        }
+                    });
+                } catch(e) {}
+            }
+            // Executa imediatamente e em intervalos para cobrir re-renders do Streamlit
+            esconderSaude();
+            setTimeout(esconderSaude, 200);
+            setTimeout(esconderSaude, 600);
+            setTimeout(esconderSaude, 1200);
+        })();
+        </script>
+    """, height=0)
 
     # =========================================================================
     # SETOR FUNDEB
@@ -932,8 +956,9 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.markdown("""
-        > 📌 **Seção em desenvolvimento.** 
+        > 📌 **Seção em desenvolvimento.**
         """)
+
 
     # ── Relatório Geral de Fichas (todos os setores) ──────────────────────────
     st.markdown("### 📋 Relatório Geral de Fichas")
