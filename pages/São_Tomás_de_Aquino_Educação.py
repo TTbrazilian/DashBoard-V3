@@ -170,7 +170,7 @@ if df_f_raw is not None and df_r is not None:
 
     # ── SIDEBAR ───────────────────────────────────────────────────────────────
     st.sidebar.title("🔍 Filtros de Análise")
-    search_term = st.sidebar.text_input("Filtrar Fichas:", "")
+    search_term = st.sidebar.text_input("Filtrar:", "")
     st.sidebar.markdown("---")
     st.sidebar.subheader("Setores")
     for label, key in [("FUNDEB","FUNDEB"),
