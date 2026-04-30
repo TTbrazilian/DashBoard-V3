@@ -907,29 +907,8 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.markdown("""
-        > 📌 **Seção em desenvolvimento.** Para ativar esta visão, forneça o arquivo de dados
-        > `São Tomás de Aquino_Macro.csv` com os seguintes campos sugeridos:
-        > `Indicador`, `Valor`, `Meta`, `Mês`, `Ano`.
-        """)
+        > 📌 **Seção em desenvolvimento.** """)
 
-        # ── Estrutura prevista ─────────────────────────────────────────────────
-        col1, col2, col3, col4 = st.columns(4)
-        with col1: st.metric("Matrículas Totais", "—", help="Aguardando dados")
-        with col2: st.metric("Taxa de Aprovação", "—", help="Aguardando dados")
-        with col3: st.metric("Taxa de Abandono",  "—", help="Aguardando dados")
-        with col4: st.metric("Gasto por Aluno",   "—", help="Aguardando dados")
-
-        st.markdown("---")
-        st.markdown("### 🔹 Distribuição de Matrículas por Nível")
-        st.info("Gráfico de distribuição será exibido aqui (Pré-escola / Fundamental / EJA / Ed. Especial).")
-
-        st.markdown("---")
-        st.markdown("### 🔹 Evolução Mensal de Indicadores")
-        st.info("Gráfico de linha com evolução de matrículas, aprovação e abandono ao longo do ano.")
-
-        st.markdown("---")
-        st.markdown("### 🔹 Comparativo Receitas × Despesas × Matrículas")
-        st.info("Visão consolidada cruzando dados financeiros com dados de matrícula.")
 
     # =========================================================================
     # SETOR FOLHA DE PAGAMENTO
@@ -941,28 +920,7 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.markdown("""
-        > 📌 **Seção em desenvolvimento.** Para ativar esta visão, forneça o arquivo de dados
-        > `São Tomás de Aquino_Folha.csv` com os seguintes campos sugeridos:
-        > `Mês`, `Categoria` (Professor / Suporte / Gestão), `Vínculo` (Efetivo / Contratado),
-        > `Valor Bruto`, `Valor Líquido`, `Encargos`.
-        """)
-
-        col1, col2, col3 = st.columns(3)
-        with col1: st.metric("Total Folha (período)", "—", help="Aguardando dados")
-        with col2: st.metric("Nº de Servidores",      "—", help="Aguardando dados")
-        with col3: st.metric("% FUNDEB 70% utilizado","—", help="Aguardando dados")
-
-        st.markdown("---")
-        st.markdown("### 🔹 Composição da Folha por Categoria")
-        st.info("Gráfico de pizza/barras: Professor Regente / Suporte Pedagógico / Gestão / Outros.")
-
-        st.markdown("---")
-        st.markdown("### 🔹 Evolução Mensal da Folha")
-        st.info("Gráfico de linha com evolução do valor total da folha ao longo dos meses.")
-
-        st.markdown("---")
-        st.markdown("### 🔹 Folha × Limite Constitucional (FUNDEB 70%)")
-        st.info("Comparativo entre o gasto total com pessoal e o limite mínimo de 70% do FUNDEB.")
+        > 📌 **Seção em desenvolvimento.** """)
 
     # ── Relatório Geral de Fichas (todos os setores) ──────────────────────────
     st.markdown("### 📋 Relatório Geral de Fichas")
