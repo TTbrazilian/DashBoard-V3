@@ -34,6 +34,14 @@ st.markdown("""
         }
         .stButton button:focus { outline:none!important; box-shadow:none!important; }
         [data-testid="column"]  { display:flex; align-items:center; justify-content:center; }
+
+        /* ── FILTRO DE BARRA LATERAL ─────────────────────────────────────────
+           Página de EDUCAÇÃO: oculta todos os municípios do setor Saúde.
+           O seletor detecta qualquer item da nav que contenha o texto "Saúde".
+        ────────────────────────────────────────────────────────────────────── */
+        [data-testid="stSidebarNav"] ul li:has(span:contains("Saúde")) {
+            display: none !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -914,7 +922,6 @@ if df_f_raw is not None and df_r is not None:
         > 📌 **Seção em desenvolvimento.** 
         """)
 
-
     # =========================================================================
     # SETOR FOLHA DE PAGAMENTO
     # ─── Seção em desenvolvimento — adicionar arquivo de dados quando disponível
@@ -927,7 +934,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("""
         > 📌 **Seção em desenvolvimento.** 
         """)
-
 
     # ── Relatório Geral de Fichas (todos os setores) ──────────────────────────
     st.markdown("### 📋 Relatório Geral de Fichas")
