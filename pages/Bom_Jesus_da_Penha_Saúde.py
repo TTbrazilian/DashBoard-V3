@@ -85,6 +85,34 @@ if df_raw is not None:
             st.session_state.busca = ""
             st.rerun()
 
+    # ── FILTRO DA BARRA LATERAL ───────────────────────────────────────────────
+    # Página de SAÚDE → oculta todos os municípios de Educação da sidebar.
+    # CSS :contains() não é suportado por navegadores modernos; usamos JS.
+    components.html("""
+        <script>
+        (function() {
+            function esconderEducacao() {
+                try {
+                    var nav = window.parent.document.querySelector(
+                        '[data-testid="stSidebarNav"]'
+                    );
+                    if (!nav) return;
+                    var itens = nav.querySelectorAll('li');
+                    itens.forEach(function(item) {
+                        if (item.textContent.indexOf('Educação') !== -1) {
+                            item.style.setProperty('display', 'none', 'important');
+                        }
+                    });
+                } catch(e) {}
+            }
+            esconderEducacao();
+            setTimeout(esconderEducacao, 200);
+            setTimeout(esconderEducacao, 600);
+            setTimeout(esconderEducacao, 1200);
+        })();
+        </script>
+    """, height=0)
+
     df_filtrado_global = df_raw.copy()
     if st.session_state.busca:
         termo = remover_acentos(st.session_state.busca)
