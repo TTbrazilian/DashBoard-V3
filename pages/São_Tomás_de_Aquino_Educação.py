@@ -239,7 +239,7 @@ if df_f_raw is not None and df_r is not None:
                                   meses_disponiveis)                  # 0,00
 
         # ── Despesas (somente fontes do ano vigente: 15407 / 15403) ──────────
-        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407','15403'])].copy()
+        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407','15403'])]
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(
             lambda x: 'FUNDEB 70%' if x=='15407' else 'FUNDEB 30%')
 
@@ -446,17 +446,20 @@ if df_f_raw is not None and df_r is not None:
                 height=440, margin=dict(b=80),
             )
 
-        else:  # Mensal — sem metric_contabil e sem FUNDEB 30% (apenas FUNDEB 70%)
+        else:  # Mensal — sem metric_contabil
             dados_70_m = []
             for m in meses_disponiveis:
                 base_m   = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
                                     ['Principal','Rendimentos'])], [m])
                 liq_70_m = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15407') &
                                              (df_df_fundeb['Tipo']=='Liquidado')], [m])
+                liq_30_m = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15403') &
+                                             (df_df_fundeb['Tipo']=='Liquidado')], [m])
                 perc_m   = (liq_70_m/base_m*100) if base_m>0 else 0.0
                 dados_70_m += [
                     {"Mês":m,"Tipo":"Receita Base","Valor":base_m,"Texto":""},
                     {"Mês":m,"Tipo":"FUNDEB 70% (Liquidado)","Valor":liq_70_m,"Texto":f"{perc_m:.1f}%"},
+                    {"Mês":m,"Tipo":"FUNDEB 30% (Liquidado)","Valor":liq_30_m,"Texto":""},
                 ]
             fig_70 = px.bar(
                 pd.DataFrame(dados_70_m), x='Mês', y='Valor', color='Tipo',
@@ -464,6 +467,7 @@ if df_f_raw is not None and df_r is not None:
                 color_discrete_map={
                     "Receita Base":           "#003366",
                     "FUNDEB 70% (Liquidado)": COR_DESP['FUNDEB 70% – Vigente'],
+                    "FUNDEB 30% (Liquidado)": COR_DESP['FUNDEB 30% – Vigente'],
                 },
                 category_orders={"Mês":ORDEM_MESES}
             )
@@ -594,9 +598,8 @@ if df_f_raw is not None and df_r is not None:
         # Dedução FUNDEB
         df_r_ded = df_r[df_r['Categoria'].str.strip().str.startswith('Dedução',na=False)].copy()
 
-        # ALTERAÇÃO 3: previsão inclui Impostos + Cota-Parte (R$ 39.870.425,00)
+        # ALTERAÇÃO 3: previsão inclui Impostos + Cota-Parte
         prev_total_rp = df_r_base['Orçado Receitas'].sum()
-
         tot_rec_base  = obter_soma_rp(df_r_base, meses_disponiveis)
         tot_deducoes  = abs(obter_soma_rp(df_r_ded, meses_disponiveis))
         meta_25_valor = tot_rec_base * 0.25
@@ -618,14 +621,14 @@ if df_f_raw is not None and df_r is not None:
         val_outras_fontes = df_15000_outras[meses_disponiveis].sum().sum()
 
         # Cards superiores
-        # ALTERAÇÃO 4: label corrigido para incluir Cota-Parte e período
-        # ALTERAÇÃO 5: meta 25% sem delta
         st.markdown("##### Previsões e Arrecadação")
         c1, c2, c3 = st.columns(3)
         with c1: st.metric("Previsão Orçamentária — Impostos e Cota-Parte (Janeiro a Dezembro)",
                             formar_real(prev_total_rp))
         with c2: st.metric(f"Receitas Arrecadadas ({meses_disponiveis[0]}–{meses_disponiveis[-1]})",
                             formar_real(tot_rec_base))
+        # Saldo vs meta: positivo = meta atingida (verde ↑), negativo = abaixo da meta (vermelho ↓)
+        # Mesmo padrão do FUNDEB Gráfico 1
         with c3: st.metric("Meta 25% (sobre o arrecadado)", formar_real(meta_25_valor))
         st.markdown("---")
 
@@ -667,60 +670,23 @@ if df_f_raw is not None and df_r is not None:
                 df_acum = df_r_grupo.copy()
                 df_acum['Valor'] = df_acum[meses_disponiveis].sum(axis=1)
                 df_acum = df_acum.sort_values('Valor', ascending=False)
-                tot_acum = df_acum['Valor'].sum()
                 fig_rp = px.bar(df_acum, x='Grupo', y='Valor', color='Grupo',
                                 text_auto='.3s', color_discrete_map=mapa_cores_grupos)
-                fig_rp.update_traces(
-                    hovertemplate=(
-                        "<span style='color:white;'>"
-                        "<b>%{x}</b><br>"
-                        "Imposto: %{data.name}<br>"
-                        "Valor: <b>R$ %{y:,.2f}</b><br>"
-                        f"Total Geral: <b>{formar_real(tot_acum)}</b>"
-                        "</span><extra></extra>"
-                    ),
-                    hoverlabel=HOVER_STYLE
-                )
             else:
                 row = df_r_grupo[df_r_grupo['Grupo']==ativo]
                 val = row[meses_disponiveis].sum().sum() if len(row)>0 else 0
                 fig_rp = px.bar(x=[ativo], y=[val], text_auto='.3s',
                                 color_discrete_sequence=[mapa_cores_grupos.get(ativo,'#003366')])
-                fig_rp.update_traces(
-                    hovertemplate=(
-                        "<span style='color:white;'>"
-                        f"<b>{ativo}</b><br>"
-                        "Valor Acumulado: <b>R$ %{y:,.2f}</b>"
-                        "</span><extra></extra>"
-                    ),
-                    hoverlabel=HOVER_STYLE
-                )
         else:  # Mensal
             if ativo == "Acumulado Geral":
-                # Hover: mostra total do mês (soma de todos os impostos no mês)
-                totais_mes = {m: df_r_base[m].sum() for m in meses_disponiveis}
                 dados_m = []
                 for m in meses_disponiveis:
                     for _, row in df_r_grupo.iterrows():
-                        dados_m.append({"Mês":m,"Imposto":row['Grupo'],"Valor":row[m],
-                                         "TotalMes":totais_mes[m]})
-                df_dm = pd.DataFrame(dados_m)
-                fig_rp = px.bar(df_dm, x='Mês', y='Valor', color='Imposto',
+                        dados_m.append({"Mês":m,"Imposto":row['Grupo'],"Valor":row[m]})
+                fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', color='Imposto',
                                 barmode='stack', text_auto='.2s',
                                 color_discrete_map=mapa_cores_grupos,
-                                category_orders={"Mês":ORDEM_MESES},
-                                custom_data=['TotalMes','Imposto'])
-                fig_rp.update_traces(
-                    hovertemplate=(
-                        "<span style='color:white;'>"
-                        "<b>%{x}</b><br>"
-                        "Imposto: %{customdata[1]}<br>"
-                        "Valor: <b>R$ %{y:,.2f}</b><br>"
-                        "Total do Mês: <b>R$ %{customdata[0]:,.2f}</b>"
-                        "</span><extra></extra>"
-                    ),
-                    hoverlabel=HOVER_STYLE
-                )
+                                category_orders={"Mês":ORDEM_MESES})
             else:
                 row = df_r_grupo[df_r_grupo['Grupo']==ativo]
                 dados_m = [{"Mês":m,"Valor":row[m].sum() if len(row)>0 else 0}
@@ -728,17 +694,21 @@ if df_f_raw is not None and df_r is not None:
                 fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s',
                                 color_discrete_sequence=[mapa_cores_grupos.get(ativo,'#003366')],
                                 category_orders={"Mês":ORDEM_MESES})
-                fig_rp.update_traces(
-                    hovertemplate=(
-                        "<span style='color:white;'>"
-                        f"<b>%{{x}}</b><br>"
-                        f"Imposto: {ativo}<br>"
-                        "Valor: <b>R$ %{y:,.2f}</b>"
-                        "</span><extra></extra>"
-                    ),
-                    hoverlabel=HOVER_STYLE
-                )
 
+        # Hover — no Acumulado Geral %{data.name} traz o nome do grupo (trace nomeado);
+        # nos botões individuais (FPM, ICMS…) o trace não tem nome, então injeta o ativo diretamente
+        nome_hover = "%{data.name}" if ativo == "Acumulado Geral" else ativo
+        fig_rp.update_traces(
+            hovertemplate=(
+                "<span style='color:white;'>"
+                "<b>%{x}</b><br>"
+                f"Imposto: {nome_hover}<br>"
+                "Setor: Recursos Próprios<br>"
+                "Valor: <b>R$ %{y:,.2f}</b>"
+                "</span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE
+        )
         fig_rp.update_layout(separators=",.", yaxis=dict(showticklabels=False))
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
@@ -815,41 +785,32 @@ if df_f_raw is not None and df_r is not None:
                 x=["Receitas Base"], y=[tot_rec_base], name="Receitas Base",
                 marker_color="#003366", text=[formar_real(tot_rec_base)],
                 textposition='inside', insidetextanchor='middle',
-                hovertemplate=(
-                    "<span style='color:white;'><b>Receitas Base</b><br>"
-                    "Impostos + Cota-Parte<br>Valor: <b>"+formar_real(tot_rec_base)+"</b></span><extra></extra>"
-                ),
-            ))
-            # ALTERAÇÃO 8: Acumulado — Dedução EMBAIXO, 15001 EM CIMA
-            fig_meta.add_trace(go.Bar(
-                x=["Aplicação Total"], y=[tot_deducoes],
-                name="Dedução FUNDEB", marker_color="#f39c12",
-                text=[f"{formar_real(tot_deducoes)}\n({prop_ded:.1f}%)"],
-                textposition='inside', insidetextanchor='middle',
-                customdata=[[formar_real(tot_deducoes), f"{prop_ded:.1f}%"]],
-                hovertemplate=(
-                    "<span style='color:white;'><b>Dedução FUNDEB</b><br>"
-                    "Valor: <b>%{customdata[0]}</b><br>"
-                    "% do esforço: %{customdata[1]}</span><extra></extra>"
-                ),
+                hovertemplate=("<span style='color:white;'><b>Receitas Base</b><br>"
+                               "Impostos + Cota-Parte<br>Valor: <b>"+formar_real(tot_rec_base)+"</b></span><extra></extra>"),
             ))
             fig_meta.add_trace(go.Bar(
                 x=["Aplicação Total"], y=[total_desp_15001],
                 name=f"Despesa 15001 ({fase_despesa})", marker_color="#860000",
                 text=[f"{formar_real(total_desp_15001)}\n({prop_desp:.1f}%)"],
                 textposition='inside', insidetextanchor='middle',
-                customdata=[[formar_real(total_desp_15001), f"{prop_desp:.1f}%", fase_despesa]],
-                hovertemplate=(
-                    "<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
-                    "Estágio: %{customdata[2]}<br>Valor: <b>%{customdata[0]}</b><br>"
-                    "% do esforço: %{customdata[1]}</span><extra></extra>"
-                ),
+                customdata=[[formar_real(total_desp_15001),f"{prop_desp:.1f}%",fase_despesa]],
+                hovertemplate=("<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
+                               "Estágio: %{customdata[2]}<br>Valor: <b>%{customdata[0]}</b><br>"
+                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
             ))
-            fig_meta.add_hline(
-                y=tot_rec_base*0.25, line_dash="dash", line_color="#f39c12",
-                annotation_text=f"Meta 25% = {formar_real(tot_rec_base*0.25)}",
-                annotation_position="top left"
-            )
+            fig_meta.add_trace(go.Bar(
+                x=["Aplicação Total"], y=[tot_deducoes],
+                name="Dedução FUNDEB", marker_color="#f39c12",
+                text=[f"{formar_real(tot_deducoes)}\n({prop_ded:.1f}%)"],
+                textposition='inside', insidetextanchor='middle',
+                customdata=[[formar_real(tot_deducoes),f"{prop_ded:.1f}%"]],
+                hovertemplate=("<span style='color:white;'><b>Dedução FUNDEB</b><br>"
+                               "Valor: <b>%{customdata[0]}</b><br>"
+                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
+            ))
+            fig_meta.add_hline(y=tot_rec_base*0.25, line_dash="dash", line_color="#f39c12",
+                               annotation_text=f"Meta 25% = {formar_real(tot_rec_base*0.25)}",
+                               annotation_position="top left")
             if val_outras_fontes>0:
                 fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
                     text=f"⚠️ Outras fontes (anos ant.): {formar_real(val_outras_fontes)}",
@@ -858,10 +819,11 @@ if df_f_raw is not None and df_r is not None:
                                    yaxis=dict(showticklabels=False), showlegend=True,
                                    legend=dict(orientation="h",yanchor="bottom",y=-0.20,
                                                xanchor="center",x=0.5), height=450)
-
         else:
-            # ALTERAÇÃO 7: Mensal → gráfico EMPILHADO (Dedução embaixo, 15001 em cima)
-            # Hover exibe total (Dedução + 15001) do mês
+            # ALTERAÇÃO 7: Mensal → DUAS COLUNAS AGRUPADAS por mês
+            # Coluna 1: Receitas (total mensal)
+            # Coluna 2: Despesas (15001 + Deduções juntas)
+            # Hover mostra o total de cada coluna e o detalhamento interno
             dados_meta_m = []
             for m in meses_disponiveis:
                 col_b = m if m in df_r_base.columns else None
@@ -870,50 +832,55 @@ if df_f_raw is not None and df_r is not None:
                 r_m   = df_r_base[col_b].sum() if col_b else 0
                 d_m   = df_df_15001[col_d].sum() if col_d else 0
                 ded_m = abs(df_r_ded[col_e].sum()) if col_e else 0
-                total_esforco_m = d_m + ded_m
+                total_desp_m = d_m + ded_m
+                perc_m = (total_desp_m / r_m * 100) if r_m > 0 else 0
                 dados_meta_m += [
-                    {"Mês":m,"Tipo":"Receitas Base","Valor":r_m,
-                     "Total":r_m,"Desp":0,"Ded":0,"Texto":""},
-                    # Dedução EMBAIXO (primeira na pilha)
-                    {"Mês":m,"Tipo":"Dedução FUNDEB","Valor":ded_m,
-                     "Total":total_esforco_m,"Desp":d_m,"Ded":ded_m,"Texto":""},
-                    # 15001 EM CIMA (segunda na pilha)
-                    {"Mês":m,"Tipo":f"Desp. 15001 ({fase_despesa})","Valor":d_m,
-                     "Total":total_esforco_m,"Desp":d_m,"Ded":ded_m,"Texto":""},
+                    {"Mês":m,"Tipo":"Receitas (Impostos + Cota-Parte)","Valor":r_m,
+                     "DetalheA":formar_real(r_m),"DetalheB":"—","Total":r_m,
+                     "Perc":"100%"},
+                    {"Mês":m,"Tipo":"Despesas (15001 + Deduções)","Valor":total_desp_m,
+                     "DetalheA":formar_real(d_m),"DetalheB":formar_real(ded_m),
+                     "Total":total_desp_m,"Perc":f"{perc_m:.1f}% das receitas"},
                 ]
             df_meta_m = pd.DataFrame(dados_meta_m)
             fig_meta = px.bar(
                 df_meta_m, x='Mês', y='Valor', color='Tipo',
-                barmode='stack',
-                custom_data=['Total','Desp','Ded'],
+                barmode='group',
+                custom_data=['DetalheA','DetalheB','Perc'],
                 color_discrete_map={
-                    "Receitas Base":                  "#003366",
-                    f"Desp. 15001 ({fase_despesa})":  "#860000",
-                    "Dedução FUNDEB":                  "#f39c12"},
-                category_orders={
-                    "Mês":ORDEM_MESES,
-                    "Tipo":["Receitas Base","Dedução FUNDEB",f"Desp. 15001 ({fase_despesa})"]
-                }
+                    "Receitas (Impostos + Cota-Parte)": "#003366",
+                    "Despesas (15001 + Deduções)":      "#860000",
+                },
+                text='Valor',
+                category_orders={"Mês":ORDEM_MESES}
             )
             fig_meta.update_traces(
+                texttemplate="%{y:,.0f}",
+                textposition='outside',
                 hovertemplate=(
-                    "<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
-                    "Valor: R$ %{y:,.2f}<br>"
-                    "Total (Ded.+15001): <b>R$ %{customdata[0]:,.2f}</b><br>"
-                    "Desp. 15001 mês: R$ %{customdata[1]:,.2f}<br>"
-                    "Dedução mês: R$ %{customdata[2]:,.2f}"
+                    "<span style='color:white;'>"
+                    "<b>%{x} — %{data.name}</b><br>"
+                    "Total: <b>R$ %{y:,.2f}</b><br>"
+                    "── Detalhamento ──<br>"
+                    "%{customdata[0]}<br>"
+                    "%{customdata[1]}<br>"
+                    "%{customdata[2]}"
                     "</span><extra></extra>"
                 ),
-                hoverlabel=HOVER_STYLE)
-            df_linha = df_meta_m[df_meta_m['Tipo']=='Receitas Base'].copy()
-            df_linha['Meta 25%'] = df_linha['Valor']*0.25
-            fig_meta.add_trace(go.Scatter(x=df_linha['Mês'], y=df_linha['Meta 25%'],
+                hoverlabel=HOVER_STYLE
+            )
+            df_linha = df_meta_m[df_meta_m['Tipo']=='Receitas (Impostos + Cota-Parte)'].copy()
+            df_linha['Meta 25%'] = df_linha['Valor'] * 0.25
+            fig_meta.add_trace(go.Scatter(
+                x=df_linha['Mês'], y=df_linha['Meta 25%'],
                 mode='lines+markers', name='Meta 25% (Mensal)',
-                line=dict(color='#f39c12',dash='dash')))
-            fig_meta.update_layout(separators=",.", yaxis=dict(showticklabels=False),
-                                   showlegend=True,
-                                   legend=dict(orientation="h",yanchor="bottom",y=-0.25,
-                                               xanchor="center",x=0.5))
+                line=dict(color='#f39c12', dash='dash')
+            ))
+            fig_meta.update_layout(
+                separators=",.", yaxis=dict(showticklabels=False), showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.25,
+                            xanchor="center", x=0.5)
+            )
 
         st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
 
@@ -940,17 +907,11 @@ if df_f_raw is not None and df_r is not None:
 
         for prog in programas:
             df_prog_r = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip()==prog].copy()
-
-            # ALTERAÇÃO 9: cards com colunas corretas da base de dados
-            # Arrecadado 2025  → coluna '2025'
-            # Previsão Repasse → coluna 'Repasse'
-            # Orçado 2026      → coluna 'Orçado Receitas'
             rep_2025     = df_prog_r['2025'].sum() if '2025' in df_prog_r.columns else 0
             prev_repasse = df_prog_r['Repasse'].sum() if 'Repasse' in df_prog_r.columns else 0
             orcado_2026  = df_prog_r['Orçado Receitas'].sum() if 'Orçado Receitas' in df_prog_r.columns else 0
-
-            desp_liq = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
-                                   (df_df_raw['Tipo']=='Liquidado')][meses_disponiveis].sum().sum()
+            desp_liq     = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
+                                      (df_df_raw['Tipo']=='Liquidado')][meses_disponiveis].sum().sum()
 
             st.markdown(f"<h4 style='color:{COR_PROG[prog]};margin-bottom:4px;'>"
                         f"📊 Programa: {prog}</h4>", unsafe_allow_html=True)
@@ -959,7 +920,7 @@ if df_f_raw is not None and df_r is not None:
             with c2: st.metric("Previsão de Repasse", formar_real(prev_repasse))
             with c3: st.metric("Orçado 2026 (Município)", formar_real(orcado_2026))
 
-            # ALTERAÇÃO 10: botão Mensal/Acumulado individual por programa
+            # ALTERAÇÃO 10: botão individual por programa
             tipo_vinc = st.segmented_control(
                 "Visualização:", ["Mensal","Acumulado"],
                 default="Mensal", key=f"vinc_btn_{prog}"
@@ -979,18 +940,7 @@ if df_f_raw is not None and df_r is not None:
                                   barmode='group', text_auto='.2s',
                                   color_discrete_map={'Receita':COR_PROG[prog],'Despesa (Liquidado)':COR_DESP_V},
                                   category_orders={"Mês":ORDEM_MESES})
-                fig_vinc.update_traces(
-                    selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
-                    hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
-                                   "Programa: "+prog+"<br>Tipo: %{data.name}<br>"
-                                   "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"))
-                fig_vinc.update_layout(
-                    separators=",.", yaxis=dict(showticklabels=False, title=None),
-                    xaxis_title=None, showlegend=True,
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.30,
-                                xanchor="center", x=0.5), height=380)
-
-            else:  # ACUMULADO — ALTERAÇÃO 11: barras mais próximas (bargap menor)
+            else:
                 rec_acum = soma_vinc(df_prog_r, meses_disponiveis)
                 fig_vinc = go.Figure()
                 fig_vinc.add_trace(go.Bar(
@@ -1009,13 +959,21 @@ if df_f_raw is not None and df_r is not None:
                 ))
                 fig_vinc.update_layout(
                     separators=",.", barmode='group',
-                    bargap=0.15,       # reduz espaço entre grupos de barras
-                    bargroupgap=0.05,  # reduz espaço entre barras do mesmo grupo
+                    bargap=0.15, bargroupgap=0.05,
                     yaxis=dict(showticklabels=False, title=None),
                     xaxis_title=None, showlegend=True, hoverlabel=HOVER_STYLE,
                     legend=dict(orientation="h", yanchor="bottom", y=-0.30,
                                 xanchor="center", x=0.5), height=380)
 
+            fig_vinc.update_traces(selector=dict(type='bar'), textposition='outside',
+                hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
+                               "Programa: "+prog+"<br>Tipo: %{data.name}<br>"
+                               "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"),
+                hoverlabel=HOVER_STYLE)
+            fig_vinc.update_layout(separators=",.", yaxis=dict(showticklabels=False,title=None),
+                                   xaxis_title=None, showlegend=True,
+                                   legend=dict(orientation="h",yanchor="bottom",y=-0.30,
+                                               xanchor="center",x=0.5), height=380)
             st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
             st.markdown("---")
 
