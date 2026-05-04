@@ -1243,7 +1243,7 @@ if df_f_raw is not None and df_r is not None:
         )
         fig_folha_mensal.update_layout(
             separators=",.", yaxis=dict(showticklabels=False), showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.20, xanchor="center", x=0.5),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
             height=400,
         )
         st.plotly_chart(fig_folha_mensal, use_container_width=True, config=CONFIG_PT)
