@@ -855,8 +855,9 @@ if df_f_raw is not None and df_r is not None:
                 category_orders={"Mês":ORDEM_MESES}
             )
             fig_meta.update_traces(
-                texttemplate="%{y:,.0f}",
-                textposition='outside',
+                texttemplate="R$ %{y:,.0f}",
+                textposition='inside',
+                insidetextanchor='middle',
                 hovertemplate=(
                     "<span style='color:white;'>"
                     "<b>%{x} — %{data.name}</b><br>"
@@ -986,9 +987,105 @@ if df_f_raw is not None and df_r is not None:
                     unsafe_allow_html=True)
         st.markdown("---")
 
-        st.markdown("""
-        > 📌 **Seção em desenvolvimento.** 
-        """)
+        # ── Colunas de liquidado disponíveis no período ───────────────────────
+        liq_cols = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro']
+                    if f"{m}_Liquidado" in df_f_raw.columns]
+
+        # Capital: Obras e Instalações + Equipamentos e Materiais Permanentes
+        # Custeio: todos os demais elementos
+        CAPITAL_ELEMENTOS = ['Obras e Instalações', 'Equipamentos e Materiais Permanentes']
+        df_macro = df_f_raw.copy()
+        df_macro['Natureza'] = df_macro['Elemento'].apply(
+            lambda x: 'Capital' if str(x).strip() in CAPITAL_ELEMENTOS else 'Custeio'
+        )
+
+        total_capital = df_macro[df_macro['Natureza']=='Capital'][liq_cols].sum().sum()
+        total_custeio = df_macro[df_macro['Natureza']=='Custeio'][liq_cols].sum().sum()
+        total_macro   = total_capital + total_custeio
+        orcado_total  = df_macro['Orçado'].sum()
+
+        # Cards superiores
+        m1, m2, m3 = st.columns(3)
+        with m1: st.metric("Total Liquidado (Jan–Fev)", formar_real(total_macro))
+        with m2: st.metric("Capital Liquidado", formar_real(total_capital),
+                           delta=f"{total_capital/total_macro*100:.1f}% do total" if total_macro>0 else "—",
+                           delta_color="off")
+        with m3: st.metric("Custeio Liquidado", formar_real(total_custeio),
+                           delta=f"{total_custeio/total_macro*100:.1f}% do total" if total_macro>0 else "—",
+                           delta_color="off")
+        st.markdown("---")
+
+        # ═════════════════════════════════════════════════════════════════════
+        # GRÁFICO 1 — Pizza Capital x Custeio
+        # Capital  = Obras e Instalações + Equipamentos e Materiais Permanentes
+        # Custeio  = todos os demais elementos
+        # ═════════════════════════════════════════════════════════════════════
+        st.subheader("🔹 1. Capital × Custeio (Liquidado Jan–Fev)")
+
+        df_pizza = pd.DataFrame([
+            {"Natureza": "Capital",  "Valor": total_capital},
+            {"Natureza": "Custeio",  "Valor": total_custeio},
+        ])
+        fig_macro_pizza = px.pie(
+            df_pizza, values='Valor', names='Natureza', hole=0.42,
+            color='Natureza',
+            color_discrete_map={'Capital':'#e74c3c', 'Custeio':'#1a7a4a'},
+        )
+        fig_macro_pizza.update_traces(
+            textinfo='percent+label', textposition='inside',
+            hovertemplate=(
+                "<span style='color:white;'><b>%{label}</b><br>"
+                "Valor: <b>R$ %{value:,.2f}</b><br>"
+                "Participação: <b>%{percent}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_macro_pizza.update_layout(
+            separators=",.", showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+            height=420, margin=dict(t=40, b=60),
+        )
+        _, col_pizza, _ = st.columns([1,2,1])
+        with col_pizza:
+            st.plotly_chart(fig_macro_pizza, use_container_width=True, config=CONFIG_PT)
+        st.markdown("---")
+
+        # ═════════════════════════════════════════════════════════════════════
+        # GRÁFICO 2 — Liquidado por Elemento (barras horizontais)
+        # ═════════════════════════════════════════════════════════════════════
+        st.subheader("🔹 2. Liquidado por Elemento")
+
+        df_elem = df_macro.groupby(['Elemento','Natureza'])[liq_cols].sum().reset_index()
+        df_elem['Total'] = df_elem[liq_cols].sum(axis=1)
+        df_elem = df_elem[df_elem['Total']>0].sort_values('Total', ascending=True)
+
+        fig_macro_elem = px.bar(
+            df_elem, x='Total', y='Elemento', orientation='h',
+            color='Natureza',
+            color_discrete_map={'Capital':'#e74c3c', 'Custeio':'#1a7a4a'},
+            text='Total',
+        )
+        fig_macro_elem.update_traces(
+            texttemplate="R$ %{x:,.0f}",
+            textposition='outside',
+            hovertemplate=(
+                "<span style='color:white;'><b>%{y}</b><br>"
+                "Natureza: %{data.name}<br>"
+                "Liquidado: <b>R$ %{x:,.2f}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_macro_elem.update_layout(
+            separators=",.",
+            xaxis=dict(showticklabels=False, title=None),
+            yaxis=dict(title=None), showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+            height=500, margin=dict(r=200),
+        )
+        st.plotly_chart(fig_macro_elem, use_container_width=True, config=CONFIG_PT)
+
+    # =========================================================================
+    # SETOR FOLHA DE PAGAMENTO
     # =========================================================================
     # SETOR FOLHA DE PAGAMENTO
     # ─── Seção em desenvolvimento — adicionar arquivo de dados quando disponível
@@ -998,10 +1095,158 @@ if df_f_raw is not None and df_r is not None:
                     unsafe_allow_html=True)
         st.markdown("---")
 
-        st.markdown("""
-        > 📌 **Seção em desenvolvimento.** 
-        """)
+        # ── Elementos de pessoal (folha) ─────────────────────────────────────
+        FOLHA_ELEMENTOS = [
+            'Vencimentos e Vantagens Fixas - Pessoal Civil',
+            'Obrigações Patronais',
+            'Contratação por tempo Determinado',
+            'Outras Despesas Variáveis - Pessoal Civil',
+            'Indenizações e Restituições Trabalhistas',
+            'Aposentadorias, Reserva Remunerada e Reformas',
+        ]
+        liq_cols_f = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro']
+                      if f"{m}_Liquidado" in df_f_raw.columns]
 
+        df_folha = df_f_raw[df_f_raw['Elemento'].isin(FOLHA_ELEMENTOS)].copy()
+
+        # ── Agrupamento por origem de recurso ─────────────────────────────────
+        # FUNDEB 70%      → fonte 15407
+        # FUNDEB 30%      → fonte 15403
+        # Recursos Próprios → fontes 15001 e 1500
+        def origem_fonte(f):
+            if f == '15407': return 'FUNDEB 70%'
+            if f == '15403': return 'FUNDEB 30%'
+            if f in ('15001','1500'): return 'Recursos Próprios'
+            return 'Outras Fontes'
+
+        df_folha['Origem'] = df_folha['Fonte'].apply(origem_fonte)
+
+        total_folha   = df_folha[liq_cols_f].sum().sum()
+        total_fund70  = df_folha[df_folha['Origem']=='FUNDEB 70%'][liq_cols_f].sum().sum()
+        total_fund30  = df_folha[df_folha['Origem']=='FUNDEB 30%'][liq_cols_f].sum().sum()
+        total_rp      = df_folha[df_folha['Origem']=='Recursos Próprios'][liq_cols_f].sum().sum()
+        total_outros  = df_folha[df_folha['Origem']=='Outras Fontes'][liq_cols_f].sum().sum()
+
+        # ── Cards superiores ──────────────────────────────────────────────────
+        f1, f2, f3, f4 = st.columns(4)
+        with f1: st.metric("Total Folha (Jan–Fev)", formar_real(total_folha))
+        with f2: st.metric("FUNDEB 70% (Fonte 15407)",  formar_real(total_fund70),
+                           delta=f"{total_fund70/total_folha*100:.1f}%" if total_folha>0 else "—",
+                           delta_color="off")
+        with f3: st.metric("Recursos Próprios (15001/1500)", formar_real(total_rp),
+                           delta=f"{total_rp/total_folha*100:.1f}%" if total_folha>0 else "—",
+                           delta_color="off")
+        with f4: st.metric("FUNDEB 30% (Fonte 15403)", formar_real(total_fund30),
+                           delta=f"{total_fund30/total_folha*100:.1f}%" if total_folha>0 else "—",
+                           delta_color="off")
+        st.markdown("---")
+
+        # ═════════════════════════════════════════════════════════════════════
+        # GRÁFICO 1 — Pizza: Origem dos recursos da folha
+        # ═════════════════════════════════════════════════════════════════════
+        st.subheader("🔹 1. Origem dos Recursos — Folha de Pagamento")
+
+        df_orig = (df_folha.groupby('Origem')[liq_cols_f].sum()
+                   .sum(axis=1).reset_index().rename(columns={0:'Valor'}))
+        df_orig = df_orig[df_orig['Valor']>0]
+
+        COR_ORIGEM = {
+            'FUNDEB 70%':       '#4a0000',
+            'FUNDEB 30%':       '#ff1744',
+            'Recursos Próprios':'#1a7a4a',
+            'Outras Fontes':    '#888888',
+        }
+        fig_folha_pizza = px.pie(
+            df_orig, values='Valor', names='Origem', hole=0.42,
+            color='Origem', color_discrete_map=COR_ORIGEM,
+        )
+        fig_folha_pizza.update_traces(
+            textinfo='percent+label', textposition='inside',
+            hovertemplate=(
+                "<span style='color:white;'><b>%{label}</b><br>"
+                "Valor: <b>R$ %{value:,.2f}</b><br>"
+                "Participação: <b>%{percent}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_folha_pizza.update_layout(
+            separators=",.", showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+            height=420, margin=dict(t=40, b=60),
+        )
+        _, col_fpizza, _ = st.columns([1,2,1])
+        with col_fpizza:
+            st.plotly_chart(fig_folha_pizza, use_container_width=True, config=CONFIG_PT)
+        st.markdown("---")
+
+        # ═════════════════════════════════════════════════════════════════════
+        # GRÁFICO 2 — Barras: Liquidado por Elemento da Folha, colorido por Origem
+        # ═════════════════════════════════════════════════════════════════════
+        st.subheader("🔹 2. Liquidado por Elemento da Folha")
+
+        df_elem_f = df_folha.groupby(['Elemento','Origem'])[liq_cols_f].sum().reset_index()
+        df_elem_f['Total'] = df_elem_f[liq_cols_f].sum(axis=1)
+        df_elem_f = df_elem_f[df_elem_f['Total']>0].sort_values('Total', ascending=True)
+
+        fig_folha_elem = px.bar(
+            df_elem_f, x='Total', y='Elemento', orientation='h',
+            color='Origem', color_discrete_map=COR_ORIGEM,
+            text='Total', barmode='stack',
+        )
+        fig_folha_elem.update_traces(
+            texttemplate="R$ %{x:,.0f}",
+            textposition='inside', insidetextanchor='middle',
+            hovertemplate=(
+                "<span style='color:white;'><b>%{y}</b><br>"
+                "Origem: %{data.name}<br>"
+                "Liquidado: <b>R$ %{x:,.2f}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_folha_elem.update_layout(
+            separators=",.",
+            xaxis=dict(showticklabels=False, title=None),
+            yaxis=dict(title=None), showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+            height=480, margin=dict(r=150),
+        )
+        st.plotly_chart(fig_folha_elem, use_container_width=True, config=CONFIG_PT)
+        st.markdown("---")
+
+        # ═════════════════════════════════════════════════════════════════════
+        # GRÁFICO 3 — Comparativo Mensal da Folha (Jan x Fev)
+        # ═════════════════════════════════════════════════════════════════════
+        st.subheader("🔹 3. Evolução Mensal da Folha")
+
+        dados_mensal_f = []
+        for m in ['Janeiro','Fevereiro']:
+            col = f"{m}_Liquidado"
+            if col not in df_folha.columns: continue
+            for orig in df_folha['Origem'].unique():
+                v = df_folha[df_folha['Origem']==orig][col].sum()
+                dados_mensal_f.append({"Mês":m,"Origem":orig,"Valor":v})
+        df_mensal_f = pd.DataFrame(dados_mensal_f)
+        df_mensal_f = df_mensal_f[df_mensal_f['Valor']>0]
+
+        fig_folha_mensal = px.bar(
+            df_mensal_f, x='Mês', y='Valor', color='Origem',
+            barmode='stack', text_auto=False,
+            color_discrete_map=COR_ORIGEM,
+            category_orders={"Mês":ORDEM_MESES},
+        )
+        fig_folha_mensal.update_traces(
+            hovertemplate=(
+                "<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
+                "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_folha_mensal.update_layout(
+            separators=",.", yaxis=dict(showticklabels=False), showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.20, xanchor="center", x=0.5),
+            height=400,
+        )
+        st.plotly_chart(fig_folha_mensal, use_container_width=True, config=CONFIG_PT)
     # ── Relatório Geral de Fichas (todos os setores) ──────────────────────────
     st.markdown("### 📋 Relatório Geral de Fichas")
     df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(
