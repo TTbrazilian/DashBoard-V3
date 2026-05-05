@@ -100,10 +100,41 @@ def abreviar_extremo(nome):
     return n[:12]
 
 def buscar_arquivo(nome):
-    caminhos = [nome, os.path.join("..",nome), os.path.join("pages",nome),
-                os.path.join(os.path.dirname(__file__),"..",nome)]
-    for p in caminhos:
-        if os.path.exists(p): return p
+    """Busca o arquivo tentando variantes do nome (com/sem acento, espaços/underscores).
+    Necessário porque 'São José da Barra_R.csv' pode estar gravado como
+    'São Jose da Barra_R.csv' (sem acento em José) dependendo do sistema de arquivos.
+    """
+    import glob
+    # Variantes: original, sem acento em José, com underscores, combinações
+    variantes = [nome]
+    if 'José' in nome:
+        variantes.append(nome.replace('José', 'Jose'))
+    if 'Jose' in nome and 'José' not in nome:
+        variantes.append(nome.replace('Jose', 'José'))
+    # Também tenta com underscores no lugar de espaços
+    for v in list(variantes):
+        variantes.append(v.replace(' ', '_'))
+
+    base_dirs = [
+        "",
+        "..",
+        "pages",
+        os.path.dirname(__file__) if "__file__" in dir() else "",
+        os.path.join(os.path.dirname(__file__) if "__file__" in dir() else "", ".."),
+    ]
+    for v in variantes:
+        for d in base_dirs:
+            p = os.path.join(d, v) if d else v
+            if os.path.exists(p):
+                return p
+        # Tenta glob para pegar qualquer variante restante na mesma pasta
+        pasta = os.path.dirname(v)
+        base  = os.path.basename(v)
+        if pasta:
+            padrao = os.path.join(pasta, base.replace('José','*').replace('Jose','*'))
+            achados = glob.glob(padrao)
+            if achados:
+                return achados[0]
     return None
 
 def soma(df, cols):
