@@ -5,6 +5,7 @@ import plotly.io as pio
 import os
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
+from utils_ig2p import substituir_home_por_logo
 
 # ── CONFIGURAÇÃO DA PÁGINA ────────────────────────────────────────────────────
 st.set_page_config(page_title="São José da Barra - Gestão Educação", layout="wide")
@@ -213,6 +214,7 @@ if df_f_raw is not None and df_r is not None:
 
     # ── FILTRO DA BARRA LATERAL (JS — CSS :contains não suportado) ────────────
     components.html("""
+                    
         <script>
         (function() {
             function esconderSaude() {
@@ -230,6 +232,15 @@ if df_f_raw is not None and df_r is not None:
             setTimeout(esconderSaude, 600);
             setTimeout(esconderSaude, 1200);
         })();
+                    for label, key in [("FUNDEB","FUNDEB"), ...]:
+        if st.sidebar.button(label, use_container_width=True):
+            st.session_state.setor = key
+
+    substituir_home_por_logo()   # ← ADICIONAR AQUI
+
+    components.html("""          # bloco que já existe (oculta Saúde/Educação)
+        
+    """, height=0)
         </script>
     """, height=0)
 
