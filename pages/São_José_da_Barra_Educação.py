@@ -308,9 +308,13 @@ if df_f_raw is not None and df_r is not None:
         p1, p2, p3 = st.columns(3)
         with p1: st.metric("Previsão Receitas (Orçamento Município)",
                             formar_real(tot_prev_municipio))
-        with p2: st.metric("Previsão de Receitas (Port. Intermin. nº 14 de 29 dez 2025)",
+        with p2: st.metric("Previsão de Receitas (Portaria Interministerial MEC/MF Nº 5 de Abril de 2026)",
                             formar_real(tot_prev_portaria))
-        with p3: st.metric("Atualização Quadrimestral", "—")
+        # Atualização Quadrimestral lida diretamente da base de dados
+        _val_quad = df_r_fundeb['Atualização Quadrimestral'].apply(
+            lambda v: limpar_valor(v)
+        ).sum() if "Atualização Quadrimestral" in df_r_fundeb.columns else 0.0
+        with p3: st.metric("Atualização Quadrimestral", formar_real(_val_quad) if _val_quad > 0 else "—")
         st.markdown("---")
 
         # ═════════════════════════════════════════════════════════════════════
@@ -649,8 +653,14 @@ if df_f_raw is not None and df_r is not None:
                                  (df_df_raw['Tipo']==fase_despesa)].copy()
 
         # SJB: 15001 Liquidado = R$ 107.458,90 | Esforço = R$ 1.738.856,40
+        # Descontos obrigatórios do esforço (conforme apuração):
+        #   R$ 162.570,10 — Receitas FUNDEB não Utilizadas
+        #   R$ 230.919,33 — Superávit de Anos Anteriores
+        _desconto_fundeb_nao_util = 162570.10
+        _desconto_superavit_ant   = 230919.33
+        _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
-        esforco_total    = total_desp_15001 + tot_deducoes
+        esforco_total    = max(0.0, total_desp_15001 + tot_deducoes - _total_descontos_25)
         perc_25          = (esforco_total/tot_rec_base*100) if tot_rec_base>0 else 0.0
         saldo_nec_25     = max(0.0, meta_25_valor - esforco_total)
 
@@ -871,6 +881,14 @@ if df_f_raw is not None and df_r is not None:
                 fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
                     text=f"⚠️ Outras fontes (anos ant.): {formar_real(val_outras_fontes)}",
                     showarrow=False, font=dict(color="#aaaaaa",size=11))
+            # Exibir descontos aplicados no esforço
+            fig_meta.add_annotation(
+                x="Aplicação Total", y=esforco_total*0.50,
+                text=(f"🔻 Descontos aplicados:<br>"
+                      f"Rec. FUNDEB não util.: {formar_real(_desconto_fundeb_nao_util)}<br>"
+                      f"Superávit anos ant.: {formar_real(_desconto_superavit_ant)}<br>"
+                      f"Total descontado: {formar_real(_total_descontos_25)}"),
+                showarrow=False, font=dict(color="#aaaaaa",size=10), align='left')
             fig_meta.update_layout(separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
                                    yaxis=dict(showticklabels=False), showlegend=True,
                                    legend=dict(orientation="h",yanchor="bottom",y=-0.20,
