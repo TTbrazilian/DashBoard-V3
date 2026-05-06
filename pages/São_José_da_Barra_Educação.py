@@ -393,12 +393,15 @@ if df_f_raw is not None and df_r is not None:
                     show = label_desp not in legendas_usadas
                     legendas_usadas.add(label_desp)
                     prop = f"{val/tot_desp_m*100:.1f}%" if tot_desp_m>0 else "—"
+                    # FUNDEB 30% tem barra menor: texto fora para garantir visibilidade
+                    # FUNDEB 30% tem barra pequena → texto fora para garantir visibilidade
                     fig_rd.add_trace(go.Bar(
                         name=label_desp, x=[[m],["Despesas"]], y=[val],
                         marker_color=COR_DESP[label_desp],
                         legendgroup=label_desp, showlegend=show,
                         text=formar_real(val) if val>0 else "",
-                        textposition='inside', insidetextanchor='middle',
+                        textposition='outside' if fonte_cod=='15403' else 'inside',
+                        insidetextanchor='middle',
                         customdata=[[fonte_cod,"Liquidado – Ano Vigente",prop,
                                      formar_real(val),formar_real(tot_desp_m),prop,m]],
                         hovertemplate=(
@@ -439,12 +442,14 @@ if df_f_raw is not None and df_r is not None:
                 val = soma(df_df_fundeb[(df_df_fundeb['Fonte']==fonte_cod) &
                                         (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
                 prop = f"{val/tot_desp_vigente*100:.1f}%" if tot_desp_vigente>0 else "—"
+                # FUNDEB 30% tem barra pequena → texto fora para garantir visibilidade
                 fig_rd.add_trace(go.Bar(
                     name=label_desp, x=[["Acumulado"],["Despesas"]], y=[val],
                     marker_color=COR_DESP[label_desp],
                     legendgroup=label_desp, showlegend=True,
                     text=formar_real(val) if val>0 else "",
-                    textposition='inside', insidetextanchor='middle',
+                    textposition='outside' if fonte_cod=='15403' else 'inside',
+                    insidetextanchor='middle',
                     customdata=[[fonte_cod,"Liquidado – Ano Vigente",prop,
                                  formar_real(val),formar_real(tot_desp_vigente),prop]],
                     hovertemplate=(
