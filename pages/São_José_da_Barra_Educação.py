@@ -310,11 +310,27 @@ if df_f_raw is not None and df_r is not None:
                             formar_real(tot_prev_municipio))
         with p2: st.metric("Previsão de Receitas (Portaria Interministerial MEC/MF Nº 5 de Abril de 2026)",
                             formar_real(tot_prev_portaria))
-        # Atualização Quadrimestral lida diretamente da base de dados
+        # Atualização Quadrimestral e % lidos diretamente da base de dados
         _val_quad = df_r_fundeb['Atualização Quadrimestral'].apply(
             lambda v: limpar_valor(v)
-        ).sum() if "Atualização Quadrimestral" in df_r_fundeb.columns else 0.0
-        with p3: st.metric("Atualização Quadrimestral", formar_real(_val_quad) if _val_quad > 0 else "—")
+        ).sum() if 'Atualização Quadrimestral' in df_r_fundeb.columns else 0.0
+        # Ler e parsear % Atualização (ex: '-1,10%' → -1.10)
+        def _parse_perc_quad(v):
+            try:
+                s = str(v).replace('%','').replace(',','.').strip()
+                return float(s)
+            except: return None
+        _perc_quad = None
+        if '% Atualização' in df_r_fundeb.columns:
+            _vals_p = df_r_fundeb['% Atualização'].apply(_parse_perc_quad).dropna()
+            if len(_vals_p) > 0: _perc_quad = _vals_p.iloc[0]
+        _delta_quad = f"{_perc_quad:.2f}%" if _perc_quad is not None else None
+        with p3: st.metric(
+            "Atualização Quadrimestral",
+            formar_real(_val_quad) if _val_quad > 0 else "—",
+            delta=_delta_quad,
+            delta_color="normal"
+        )
         st.markdown("---")
 
         # ═════════════════════════════════════════════════════════════════════
