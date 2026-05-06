@@ -1175,13 +1175,15 @@ if df_f_raw is not None and df_r is not None:
                     unsafe_allow_html=True)
         st.markdown("---")
 
-        # SJB: 5 elementos (Aposentadorias não tem liquidação neste município no período)
+        # SJB: 6 elementos (inclui Auxílio-alimentação / vale alimentação)
+        # Aposentadorias não têm liquidação neste município no período
         FOLHA_ELEMENTOS = [
             'Vencimentos e Vantagens Fixas - Pessoal Civil',
             'Obrigações Patronais',
             'Contratação por tempo Determinado',
             'Outras Despesas Variáveis - Pessoal Civil',
             'Indenizações e Restituições Trabalhistas',
+            'Auxílio-alimentação',
         ]
         liq_cols_f = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro']
                       if f"{m}_Liquidado" in df_f_raw.columns]
