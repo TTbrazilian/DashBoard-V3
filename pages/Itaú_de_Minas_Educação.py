@@ -57,7 +57,8 @@ if 'setor' not in st.session_state:
 COR_REC = {
     'Principal':   '#1a7a4a',
     'Rendimentos': '#0d47a1',
-    'VAAR/VAAT':   '#69f0ae',
+    'VAAT':        '#69f0ae',
+    'VAAR':        '#b2dfdb',
     'ETI':         '#40c4ff',
 }
 COR_DESP = {
@@ -269,9 +270,11 @@ if df_f_raw is not None and df_r is not None:
 
         def cat_receita(desc):
             d = str(desc).upper().strip()
-            if 'VAAR' in d or 'VAAT' in d:             return 'VAAR/VAAT'
-            if 'ETI'  in d or 'TEMPO INTEGRAL' in d:   return 'ETI'
-            if 'APLICAÇÃO' in d or 'RENDIMENTOS' in d: return 'Rendimentos'
+            # VAAR e VAAT separados: apenas VAAT compõe a base ETI
+            if 'VAAT' in d:                              return 'VAAT'
+            if 'VAAR' in d:                              return 'VAAR'
+            if 'ETI'  in d or 'TEMPO INTEGRAL' in d:    return 'ETI'
+            if 'APLICAÇÃO' in d or 'RENDIMENTOS' in d:  return 'Rendimentos'
             return 'Principal'
 
         df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
@@ -571,22 +574,31 @@ if df_f_raw is not None and df_r is not None:
         st.subheader("🔹 3. Percentual Tempo Integral")
 
         meta_eti_perc = 4.0
-        val_meta_eti  = base_indice_70 * (meta_eti_perc/100)
+        # Base ETI = Principal + Rendimentos + VAAT (VAAR e ETI não entram)
+        _base_eti = soma(
+            df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal','Rendimentos','VAAT'])],
+            meses_disponiveis
+        )
+        val_meta_eti = _base_eti * (meta_eti_perc/100)
 
         e1, e2 = st.columns(2)
-        with e1: st.metric("Total Receitas FUNDEB (período)", formar_real(tot_rec_periodo))
-        with e2: st.metric(f"Equivalente a {meta_eti_perc:.0f}% da Receita Base",
+        with e1: st.metric(
+            "Base para Cálculo ETI (Principal + Rendimentos + VAAT)",
+            formar_real(_base_eti)
+        )
+        with e2: st.metric(f"Meta {meta_eti_perc:.0f}% (Referência ETI)",
                             formar_real(val_meta_eti))
 
         fig_eti = go.Figure()
         fig_eti.add_trace(go.Bar(
-            x=["Receita Base FUNDEB"], y=[base_indice_70],
-            name="Receita Base", marker_color="#003366",
-            text=[formar_real(base_indice_70)],
+            x=["Base ETI\n(Principal + Rend. + VAAT)"], y=[_base_eti],
+            name="Base ETI", marker_color="#003366",
+            text=[formar_real(_base_eti)],
             textposition='inside', insidetextanchor='middle',
-            hovertemplate=("<span style='color:white;'><b>Receita Base FUNDEB</b><br>"
-                           "Principal + Rendimentos<br>"
-                           "Valor: <b>"+formar_real(base_indice_70)+"</b></span><extra></extra>"),
+            hovertemplate=("<span style='color:white;'><b>Base de Cálculo ETI</b><br>"
+                           "Principal + Rendimentos + VAAT<br>"
+                           "(VAAR e ETI não entram no cálculo)<br>"
+                           "Valor: <b>"+formar_real(_base_eti)+"</b></span><extra></extra>"),
         ))
         fig_eti.add_hline(
             y=val_meta_eti, line_dash="dot", line_color="#f39c12", line_width=2,
@@ -684,11 +696,8 @@ if df_f_raw is not None and df_r is not None:
         perc_25          = (esforco_total/tot_rec_base*100) if tot_rec_base>0 else 0.0
         saldo_nec_25     = max(0.0, meta_25_valor - esforco_total)
 
-        # Fonte 1500 (anos anteriores): R$ 170.615,35
-        df_15000_outras = df_df_raw[
-            df_df_raw['Fonte'].str.match(r'^150\d*$', na=False) &
-            (df_df_raw['Fonte']!='15001') & (df_df_raw['Tipo']=='Liquidado')].copy()
-        val_outras_fontes = df_15000_outras[meses_disponiveis].sum().sum()
+        # ITM: Outras fontes (anos anteriores) zeradas a pedido do município
+        val_outras_fontes = 0.0
 
         st.markdown("##### Previsões e Arrecadação")
         c1, c2, c3 = st.columns(3)
