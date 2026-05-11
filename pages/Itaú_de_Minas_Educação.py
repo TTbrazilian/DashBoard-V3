@@ -1176,7 +1176,7 @@ if df_f_raw is not None and df_r is not None:
     # SETOR FOLHA DE PAGAMENTO
     # ITM: Total = R$ 3.384.570,33 | FUNDEB 70% = R$ 2.846.398,71
     #      FUNDEB 30% = R$ 96.370,85 | RP = R$ 441.800,77
-    # Elementos ITM: sem Aposentadorias (não há liquidação no período)
+    # Elementos ITM: sem Aposentadorias (não há liquidado no período)
     # =========================================================================
     elif st.session_state.setor == 'Folha de Pagamento':
         st.markdown("<h1 style='text-align:left;'>📖 Itaú de Minas — Folha de Pagamento</h1>",
@@ -1184,7 +1184,7 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         # ITM: 6 elementos (inclui Auxílio-alimentação / vale alimentação)
-        # Aposentadorias não têm liquidação neste município no período
+        # Aposentadorias não têm liquidado neste município no período
         FOLHA_ELEMENTOS = [
             'Vencimentos e Vantagens Fixas - Pessoal Civil',
             'Obrigações Patronais',
