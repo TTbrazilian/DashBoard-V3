@@ -342,14 +342,18 @@ st.markdown('<p class="sector-label">Selecione o Setor</p>', unsafe_allow_html=T
 # A âncora <span id="ig2p-sector-anchor"> é injetada dentro da col_edu.
 # Ela é invisível e serve apenas como marcador CSS único para :has().
 
+# ── 11. CARD-BUTTONS DOS SETORES ─────────────────────────────────────────────
+
 _, col_edu, _gap, col_sau, _ = st.columns([2.2, 1.4, 0.12, 1.4, 2.2])
 
 with col_edu:
-    # Âncora invisível — identifica este HBlock como o "setor row"
-    st.markdown(f'<span id="{ANCHOR}" style="display:none"></span>', unsafe_allow_html=True)
+    # 1º: O botão (para alinhar com o topo da coluna ao lado)
     if st.button("Educação", key="btn_educacao", use_container_width=True):
         st.session_state["setor_ativo"] = "Educação"
         st.rerun()
+        
+    # 2º: A âncora invisível DEPOIS do botão
+    st.markdown(f'<span id="{ANCHOR}" style="display:none"></span>', unsafe_allow_html=True)
 
 with col_sau:
     if st.button("Saúde", key="btn_saude", use_container_width=True):
