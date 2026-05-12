@@ -26,102 +26,93 @@ if "setor_ativo" not in st.session_state:
 
 setor_escolhido = st.session_state["setor_ativo"]
 
-# ── 4. GRADE INTELIGENTE ──────────────────────────────────────────────────────
+# ── 4. GRADE SIMÉTRICA ───────────────────────────────────────────────────────
 def calcular_colunas(n: int) -> int:
-    """Retorna o número de colunas mais simétrico para n itens (máx 7)."""
     if n <= 3:
         return n
-    candidatos = range(3, 8)   # de 3 a 7 colunas
-    melhor = min(
-        candidatos,
-        key=lambda c: (
-            math.ceil(n / c) * c - n,   # espaços vazios (prioridade principal)
-            abs(math.ceil(n / c) - 2),  # preferência por ~2 linhas
-        ),
+    return min(
+        range(3, 8),
+        key=lambda c: (math.ceil(n / c) * c - n, abs(math.ceil(n / c) - 2)),
     )
-    return melhor
 
-# ── 5. SVG ICONS como data-URI ────────────────────────────────────────────────
-# Educação: chapéu de formatura (graduation cap)
-SVG_EDU = (
-    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' "
-    "fill='none' stroke='%2394A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E"
+# ── 5. ÍCONES SVG (quatro variantes: edu/sau × gray/green) ───────────────────
+def make_svg(paths: str, stroke: str) -> str:
+    """Retorna data-URI de um SVG com a cor de stroke indicada (URL-encoded)."""
+    color = stroke.replace("#", "%23")
+    return (
+        f"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' "
+        f"viewBox='0 0 24 24' fill='none' stroke='{color}' "
+        f"stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E"
+        f"{paths}%3C/svg%3E"
+    )
+
+PATHS_EDU = (
     "%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'/%3E"
     "%3Cpolyline points='6 9.5 6 16'/%3E"
     "%3Cpath d='M6 16c0 2 2.686 3.5 6 3.5s6-1.5 6-3.5V9.5'/%3E"
     "%3Cline x1='22' y1='7' x2='22' y2='13'/%3E"
-    "%3C/svg%3E"
 )
-
-# Educação (ativo): mesmo ícone em verde
-SVG_EDU_ACTIVE = (
-    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' "
-    "fill='none' stroke='%232ECC71' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E"
-    "%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'/%3E"
-    "%3Cpolyline points='6 9.5 6 16'/%3E"
-    "%3Cpath d='M6 16c0 2 2.686 3.5 6 3.5s6-1.5 6-3.5V9.5'/%3E"
-    "%3Cline x1='22' y1='7' x2='22' y2='13'/%3E"
-    "%3C/svg%3E"
-)
-
-# Saúde: cruz médica
-SVG_SAU = (
-    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' "
-    "fill='none' stroke='%2394A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E"
+PATHS_SAU = (
     "%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E"
     "%3Cline x1='12' y1='7' x2='12' y2='17'/%3E"
     "%3Cline x1='7' y1='12' x2='17' y2='12'/%3E"
-    "%3C/svg%3E"
 )
 
-# Saúde (ativo): mesmo ícone em verde
-SVG_SAU_ACTIVE = (
-    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' "
-    "fill='none' stroke='%232ECC71' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E"
-    "%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E"
-    "%3Cline x1='12' y1='7' x2='12' y2='17'/%3E"
-    "%3Cline x1='7' y1='12' x2='17' y2='12'/%3E"
-    "%3C/svg%3E"
-)
+GRAY  = "#94A3B8"
+GREEN = "#2ECC71"
 
-# ── 6. SELETORES CSS ──────────────────────────────────────────────────────────
+SVG_EDU_GRAY  = make_svg(PATHS_EDU, GRAY)
+SVG_EDU_GREEN = make_svg(PATHS_EDU, GREEN)
+SVG_SAU_GRAY  = make_svg(PATHS_SAU, GRAY)
+SVG_SAU_GREEN = make_svg(PATHS_SAU, GREEN)
+
+# ── 6. ÍCONE DOS MUNICÍPIOS depende do setor selecionado ─────────────────────
+# Municípios que aparecem em AMBOS os setores herdam o ícone do setor ativo.
+if setor_escolhido == "Educação":
+    MUNI_ICON_DEFAULT = SVG_EDU_GRAY
+    MUNI_ICON_HOVER   = SVG_EDU_GREEN
+elif setor_escolhido == "Saúde":
+    MUNI_ICON_DEFAULT = SVG_SAU_GRAY
+    MUNI_ICON_HOVER   = SVG_SAU_GREEN
+else:
+    MUNI_ICON_DEFAULT = SVG_EDU_GRAY   # fallback (não visível sem setor)
+    MUNI_ICON_HOVER   = SVG_EDU_GREEN
+
+# ── 7. SELETORES CSS ─────────────────────────────────────────────────────────
+# Primeiro stHorizontalBlock = linha dos cards de setor
+# Layout: [espaço col1 | Edu col2 | gap col3 | Sau col4 | espaço col5]
 BLOCK   = "div[data-testid='stHorizontalBlock']:first-of-type"
 EDU_BTN = f"{BLOCK} > div:nth-child(2) button"
 SAU_BTN = f"{BLOCK} > div:nth-child(4) button"
 
-# Escolhe o ícone correto conforme o estado
-ico_edu = SVG_EDU_ACTIVE if setor_escolhido == "Educação" else SVG_EDU
-ico_sau = SVG_SAU_ACTIVE if setor_escolhido == "Saúde"    else SVG_SAU
-
-# CSS do active state gerado dinamicamente
+# ── 8. ACTIVE STATE (injetado dinamicamente; vazio enquanto nenhum foi clicado)
 active_edu_css = f"""
   {EDU_BTN} {{
-    border: 1.5px solid #2ECC71 !important;
+    border: 1.5px solid {GREEN} !important;
     background: #162B1F !important;
-    box-shadow: 0 0 0 3px rgba(46,204,113,0.15),
-                0 14px 36px rgba(46,204,113,0.14) !important;
+    box-shadow: 0 0 0 3px rgba(46,204,113,0.16), 0 14px 36px rgba(46,204,113,0.14) !important;
     color: #FFFFFF !important;
   }}
   {EDU_BTN}::after {{
-    background-image: url("{SVG_EDU_ACTIVE}") !important;
+    background-image: url("{SVG_EDU_GREEN}") !important;
     background-color: rgba(46,204,113,0.12) !important;
   }}
 """ if setor_escolhido == "Educação" else ""
 
 active_sau_css = f"""
   {SAU_BTN} {{
-    border: 1.5px solid #2ECC71 !important;
+    border: 1.5px solid {GREEN} !important;
     background: #162B1F !important;
-    box-shadow: 0 0 0 3px rgba(46,204,113,0.15),
-                0 14px 36px rgba(46,204,113,0.14) !important;
+    box-shadow: 0 0 0 3px rgba(46,204,113,0.16), 0 14px 36px rgba(46,204,113,0.14) !important;
     color: #FFFFFF !important;
   }}
   {SAU_BTN}::after {{
-    background-image: url("{SVG_SAU_ACTIVE}") !important;
+    background-image: url("{SVG_SAU_GREEN}") !important;
     background-color: rgba(46,204,113,0.12) !important;
   }}
 """ if setor_escolhido == "Saúde" else ""
 
+# ── 9. CSS PRINCIPAL ──────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
@@ -132,7 +123,6 @@ st.markdown(f"""
   .stDeployButton, footer {{ display: none !important; }}
 
   .stApp {{ background-color: #0E1117 !important; }}
-
   .block-container {{
     padding-top: 0 !important;
     padding-left: 0 !important;
@@ -161,37 +151,38 @@ st.markdown(f"""
     font-size: 11px;
     letter-spacing: 2.6px;
     text-transform: uppercase;
-    margin: 0 0 18px 0;
-    opacity: 0.6;
+    margin: 0 0 18px;
+    opacity: 0.55;
   }}
 
   /* ════════════════════════════════════════
-     CARD-BUTTONS BASE
+     CARD-BUTTONS DOS SETORES  –  BASE CINZA
+     Ambos começam iguais; só muda via Python
   ════════════════════════════════════════ */
   {EDU_BTN},
   {SAU_BTN} {{
-    width:  100% !important;
+    width: 100% !important;
     height: 200px !important;
     padding: 0 !important;
 
     background: #1E293B !important;
     border: 1.5px solid rgba(148,163,184,0.12) !important;
     border-radius: 20px !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.40) !important;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.40) !important;
 
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
 
-    color: #94A3B8 !important;
+    color: #94A3B8 !important;           /* cinza — não ativo */
     font-family: 'Outfit', sans-serif !important;
     font-size: 15px !important;
     font-weight: 500 !important;
     letter-spacing: 0.3px !important;
     line-height: 1 !important;
-
     cursor: pointer !important;
+
     transition:
       border-color .22s ease,
       background   .22s ease,
@@ -206,7 +197,7 @@ st.markdown(f"""
     content: '' !important;
     display: block !important;
     order: -1 !important;
-    width:  60px !important;
+    width: 60px !important;
     height: 60px !important;
     border-radius: 14px !important;
     background-color: rgba(148,163,184,0.08) !important;
@@ -217,37 +208,45 @@ st.markdown(f"""
     transition: background-color .22s ease, background-image .22s ease !important;
   }}
 
-  {EDU_BTN}::after {{ background-image: url("{ico_edu}") !important; }}
-  {SAU_BTN}::after {{ background-image: url("{ico_sau}") !important; }}
+  /* Ícones base (cinza) */
+  {EDU_BTN}::after {{ background-image: url("{SVG_EDU_GRAY}") !important; }}
+  {SAU_BTN}::after {{ background-image: url("{SVG_SAU_GRAY}") !important; }}
 
-  /* HOVER */
+  /* Hover dos setores */
   {EDU_BTN}:hover,
   {SAU_BTN}:hover {{
-    border-color: rgba(46,204,113,0.40) !important;
+    border-color: rgba(46,204,113,0.35) !important;
     background: #1A2A20 !important;
     transform: translateY(-3px) !important;
     box-shadow: 0 10px 30px rgba(46,204,113,0.10) !important;
-    color: #FFFFFF !important;
+    color: #ffffff !important;
   }}
-  {EDU_BTN}:hover::after,
+  {EDU_BTN}:hover::after {{
+    background-image: url("{SVG_EDU_GREEN}") !important;
+    background-color: rgba(46,204,113,0.10) !important;
+  }}
   {SAU_BTN}:hover::after {{
+    background-image: url("{SVG_SAU_GREEN}") !important;
     background-color: rgba(46,204,113,0.10) !important;
   }}
 
-  /* ACTIVE (injetado dinamicamente) */
+  /* Active (injetado dinamicamente — vazio se nenhum foi clicado) */
   {active_edu_css}
   {active_sau_css}
 
-  /* ── DIVISOR ── */
-  .divider {{
-    width: 40px; height: 2px;
-    background: linear-gradient(90deg, transparent, #2ECC71, transparent);
-    margin: 0 auto 22px;
-    border-radius: 2px;
+  /* ════════════════════════════════════════
+     ANIMAÇÃO  –  fade + slide da esquerda
+  ════════════════════════════════════════ */
+  @keyframes fadeSlideIn {{
+    from {{ opacity: 0; transform: translateX(-22px); }}
+    to   {{ opacity: 1; transform: translateX(0); }}
   }}
 
-  /* ── HEADER MUNICÍPIOS ── */
+  /* Header dos municípios */
   .muni-header {{
+    animation: fadeSlideIn 0.40s ease both;
+    animation-delay: 0.05s;
+
     text-align: center;
     color: #94A3B8;
     font-family: 'Outfit', sans-serif;
@@ -258,44 +257,115 @@ st.markdown(f"""
   }}
   .muni-header strong {{ color: #2ECC71; font-weight: 600; }}
 
-  /* ── BOTÕES DE MUNICÍPIO ── */
-  div[data-testid="stHorizontalBlock"]:not(:first-of-type)
-    div[data-testid="stButton"] > button {{
+  /* Cada coluna dentro de um row de município anima com delay escalonado */
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    > div:nth-child(1)  {{ animation: fadeSlideIn 0.35s ease both; animation-delay: 0.08s; }}
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    > div:nth-child(2)  {{ animation: fadeSlideIn 0.35s ease both; animation-delay: 0.14s; }}
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    > div:nth-child(3)  {{ animation: fadeSlideIn 0.35s ease both; animation-delay: 0.20s; }}
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    > div:nth-child(4)  {{ animation: fadeSlideIn 0.35s ease both; animation-delay: 0.26s; }}
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    > div:nth-child(5)  {{ animation: fadeSlideIn 0.35s ease both; animation-delay: 0.32s; }}
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    > div:nth-child(6)  {{ animation: fadeSlideIn 0.35s ease both; animation-delay: 0.38s; }}
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    > div:nth-child(7)  {{ animation: fadeSlideIn 0.35s ease both; animation-delay: 0.44s; }}
+
+  /* ════════════════════════════════════════
+     BOTÕES DOS MUNICÍPIOS  –  card com ícone
+  ════════════════════════════════════════ */
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    div[data-testid='stButton'] > button {{
+    /* Dimensão de card */
+    width: 100% !important;
+    height: 120px !important;
+    padding: 0 !important;
+
+    /* Visual cinza base */
     background: #1E293B !important;
-    border: 1px solid rgba(148,163,184,0.10) !important;
-    border-radius: 9px !important;
+    border: 1.5px solid rgba(148,163,184,0.10) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.30) !important;
+
+    /* Flex: ícone cima, texto baixo */
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+
     color: #94A3B8 !important;
     font-family: 'Outfit', sans-serif !important;
-    font-size: 12px !important;
+    font-size: 12.5px !important;
     font-weight: 400 !important;
-    padding: 7px 4px !important;
-    height: auto !important;
-    min-height: 0 !important;
     line-height: 1.3 !important;
-    transition: all .18s ease !important;
-    box-shadow: none !important;
     white-space: normal !important;
     word-break: break-word !important;
-  }}
-  div[data-testid="stHorizontalBlock"]:not(:first-of-type)
-    div[data-testid="stButton"] > button:hover {{
-    background: #1A2A20 !important;
-    border-color: #2ECC71 !important;
-    color: #FFFFFF !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 4px 14px rgba(46,204,113,0.14) !important;
+    text-align: center !important;
+    cursor: pointer !important;
+
+    transition:
+      border-color .20s ease,
+      background   .20s ease,
+      box-shadow   .20s ease,
+      color        .20s ease,
+      transform    .16s ease !important;
   }}
 
-  /* Gap menor entre botões de municípios */
-  div[data-testid="stHorizontalBlock"]:not(:first-of-type)
-    div[data-testid="stColumn"] {{
-    padding-left:  4px !important;
-    padding-right: 4px !important;
+  /* Ícone do município via ::after — cor e símbolo dependem do setor ativo */
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    div[data-testid='stButton'] > button::after {{
+    content: '' !important;
+    display: block !important;
+    order: -1 !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 9px !important;
+    background-color: rgba(148,163,184,0.08) !important;
+    background-image: url("{MUNI_ICON_DEFAULT}") !important;
+    background-size: 58% !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    margin-bottom: 10px !important;
+    transition: background-color .20s ease, background-image .20s ease !important;
+  }}
+
+  /* Hover dos municípios */
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    div[data-testid='stButton'] > button:hover {{
+    background: #1A2A20 !important;
+    border-color: rgba(46,204,113,0.45) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 6px 20px rgba(46,204,113,0.14) !important;
+  }}
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    div[data-testid='stButton'] > button:hover::after {{
+    background-image: url("{MUNI_ICON_HOVER}") !important;
+    background-color: rgba(46,204,113,0.12) !important;
+  }}
+
+  /* Gap entre colunas dos municípios */
+  div[data-testid='stHorizontalBlock']:not(:first-of-type)
+    > div[data-testid='stColumn'] {{
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+  }}
+
+  /* ── DIVISOR ── */
+  .divider {{
+    width: 40px; height: 2px;
+    background: linear-gradient(90deg, transparent, #2ECC71, transparent);
+    margin: 0 auto 22px;
+    border-radius: 2px;
+    animation: fadeSlideIn 0.35s ease both;
+    animation-delay: 0.02s;
   }}
 </style>
 """, unsafe_allow_html=True)
 
-# ── 7. LOGO ──────────────────────────────────────────────────────────────────
+# ── 10. LOGO ─────────────────────────────────────────────────────────────────
 if logo_base64:
     st.markdown(f"""
       <div class="brand-box">
@@ -309,12 +379,13 @@ else:
         <span>Inteligência em Gestão</span>
       </div>""", unsafe_allow_html=True)
 
-# ── 8. ESPAÇAMENTO ───────────────────────────────────────────────────────────
+# ── 11. ESPAÇAMENTO ──────────────────────────────────────────────────────────
 st.markdown("<div style='height:130px'></div>", unsafe_allow_html=True)
 
-# ── 9. LABEL + CARD-BUTTONS ──────────────────────────────────────────────────
+# ── 12. LABEL + CARD-BUTTONS DE SETOR ────────────────────────────────────────
 st.markdown('<p class="sector-label">Selecione o Setor</p>', unsafe_allow_html=True)
 
+# Layout: [espaço | Educação | gap | Saúde | espaço]
 _, col_edu, col_gap, col_sau, _ = st.columns([2.2, 1.4, 0.12, 1.4, 2.2])
 
 with col_edu:
@@ -327,7 +398,7 @@ with col_sau:
         st.session_state["setor_ativo"] = "Saúde"
         st.rerun()
 
-# ── 10. GRADE DE MUNICÍPIOS ───────────────────────────────────────────────────
+# ── 13. GRADE DE MUNICÍPIOS ───────────────────────────────────────────────────
 if setor_escolhido:
     st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
     st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
@@ -335,8 +406,12 @@ if setor_escolhido:
         f'<p class="muni-header">Municípios &nbsp;·&nbsp; <strong>{setor_escolhido}</strong></p>',
         unsafe_allow_html=True
     )
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
+    # ── Definição dos municípios por setor ───────────────────────────────────
+    # Municípios presentes em ambos os setores receberão o ícone do setor ativo
+    # (garantido porque MUNI_ICON_DEFAULT/HOVER já foram definidos acima
+    #  com base em setor_escolhido — não há lógica por município individual)
     if setor_escolhido == "Educação":
         nomes = [
             "Alpinópolis", "Cássia", "Capetinga", "Claraval", "Delfinópolis",
@@ -351,7 +426,6 @@ if setor_escolhido:
 
     n_colunas = calcular_colunas(len(nomes))
 
-    # Padding lateral para centralizar a grade
     _, col_grid, _ = st.columns([0.05, 0.90, 0.05])
     with col_grid:
         cols = st.columns(n_colunas, gap="small")
