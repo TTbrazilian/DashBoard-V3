@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import base64
+import math
 
 # ── 1. CONFIGURAÇÃO DA PÁGINA ───────────────────────────────────────────────
 st.set_page_config(
@@ -25,55 +26,99 @@ if "setor_ativo" not in st.session_state:
 
 setor_escolhido = st.session_state["setor_ativo"]
 
-# ── 4. SVG ICONS como data-URI (para uso em CSS background-image) ────────────
+# ── 4. GRADE INTELIGENTE ──────────────────────────────────────────────────────
+def calcular_colunas(n: int) -> int:
+    """Retorna o número de colunas mais simétrico para n itens (máx 7)."""
+    if n <= 3:
+        return n
+    candidatos = range(3, 8)   # de 3 a 7 colunas
+    melhor = min(
+        candidatos,
+        key=lambda c: (
+            math.ceil(n / c) * c - n,   # espaços vazios (prioridade principal)
+            abs(math.ceil(n / c) - 2),  # preferência por ~2 linhas
+        ),
+    )
+    return melhor
+
+# ── 5. SVG ICONS como data-URI ────────────────────────────────────────────────
+# Educação: chapéu de formatura (graduation cap)
 SVG_EDU = (
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' "
-    "fill='none' stroke='%238FA8FF' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E"
-    "%3Cpath d='M22 10v6M2 10l10-5 10 5-10 5-10-5z'/%3E"
-    "%3Cpath d='M6 12v5c0 1.657 2.686 3 6 3s6-1.343 6-3v-5'/%3E"
+    "fill='none' stroke='%2394A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E"
+    "%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'/%3E"
+    "%3Cpolyline points='6 9.5 6 16'/%3E"
+    "%3Cpath d='M6 16c0 2 2.686 3.5 6 3.5s6-1.5 6-3.5V9.5'/%3E"
+    "%3Cline x1='22' y1='7' x2='22' y2='13'/%3E"
     "%3C/svg%3E"
 )
 
+# Educação (ativo): mesmo ícone em verde
+SVG_EDU_ACTIVE = (
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' "
+    "fill='none' stroke='%232ECC71' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E"
+    "%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'/%3E"
+    "%3Cpolyline points='6 9.5 6 16'/%3E"
+    "%3Cpath d='M6 16c0 2 2.686 3.5 6 3.5s6-1.5 6-3.5V9.5'/%3E"
+    "%3Cline x1='22' y1='7' x2='22' y2='13'/%3E"
+    "%3C/svg%3E"
+)
+
+# Saúde: cruz médica
 SVG_SAU = (
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' "
-    "fill='none' stroke='%238FA8FF' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E"
-    "%3Crect x='3' y='7' width='18' height='14' rx='2'/%3E"
-    "%3Cpath d='M8 7V5a4 4 0 018 0v2'/%3E"
-    "%3Cpath d='M12 11v6M9 14h6'/%3E"
+    "fill='none' stroke='%2394A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E"
+    "%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E"
+    "%3Cline x1='12' y1='7' x2='12' y2='17'/%3E"
+    "%3Cline x1='7' y1='12' x2='17' y2='12'/%3E"
     "%3C/svg%3E"
 )
 
-# ── 5. CSS SELETORES ─────────────────────────────────────────────────────────
-# O primeiro stHorizontalBlock da página é o seletor de setor.
-# Layout: [espaço col1 | Educação col2 | gap col3 | Saúde col4 | espaço col5]
+# Saúde (ativo): mesmo ícone em verde
+SVG_SAU_ACTIVE = (
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' "
+    "fill='none' stroke='%232ECC71' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E"
+    "%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E"
+    "%3Cline x1='12' y1='7' x2='12' y2='17'/%3E"
+    "%3Cline x1='7' y1='12' x2='17' y2='12'/%3E"
+    "%3C/svg%3E"
+)
+
+# ── 6. SELETORES CSS ──────────────────────────────────────────────────────────
 BLOCK   = "div[data-testid='stHorizontalBlock']:first-of-type"
 EDU_BTN = f"{BLOCK} > div:nth-child(2) button"
 SAU_BTN = f"{BLOCK} > div:nth-child(4) button"
 
-# CSS do estado ativo é injetado dinamicamente conforme o setor selecionado
+# Escolhe o ícone correto conforme o estado
+ico_edu = SVG_EDU_ACTIVE if setor_escolhido == "Educação" else SVG_EDU
+ico_sau = SVG_SAU_ACTIVE if setor_escolhido == "Saúde"    else SVG_SAU
+
+# CSS do active state gerado dinamicamente
 active_edu_css = f"""
   {EDU_BTN} {{
-    border: 1.5px solid #5B7BFF !important;
-    background: linear-gradient(145deg, #192150 0%, #141A3A 100%) !important;
-    box-shadow: 0 0 0 3px rgba(91,123,255,0.18),
-                0 16px 40px rgba(91,123,255,0.20) !important;
+    border: 1.5px solid #2ECC71 !important;
+    background: #162B1F !important;
+    box-shadow: 0 0 0 3px rgba(46,204,113,0.15),
+                0 14px 36px rgba(46,204,113,0.14) !important;
+    color: #FFFFFF !important;
   }}
   {EDU_BTN}::after {{
-    background-color: #1E2D6A !important;
-    filter: brightness(1.25);
+    background-image: url("{SVG_EDU_ACTIVE}") !important;
+    background-color: rgba(46,204,113,0.12) !important;
   }}
 """ if setor_escolhido == "Educação" else ""
 
 active_sau_css = f"""
   {SAU_BTN} {{
-    border: 1.5px solid #5B7BFF !important;
-    background: linear-gradient(145deg, #192150 0%, #141A3A 100%) !important;
-    box-shadow: 0 0 0 3px rgba(91,123,255,0.18),
-                0 16px 40px rgba(91,123,255,0.20) !important;
+    border: 1.5px solid #2ECC71 !important;
+    background: #162B1F !important;
+    box-shadow: 0 0 0 3px rgba(46,204,113,0.15),
+                0 14px 36px rgba(46,204,113,0.14) !important;
+    color: #FFFFFF !important;
   }}
   {SAU_BTN}::after {{
-    background-color: #1E2D6A !important;
-    filter: brightness(1.25);
+    background-image: url("{SVG_SAU_ACTIVE}") !important;
+    background-color: rgba(46,204,113,0.12) !important;
   }}
 """ if setor_escolhido == "Saúde" else ""
 
@@ -81,12 +126,12 @@ st.markdown(f"""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
 
-  /* ── RESET STREAMLIT ── */
+  /* ── RESET ── */
   [data-testid="stSidebar"],
   header[data-testid="stHeader"],
   .stDeployButton, footer {{ display: none !important; }}
 
-  .stApp {{ background-color: #0D1017 !important; }}
+  .stApp {{ background-color: #0E1117 !important; }}
 
   .block-container {{
     padding-top: 0 !important;
@@ -103,49 +148,45 @@ st.markdown(f"""
   }}
   .brand-box img  {{ width: 155px; height: auto; }}
   .brand-box span {{
-    color: rgba(255,255,255,0.50);
+    color: #94A3B8;
     font-family: 'Outfit', sans-serif;
-    font-size: 13px; margin: -3px 0 0 4px; white-space: nowrap;
+    font-size: 12.5px; margin: -3px 0 0 4px; white-space: nowrap;
   }}
 
   /* ── LABEL ACIMA DOS CARDS ── */
   .sector-label {{
     text-align: center;
-    color: #404868;
+    color: #94A3B8;
     font-family: 'Outfit', sans-serif;
-    font-size: 11.5px;
-    letter-spacing: 2.4px;
+    font-size: 11px;
+    letter-spacing: 2.6px;
     text-transform: uppercase;
-    margin: 0 0 20px 0;
+    margin: 0 0 18px 0;
+    opacity: 0.6;
   }}
 
-  /* ════════════════════════════════════════════
-     CARD-BUTTONS  –  os próprios st.button
-     estilizados como cards com ícone + label
-  ════════════════════════════════════════════ */
+  /* ════════════════════════════════════════
+     CARD-BUTTONS BASE
+  ════════════════════════════════════════ */
   {EDU_BTN},
   {SAU_BTN} {{
-    /* Dimensões do card */
     width:  100% !important;
-    height: 210px !important;
+    height: 200px !important;
     padding: 0 !important;
 
-    /* Visual base */
-    background: #111726 !important;
-    border: 1.5px solid #1C2338 !important;
-    border-radius: 22px !important;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.40) !important;
+    background: #1E293B !important;
+    border: 1.5px solid rgba(148,163,184,0.12) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.40) !important;
 
-    /* Flex: ícone em cima, texto em baixo */
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
 
-    /* Texto */
-    color: #B8C4E0 !important;
+    color: #94A3B8 !important;
     font-family: 'Outfit', sans-serif !important;
-    font-size: 16px !important;
+    font-size: 15px !important;
     font-weight: 500 !important;
     letter-spacing: 0.3px !important;
     line-height: 1 !important;
@@ -155,93 +196,106 @@ st.markdown(f"""
       border-color .22s ease,
       background   .22s ease,
       box-shadow   .22s ease,
+      color        .22s ease,
       transform    .18s ease !important;
   }}
 
-  /* Ícone como pseudo-elemento ::after (renderizado antes do texto via order) */
+  /* Ícone via ::after */
   {EDU_BTN}::after,
   {SAU_BTN}::after {{
     content: '' !important;
     display: block !important;
-    order: -1 !important;            /* sobe acima do texto */
-    width:  62px !important;
-    height: 62px !important;
-    border-radius: 15px !important;
-    background-color: #192038 !important;
-    background-size: 55% !important;
+    order: -1 !important;
+    width:  60px !important;
+    height: 60px !important;
+    border-radius: 14px !important;
+    background-color: rgba(148,163,184,0.08) !important;
+    background-size: 54% !important;
     background-position: center !important;
     background-repeat: no-repeat !important;
-    margin-bottom: 20px !important;
-    transition: background-color .22s ease !important;
+    margin-bottom: 18px !important;
+    transition: background-color .22s ease, background-image .22s ease !important;
   }}
 
-  /* Ícone específico de cada card */
-  {EDU_BTN}::after {{ background-image: url("{SVG_EDU}") !important; }}
-  {SAU_BTN}::after {{ background-image: url("{SVG_SAU}") !important; }}
+  {EDU_BTN}::after {{ background-image: url("{ico_edu}") !important; }}
+  {SAU_BTN}::after {{ background-image: url("{ico_sau}") !important; }}
 
-  /* Hover (somente para o card não ativo) */
+  /* HOVER */
   {EDU_BTN}:hover,
   {SAU_BTN}:hover {{
-    border-color: #3A4E8C !important;
-    background: #151C30 !important;
-    transform: translateY(-4px) !important;
-    box-shadow: 0 12px 36px rgba(60,80,180,0.18) !important;
+    border-color: rgba(46,204,113,0.40) !important;
+    background: #1A2A20 !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 10px 30px rgba(46,204,113,0.10) !important;
+    color: #FFFFFF !important;
   }}
   {EDU_BTN}:hover::after,
   {SAU_BTN}:hover::after {{
-    background-color: #1E2A4A !important;
+    background-color: rgba(46,204,113,0.10) !important;
   }}
 
-  /* ── ACTIVE STATE (injetado dinamicamente) ── */
+  /* ACTIVE (injetado dinamicamente) */
   {active_edu_css}
   {active_sau_css}
 
   /* ── DIVISOR ── */
   .divider {{
-    width: 48px; height: 2px;
-    background: linear-gradient(90deg, transparent, #4A6CF7, transparent);
-    margin: 0 auto 24px;
+    width: 40px; height: 2px;
+    background: linear-gradient(90deg, transparent, #2ECC71, transparent);
+    margin: 0 auto 22px;
     border-radius: 2px;
   }}
 
   /* ── HEADER MUNICÍPIOS ── */
   .muni-header {{
     text-align: center;
-    color: #7A87A8;
+    color: #94A3B8;
     font-family: 'Outfit', sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 400;
     letter-spacing: 0.4px;
     margin: 0;
   }}
-  .muni-header strong {{ color: #95AAFF; font-weight: 600; }}
+  .muni-header strong {{ color: #2ECC71; font-weight: 600; }}
 
   /* ── BOTÕES DE MUNICÍPIO ── */
   div[data-testid="stHorizontalBlock"]:not(:first-of-type)
     div[data-testid="stButton"] > button {{
-    background: #111726 !important;
-    border: 1px solid #1C2338 !important;
-    border-radius: 10px !important;
-    color: #9AAAC4 !important;
+    background: #1E293B !important;
+    border: 1px solid rgba(148,163,184,0.10) !important;
+    border-radius: 9px !important;
+    color: #94A3B8 !important;
     font-family: 'Outfit', sans-serif !important;
-    font-size: 13px !important;
+    font-size: 12px !important;
     font-weight: 400 !important;
-    padding: 10px 6px !important;
+    padding: 7px 4px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    line-height: 1.3 !important;
     transition: all .18s ease !important;
     box-shadow: none !important;
+    white-space: normal !important;
+    word-break: break-word !important;
   }}
   div[data-testid="stHorizontalBlock"]:not(:first-of-type)
     div[data-testid="stButton"] > button:hover {{
-    background: #192150 !important;
-    border-color: #5B7BFF !important;
-    color: #fff !important;
+    background: #1A2A20 !important;
+    border-color: #2ECC71 !important;
+    color: #FFFFFF !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 18px rgba(91,123,255,0.15) !important;
+    box-shadow: 0 4px 14px rgba(46,204,113,0.14) !important;
+  }}
+
+  /* Gap menor entre botões de municípios */
+  div[data-testid="stHorizontalBlock"]:not(:first-of-type)
+    div[data-testid="stColumn"] {{
+    padding-left:  4px !important;
+    padding-right: 4px !important;
   }}
 </style>
 """, unsafe_allow_html=True)
 
-# ── 6. LOGO ──────────────────────────────────────────────────────────────────
+# ── 7. LOGO ──────────────────────────────────────────────────────────────────
 if logo_base64:
     st.markdown(f"""
       <div class="brand-box">
@@ -255,13 +309,12 @@ else:
         <span>Inteligência em Gestão</span>
       </div>""", unsafe_allow_html=True)
 
-# ── 7. ESPAÇAMENTO ANTES DOS CARDS ───────────────────────────────────────────
+# ── 8. ESPAÇAMENTO ───────────────────────────────────────────────────────────
 st.markdown("<div style='height:130px'></div>", unsafe_allow_html=True)
 
-# ── 8. LABEL + CARD-BUTTONS ──────────────────────────────────────────────────
+# ── 9. LABEL + CARD-BUTTONS ──────────────────────────────────────────────────
 st.markdown('<p class="sector-label">Selecione o Setor</p>', unsafe_allow_html=True)
 
-# Layout: [espaço | Educação | gap | Saúde | espaço]
 _, col_edu, col_gap, col_sau, _ = st.columns([2.2, 1.4, 0.12, 1.4, 2.2])
 
 with col_edu:
@@ -274,9 +327,9 @@ with col_sau:
         st.session_state["setor_ativo"] = "Saúde"
         st.rerun()
 
-# ── 9. GRADE DE MUNICÍPIOS ────────────────────────────────────────────────────
+# ── 10. GRADE DE MUNICÍPIOS ───────────────────────────────────────────────────
 if setor_escolhido:
-    st.markdown("<div style='height:34px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
     st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
     st.markdown(
         f'<p class="muni-header">Municípios &nbsp;·&nbsp; <strong>{setor_escolhido}</strong></p>',
@@ -296,11 +349,14 @@ if setor_escolhido:
         nomes  = ["Alpinópolis", "Bom Jesus da Penha", "Cássia", "Delfinópolis", "Itaú de Minas"]
         suffix = "Saúde"
 
-    _, col_grid, _ = st.columns([0.1, 0.8, 0.1])
+    n_colunas = calcular_colunas(len(nomes))
+
+    # Padding lateral para centralizar a grade
+    _, col_grid, _ = st.columns([0.05, 0.90, 0.05])
     with col_grid:
-        cols = st.columns(5)
+        cols = st.columns(n_colunas, gap="small")
         for i, nome in enumerate(nomes):
-            with cols[i % 5]:
+            with cols[i % n_colunas]:
                 file_name = nome.replace(" ", "_")
                 path = f"pages/{file_name}_{suffix}.py"
                 if st.button(nome, key=f"muni_{nome}_{i}", use_container_width=True):
