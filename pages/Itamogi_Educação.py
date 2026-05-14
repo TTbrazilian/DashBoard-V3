@@ -35,7 +35,6 @@ st.markdown("""
         }
         .stButton button:focus { outline:none!important; box-shadow:none!important; }
         [data-testid="column"]  { display:flex; align-items:center; justify-content:center; }
-        /* Oculta o botão Home antes do JS carregar — evita flash do texto 'Home' */
         [data-testid="stSidebarNav"] li:first-child > a > span,
         [data-testid="stSidebarNav"] li:first-child > a > p {
             display: none !important;
@@ -189,14 +188,9 @@ if df_f_raw is not None and df_r is not None:
         if st.sidebar.button(label, use_container_width=True):
             st.session_state.setor = key
 
-    # ── FILTRO SIDEBAR: oculta Saúde + substitui Home pelo logo IG2P ─────────
-    # Os logos são lidos do disco em tempo real (PNG com fundo transparente).
-    # Modo escuro → BRANCO | Modo claro → OFICIAL
-    # O CSS acima já oculta o texto 'Home' antes do JS carregar.
     import base64 as _b64
 
     def _ler_logo(nome_arquivo):
-        """Lê PNG do diretório Logos/ do projeto (fundo transparente)."""
         candidatos = [
             f"Logos/{nome_arquivo}",
             f"../Logos/{nome_arquivo}",
@@ -272,7 +266,6 @@ if df_f_raw is not None and df_r is not None:
 
         def cat_receita(desc):
             d = str(desc).upper().strip()
-            # VAAR e VAAT separados: apenas VAAT compõe a base ETI
             if 'VAAT' in d:                              return 'VAAT'
             if 'VAAR' in d:                              return 'VAAR'
             if 'ETI'  in d or 'TEMPO INTEGRAL' in d:    return 'ETI'
@@ -283,8 +276,6 @@ if df_f_raw is not None and df_r is not None:
         df_r_fundeb['Descrição da Receita'] = df_r_fundeb['Descrição da Receita'].str.strip()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
 
-        # Itamogi: Prev Município = R$ 10.895.000,00 | Portaria = R$ 9.711.380,17
-        # Total Receitas Jan+Fev = R$ 1.813.057,12
         tot_prev_municipio = df_r_fundeb[df_r_fundeb['Subcategoria']=='Principal'
                                          ]['Orçado Receitas'].sum()
         tot_prev_portaria  = df_r_fundeb['Repasse'].sum()
@@ -292,14 +283,11 @@ if df_f_raw is not None and df_r is not None:
         tot_eti            = soma(df_r_fundeb[df_r_fundeb['Subcategoria']=='ETI'],
                                   meses_disponiveis)
 
-        # Despesas: 15407 (70%) e 15403 (30%)
-        # Itamogi: desp70 = R$ 1.804.373,88 | desp30 = R$ 0,00 | tot = R$ 1.804.373,88
         df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407','15403'])]
         df_df_fundeb = df_df_fundeb.copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(
             lambda x: 'FUNDEB 70%' if x=='15407' else 'FUNDEB 30%')
 
-        # Itamogi: base = Principal + Rendimentos (calculado da base)
         base_indice_70  = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
                                 ['Principal','Rendimentos'])], meses_disponiveis)
         desp_70_vigente = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15407') &
@@ -307,7 +295,6 @@ if df_f_raw is not None and df_r is not None:
         desp_30_vigente = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15403') &
                                 (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
         tot_desp_vigente = desp_70_vigente + desp_30_vigente
-        # Itamogi: índice 70% calculado dinamicamente da base
         perc_70_indice   = (desp_70_vigente/base_indice_70*100) if base_indice_70>0 else 0.0
 
         st.markdown("##### Previsões Orçamentárias")
@@ -316,11 +303,9 @@ if df_f_raw is not None and df_r is not None:
                             formar_real(tot_prev_municipio))
         with p2: st.metric("Previsão de Receitas (Portaria Interministerial MEC/MF Nº 5 de Abril de 2026)",
                             formar_real(tot_prev_portaria))
-        # Atualização Quadrimestral e % lidos diretamente da base de dados
         _val_quad = df_r_fundeb['Atualização Quadrimestral'].apply(
             lambda v: limpar_valor(v)
         ).sum() if 'Atualização Quadrimestral' in df_r_fundeb.columns else 0.0
-        # Ler e parsear % Atualização (ex: '-1,10%' → -1.10)
         def _parse_perc_quad(v):
             try:
                 s = str(v).replace('%','').replace(',','.').strip()
@@ -339,9 +324,7 @@ if df_f_raw is not None and df_r is not None:
         )
         st.markdown("---")
 
-        # ═════════════════════════════════════════════════════════════════════
         # GRÁFICO 1 — Receitas e Despesas FUNDEB
-        # ═════════════════════════════════════════════════════════════════════
         st.subheader("🔹 1. Receitas e Despesas FUNDEB")
 
         saldo     = tot_rec_periodo - tot_desp_vigente
@@ -399,8 +382,6 @@ if df_f_raw is not None and df_r is not None:
                     show = label_desp not in legendas_usadas
                     legendas_usadas.add(label_desp)
                     prop = f"{val/tot_desp_m*100:.1f}%" if tot_desp_m>0 else "—"
-                    # FUNDEB 30% tem barra menor: texto fora para garantir visibilidade
-                    # FUNDEB 30% tem barra pequena → texto fora para garantir visibilidade
                     fig_rd.add_trace(go.Bar(
                         name=label_desp, x=[[m],["Despesas"]], y=[val],
                         marker_color=COR_DESP[label_desp],
@@ -448,7 +429,6 @@ if df_f_raw is not None and df_r is not None:
                 val = soma(df_df_fundeb[(df_df_fundeb['Fonte']==fonte_cod) &
                                         (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
                 prop = f"{val/tot_desp_vigente*100:.1f}%" if tot_desp_vigente>0 else "—"
-                # FUNDEB 30% tem barra pequena → texto fora para garantir visibilidade
                 fig_rd.add_trace(go.Bar(
                     name=label_desp, x=[["Acumulado"],["Despesas"]], y=[val],
                     marker_color=COR_DESP[label_desp],
@@ -478,9 +458,7 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_rd, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
-        # ═════════════════════════════════════════════════════════════════════
         # GRÁFICO 2 — Índice de Aplicação em Pessoal (Mín. 70%)
-        # ═════════════════════════════════════════════════════════════════════
         st.subheader("🔹 2. Índice de Aplicação em Pessoal (Mín. 70%)")
         tipo_70 = st.segmented_control("Visualização:", ["Mensal","Acumulado"],
                                        default="Mensal", key="tipo_70_btn")
@@ -523,7 +501,7 @@ if df_f_raw is not None and df_r is not None:
                 height=440, margin=dict(b=80),
             )
 
-        else:  # Mensal — somente FUNDEB 70%
+        else:  # Mensal
             dados_70_m = []
             for m in meses_disponiveis:
                 base_m   = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
@@ -570,13 +548,10 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
-        # ═════════════════════════════════════════════════════════════════════
         # GRÁFICO 3 — Percentual Tempo Integral
-        # ═════════════════════════════════════════════════════════════════════
         st.subheader("🔹 3. Percentual Tempo Integral")
 
         meta_eti_perc = 4.0
-        # Base ETI = Principal + Rendimentos + VAAT (VAAR e ETI não entram)
         _base_eti = soma(
             df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal','Rendimentos','VAAT'])],
             meses_disponiveis
@@ -661,7 +636,6 @@ if df_f_raw is not None and df_r is not None:
                      '#00acc1','#26c6da','#43a047','#66bb6a',
                      '#80cbc4','#4dd0e1']
 
-        # Itamogi: 'Cota-Parte ' também tem espaço no final → .str.strip() garante o filtro correto
         df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos','Cota-Parte'])].copy()
         df_r_base['Descrição da Receita'] = df_r_base['Descrição da Receita'].str.strip()
         df_r_base['Abrev'] = df_r_base['Descrição da Receita'].apply(abrev_imposto)
@@ -671,11 +645,8 @@ if df_f_raw is not None and df_r is not None:
         grupos_unicos = list(df_r_grupo['Grupo'].unique())
         mapa_cores_grupos = {g: PALETA_RP[i%len(PALETA_RP)] for i,g in enumerate(grupos_unicos)}
 
-        # Itamogi: 'Dedução FUNDEB' — str.startswith('Dedução') captura corretamente
         df_r_ded = df_r[df_r['Categoria'].str.strip().str.startswith('Dedução', na=False)].copy()
 
-        # Itamogi: Prev = R$ 55.657.866,50 | Arrecadado Jan+Fev = R$ 9.747.514,93
-        # Deduções Jan+Fev = R$ 1.817.172,17
         prev_total_rp = df_r_base['Orçado Receitas'].sum()
         tot_rec_base  = obter_soma_rp(df_r_base, meses_disponiveis)
         tot_deducoes  = abs(obter_soma_rp(df_r_ded, meses_disponiveis))
@@ -687,17 +658,18 @@ if df_f_raw is not None and df_r is not None:
         df_df_15001 = df_df_raw[(df_df_raw['Fonte']=='15001') &
                                  (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        # Itamogi: 15001 Liquidado = R$ 407.136,31
-        # Descontos do esforço (preencher quando apurado pelo município):
-        _desconto_fundeb_nao_util = 0.0   # Receitas FUNDEB não Utilizadas
-        _desconto_superavit_ant   = 0.0   # Superávit de Anos Anteriores
+        # ── ITAMOGI: Desconto legal aplicado ao índice 25% ────────────────────
+        # Superávit não aplicado apurado = R$ 275.243,32
+        # (subtrai do somatório 15001 + Deduções para fechar o índice)
+        _desconto_fundeb_nao_util = 0.0         # FUNDEB Ano Anterior — não apurado
+        _desconto_superavit_ant   = 275_243.32  # Superávit não aplicado
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
+
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         esforco_total    = max(0.0, total_desp_15001 + tot_deducoes - _total_descontos_25)
         perc_25          = (esforco_total/tot_rec_base*100) if tot_rec_base>0 else 0.0
         saldo_nec_25     = max(0.0, meta_25_valor - esforco_total)
 
-        # Itamogi: Outras fontes (anos anteriores) lidas dinamicamente
         df_15000_outras = df_df_raw[
             df_df_raw['Fonte'].str.match(r'^150\d*$', na=False) &
             (df_df_raw['Fonte']!='15001') & (df_df_raw['Tipo']=='Liquidado')].copy()
@@ -873,7 +845,12 @@ if df_f_raw is not None and df_r is not None:
         if view_meta == "Acumulado":
             idx1, idx2, idx3 = st.columns(3)
             with idx1: st.metric("Receitas Base (Impostos + Cota-Parte)", formar_real(tot_rec_base))
-            with idx2: st.metric(f"Esforço Total ({fase_despesa} 15001 + Deduções)", formar_real(esforco_total))
+            with idx2: st.metric(
+                f"Esforço Líquido ({fase_despesa} 15001 + Deduções − Desconto)",
+                formar_real(esforco_total),
+                delta=f"−{formar_real(_total_descontos_25)} descontados",
+                delta_color="off"
+            )
             with idx3: metric_contabil("Índice de Aplicação (Mín. 25%)", perc_25, 25.0)
 
             prop_desp = (total_desp_15001/esforco_total*100) if esforco_total>0 else 0
@@ -911,23 +888,49 @@ if df_f_raw is not None and df_r is not None:
                                annotation_text=f"Meta 25% = {formar_real(tot_rec_base*0.25)}",
                                annotation_position="top left")
             if val_outras_fontes>0:
-                fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
+                fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.08,
                     text=f"⚠️ Outras fontes (anos ant.): {formar_real(val_outras_fontes)}",
                     showarrow=False, font=dict(color="#aaaaaa",size=11))
-            # Exibir descontos aplicados no esforço
+
+            # ── Barra visual do desconto — Superávit não aplicado ─────────────
+            fig_meta.add_trace(go.Bar(
+                x=["Desconto Legal"], y=[_desconto_superavit_ant],
+                name="Superávit Não Aplicado",
+                marker_color="#d35400",
+                text=[formar_real(_desconto_superavit_ant)],
+                textposition='inside', insidetextanchor='middle',
+                customdata=[[formar_real(_desconto_superavit_ant),"Superávit Não Aplicado"]],
+                hovertemplate=(
+                    "<span style='color:white;'><b>Desconto — %{customdata[1]}</b><br>"
+                    "Valor: <b>%{customdata[0]}</b><br>"
+                    "Subtrai do esforço exigido</span><extra></extra>"
+                ),
+            ))
+            # Linha indicando o total descontado
+            fig_meta.add_hline(
+                y=_total_descontos_25, line_dash="dot", line_color="#e67e22", line_width=1.5,
+                annotation_text=f"Desconto = {formar_real(_total_descontos_25)}",
+                annotation_position="top right",
+                annotation_font=dict(color="#e67e22", size=11),
+            )
             fig_meta.add_annotation(
-                x="Aplicação Total", y=esforco_total*0.50,
-                text=(f"🔻 Descontos aplicados:<br>"
-                      f"Rec. FUNDEB não util.: {formar_real(_desconto_fundeb_nao_util)}<br>"
-                      f"Superávit anos ant.: {formar_real(_desconto_superavit_ant)}<br>"
-                      f"Total descontado: {formar_real(_total_descontos_25)}"),
-                showarrow=False, font=dict(color="#aaaaaa",size=10), align='left')
+                x="Desconto Legal", y=_desconto_superavit_ant * 1.18,
+                text=(
+                    "<b>🔻 Desconto legal aplicado</b><br>"
+                    f"Superávit não aplicado: {formar_real(_desconto_superavit_ant)}"
+                ),
+                showarrow=True, arrowhead=2, arrowcolor="#e67e22",
+                ax=60, ay=-50,
+                font=dict(color="#e0e0e0", size=10),
+                bgcolor="rgba(40,40,40,0.85)", bordercolor="#e67e22", borderwidth=1,
+                align='left',
+            )
+
             fig_meta.update_layout(separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
                                    yaxis=dict(showticklabels=False), showlegend=True,
-                                   legend=dict(orientation="h",yanchor="bottom",y=-0.20,
-                                               xanchor="center",x=0.5), height=450)
+                                   legend=dict(orientation="h",yanchor="bottom",y=-0.25,
+                                               xanchor="center",x=0.5), height=520)
         else:
-            # Mensal — duas colunas agrupadas: Receitas | Despesas (15001 + Deduções)
             dados_meta_m = []
             for m in meses_disponiveis:
                 col_b = m if m in df_r_base.columns else None
@@ -989,9 +992,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("<h1 style='text-align:left;'>📖 Itamogi — Recursos Vinculados</h1>",
                     unsafe_allow_html=True)
 
-        # Itamogi: 1552(PNAE), 1553(PNATE), 1576(PTE), 1550(QESE)
-        # Nota: todos com liquidações no período — PNAE=R$9.632,01, PNATE=R$18.000,00,
-        # PTE=R$75.615,41, QESE=R$64.917,48
         mapa_desp = {'PNAE':['1552'],'PNATE':['1553'],'PTE':['1576'],'QESE':['1550']}
         programas = ['PNAE','PNATE','PTE','QESE']
         COR_PROG  = {'PNAE':'#1a7a4a','PNATE':'#17a589','PTE':'#2980b9','QESE':'#1565c0'}
@@ -1050,7 +1050,7 @@ if df_f_raw is not None and df_r is not None:
                     xaxis_title=None, showlegend=True,
                     legend=dict(orientation="h",yanchor="bottom",y=-0.30,
                                 xanchor="center",x=0.5), height=380)
-            else:  # Acumulado — barras próximas
+            else:
                 rec_acum = soma_vinc(df_prog_r, meses_disponiveis)
                 fig_vinc = go.Figure()
                 fig_vinc.add_trace(go.Bar(
@@ -1080,15 +1080,12 @@ if df_f_raw is not None and df_r is not None:
 
     # =========================================================================
     # SETOR VISÃO MACRO DA EDUCAÇÃO
-    # Itamogi: Capital = R$ 1.442,03 | Custeio = R$ 2.392.776,19
-    #          Total Macro = R$ 2.394.218,22
     # =========================================================================
     elif st.session_state.setor == 'Visão Macro':
         st.markdown("<h1 style='text-align:left;'>📖 Itamogi — Visão Macro da Educação</h1>",
                     unsafe_allow_html=True)
         st.markdown("---")
 
-        # liq_cols: apenas colunas '_Liquidado' existentes (ignora 'Novembro_R$ 0,00' corrompida)
         liq_cols = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro']
                     if f"{m}_Liquidado" in df_f_raw.columns]
 
@@ -1112,10 +1109,8 @@ if df_f_raw is not None and df_r is not None:
                            delta_color="off")
         st.markdown("---")
 
-        # GRÁFICO 1 — Pizza Capital x Custeio
         st.subheader("🔹 1. Capital × Custeio (Liquidado Jan–Fev)")
 
-        # Filtra apenas naturezas com valor > 0 para evitar slice vazio na pizza
         df_pizza = pd.DataFrame([
             {"Natureza": "Capital",  "Valor": total_capital},
             {"Natureza": "Custeio",  "Valor": total_custeio},
@@ -1146,7 +1141,6 @@ if df_f_raw is not None and df_r is not None:
             st.plotly_chart(fig_macro_pizza, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
-        # GRÁFICO 2 — Barras horizontais por Elemento
         st.subheader("🔹 2. Liquidado por Elemento")
 
         df_elem = df_macro.groupby(['Elemento','Natureza'])[liq_cols].sum().reset_index()
@@ -1179,17 +1173,12 @@ if df_f_raw is not None and df_r is not None:
 
     # =========================================================================
     # SETOR FOLHA DE PAGAMENTO
-    # Itamogi: Total = R$ 2.012.771,33 | FUNDEB 70% = R$ 1.804.373,88
-    #          FUNDEB 30% = R$ 0,00 | RP = R$ 208.397,45
-    # Elementos Itamogi: inclui Aposentadorias (com hífen no nome)
     # =========================================================================
     elif st.session_state.setor == 'Folha de Pagamento':
         st.markdown("<h1 style='text-align:left;'>📖 Itamogi — Folha de Pagamento</h1>",
                     unsafe_allow_html=True)
         st.markdown("---")
 
-        # Itamogi: 7 elementos (inclui Auxílio-alimentação e Aposentadorias)
-        # Aposentadorias têm elemento com hífen no início do nome
         FOLHA_ELEMENTOS = [
             'Vencimentos e Vantagens Fixas - Pessoal Civil',
             'Obrigações Patronais',
@@ -1197,7 +1186,7 @@ if df_f_raw is not None and df_r is not None:
             'Outras Despesas Variáveis - Pessoal Civil',
             'Indenizações e Restituições Trabalhistas',
             'Auxílio-alimentação',
-            '- Aposentadorias, Reserva Remunerada e Reformas',  # hífen no início
+            '- Aposentadorias, Reserva Remunerada e Reformas',
         ]
         liq_cols_f = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro']
                       if f"{m}_Liquidado" in df_f_raw.columns]
@@ -1231,7 +1220,6 @@ if df_f_raw is not None and df_r is not None:
                            delta_color="off")
         st.markdown("---")
 
-        # GRÁFICO 1 — Pizza Origem dos recursos
         st.subheader("🔹 1. Origem dos Recursos — Folha de Pagamento")
 
         df_orig = (df_folha.groupby('Origem')[liq_cols_f].sum()
@@ -1267,7 +1255,6 @@ if df_f_raw is not None and df_r is not None:
             st.plotly_chart(fig_folha_pizza, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
-        # GRÁFICO 2 — Barras por Elemento, empilhado por Origem
         st.subheader("🔹 2. Liquidado por Elemento da Folha")
 
         df_elem_f = df_folha.groupby(['Elemento','Origem'])[liq_cols_f].sum().reset_index()
@@ -1299,7 +1286,6 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_folha_elem, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
-        # GRÁFICO 3 — Evolução Mensal da Folha
         st.subheader("🔹 3. Evolução Mensal da Folha")
 
         dados_mensal_f = []
@@ -1332,7 +1318,7 @@ if df_f_raw is not None and df_r is not None:
         )
         st.plotly_chart(fig_folha_mensal, use_container_width=True, config=CONFIG_PT)
 
-    # ── Relatório Geral de Fichas (todos os setores) ──────────────────────────
+    # ── Relatório Geral de Fichas ─────────────────────────────────────────────
     st.markdown("### 📋 Relatório Geral de Fichas")
     df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(
         search_term, na=False, case=False)].copy()
