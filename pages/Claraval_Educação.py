@@ -660,9 +660,11 @@ if df_f_raw is not None and df_r is not None:
         df_df_15001 = df_df_raw[(df_df_raw['Fonte']=='15001') &
                                  (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        # Claraval: Outras fontes 150xx (anos anteriores)
-        _desconto_fundeb_nao_util = 0.0
-        _desconto_superavit_ant   = 0.0
+        # Claraval: descontos legais que reduzem o esforço exigido no índice 25%
+        # • FUNDEB Ano Anterior 10% (Rec. FUNDEB não utilizadas no exercício anterior)
+        # • Superávit não aplicado (saldo remanescente apurado)
+        _desconto_fundeb_nao_util = 78_825.97   # FUNDEB Ano Anterior 10%
+        _desconto_superavit_ant   = 91_314.62   # Superávit não aplicado
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         esforco_total    = max(0.0, total_desp_15001 + tot_deducoes - _total_descontos_25)
@@ -844,7 +846,12 @@ if df_f_raw is not None and df_r is not None:
         if view_meta == "Acumulado":
             idx1, idx2, idx3 = st.columns(3)
             with idx1: st.metric("Receitas Base (Impostos + Cota-Parte)", formar_real(tot_rec_base))
-            with idx2: st.metric(f"Esforço Total ({fase_despesa} 15001 + Deduções)", formar_real(esforco_total))
+            with idx2: st.metric(
+                f"Esforço Líquido ({fase_despesa} 15001 + Deduções − Descontos)",
+                formar_real(esforco_total),
+                delta=f"−{formar_real(_total_descontos_25)} descontados",
+                delta_color="off"
+            )
             with idx3: metric_contabil("Índice de Aplicação (Mín. 25%)", perc_25, 25.0)
 
             prop_desp = (total_desp_15001/esforco_total*100) if esforco_total>0 else 0
@@ -881,20 +888,64 @@ if df_f_raw is not None and df_r is not None:
                                annotation_text=f"Meta 25% = {formar_real(tot_rec_base*0.25)}",
                                annotation_position="top left")
             if val_outras_fontes>0:
-                fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
+                fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.08,
                     text=f"⚠️ Outras fontes (anos ant.): {formar_real(val_outras_fontes)}",
                     showarrow=False, font=dict(color="#aaaaaa",size=11))
+
+            # Barra de descontos destacada visualmente (empilhada abaixo do esforço)
+            prop_desc = (_total_descontos_25/(esforco_total+_total_descontos_25)*100) \
+                        if (esforco_total+_total_descontos_25)>0 else 0
+            fig_meta.add_trace(go.Bar(
+                x=["Descontos Legais"], y=[_desconto_fundeb_nao_util],
+                name="FUNDEB Ano Anterior 10%",
+                marker_color="#e67e22",
+                text=[f"{formar_real(_desconto_fundeb_nao_util)}"],
+                textposition='inside', insidetextanchor='middle',
+                customdata=[[formar_real(_desconto_fundeb_nao_util),"FUNDEB Ano Anterior 10%"]],
+                hovertemplate=(
+                    "<span style='color:white;'><b>Desconto — %{customdata[1]}</b><br>"
+                    "Valor: <b>%{customdata[0]}</b><br>"
+                    "Subtrai do esforço exigido</span><extra></extra>"
+                ),
+            ))
+            fig_meta.add_trace(go.Bar(
+                x=["Descontos Legais"], y=[_desconto_superavit_ant],
+                name="Superávit Não Aplicado",
+                marker_color="#d35400",
+                text=[f"{formar_real(_desconto_superavit_ant)}"],
+                textposition='inside', insidetextanchor='middle',
+                customdata=[[formar_real(_desconto_superavit_ant),"Superávit Não Aplicado"]],
+                hovertemplate=(
+                    "<span style='color:white;'><b>Desconto — %{customdata[1]}</b><br>"
+                    "Valor: <b>%{customdata[0]}</b><br>"
+                    "Subtrai do esforço exigido</span><extra></extra>"
+                ),
+            ))
+            # Linha indicando o total descontado
+            fig_meta.add_hline(
+                y=_total_descontos_25, line_dash="dot", line_color="#e67e22", line_width=1.5,
+                annotation_text=f"Total Descontado = {formar_real(_total_descontos_25)}",
+                annotation_position="top right",
+                annotation_font=dict(color="#e67e22", size=11),
+            )
             fig_meta.add_annotation(
-                x="Aplicação Total", y=esforco_total*0.50,
-                text=(f"🔻 Descontos aplicados:<br>"
-                      f"Rec. FUNDEB não util.: {formar_real(_desconto_fundeb_nao_util)}<br>"
-                      f"Superávit anos ant.: {formar_real(_desconto_superavit_ant)}<br>"
-                      f"Total descontado: {formar_real(_total_descontos_25)}"),
-                showarrow=False, font=dict(color="#aaaaaa",size=10), align='left')
+                x="Descontos Legais", y=_total_descontos_25 * 1.15,
+                text=(
+                    f"<b>🔻 Descontos legais aplicados</b><br>"
+                    f"FUNDEB Ano Anterior 10%: {formar_real(_desconto_fundeb_nao_util)}<br>"
+                    f"Superávit não aplicado: {formar_real(_desconto_superavit_ant)}<br>"
+                    f"<b>Total: {formar_real(_total_descontos_25)}</b>"
+                ),
+                showarrow=True, arrowhead=2, arrowcolor="#e67e22",
+                ax=60, ay=-60,
+                font=dict(color="#e0e0e0", size=10),
+                bgcolor="rgba(40,40,40,0.85)", bordercolor="#e67e22", borderwidth=1,
+                align='left',
+            )
             fig_meta.update_layout(separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
                                    yaxis=dict(showticklabels=False), showlegend=True,
-                                   legend=dict(orientation="h",yanchor="bottom",y=-0.20,
-                                               xanchor="center",x=0.5), height=450)
+                                   legend=dict(orientation="h",yanchor="bottom",y=-0.25,
+                                               xanchor="center",x=0.5), height=520)
         else:
             dados_meta_m = []
             for m in meses_disponiveis:
