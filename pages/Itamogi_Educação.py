@@ -288,8 +288,9 @@ if df_f_raw is not None and df_r is not None:
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(
             lambda x: 'FUNDEB 70%' if x=='15407' else 'FUNDEB 30%')
 
+        # Itamogi: base 70% = Principal + Rendimentos + VAAT (conforme legislação FUNDEB)
         base_indice_70  = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
-                                ['Principal','Rendimentos'])], meses_disponiveis)
+                                ['Principal','Rendimentos','VAAT'])], meses_disponiveis)
         desp_70_vigente = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15407') &
                                 (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
         desp_30_vigente = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15403') &
@@ -465,7 +466,7 @@ if df_f_raw is not None and df_r is not None:
 
         if tipo_70 == "Acumulado":
             a1, a2 = st.columns(2)
-            with a1: st.metric("Base de Cálculo (Principal + Rendimentos)",
+            with a1: st.metric("Base de Cálculo (Principal + Rendimentos + VAAT)",
                                 formar_real(base_indice_70))
             with a2: st.metric("Despesas FUNDEB 70% – Liquidado",
                                 formar_real(desp_70_vigente))
@@ -473,11 +474,12 @@ if df_f_raw is not None and df_r is not None:
 
             fig_70 = go.Figure()
             fig_70.add_trace(go.Bar(
-                x=["Receita Base\n(Principal + Rendimentos)"], y=[base_indice_70],
+                x=["Receita Base\n(Principal + Rendimentos + VAAT)"], y=[base_indice_70],
                 name="Receita Base", marker_color="#003366",
                 text=[formar_real(base_indice_70)],
                 textposition='inside', insidetextanchor='middle',
                 hovertemplate=("<span style='color:white;'><b>Receita Base FUNDEB</b><br>"
+                               "Principal + Rendimentos + VAAT<br>"
                                "Valor: <b>"+formar_real(base_indice_70)+"</b></span><extra></extra>"),
             ))
             fig_70.add_trace(go.Bar(
@@ -505,7 +507,7 @@ if df_f_raw is not None and df_r is not None:
             dados_70_m = []
             for m in meses_disponiveis:
                 base_m   = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
-                                    ['Principal','Rendimentos'])], [m])
+                                    ['Principal','Rendimentos','VAAT'])], [m])
                 liq_70_m = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15407') &
                                              (df_df_fundeb['Tipo']=='Liquidado')], [m])
                 perc_m   = (liq_70_m/base_m*100) if base_m>0 else 0.0
@@ -525,7 +527,7 @@ if df_f_raw is not None and df_r is not None:
             )
             df_meta_70 = pd.DataFrame([
                 {"Mês":m, "Meta 70%": soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
-                    ['Principal','Rendimentos'])],[m])*0.70}
+                    ['Principal','Rendimentos','VAAT'])],[m])*0.70}
                 for m in meses_disponiveis
             ])
             fig_70.add_trace(go.Scatter(
@@ -662,7 +664,7 @@ if df_f_raw is not None and df_r is not None:
         # Superávit não aplicado apurado = R$ 275.243,32
         # (subtrai do somatório 15001 + Deduções para fechar o índice)
         _desconto_fundeb_nao_util = 0.0         # FUNDEB Ano Anterior — não apurado
-        _desconto_superavit_ant   = 275_243.32  # Superávit não aplicado
+        _desconto_superavit_ant   = 406_861.95  # Superávit não aplicado
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
 
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
