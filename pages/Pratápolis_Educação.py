@@ -99,20 +99,17 @@ def soma(df, cols):
 
 # ── CARGA DE DADOS ────────────────────────────────────────────────────────────
 # Especificidades Pratápolis:
-# • Pratápolis_R.csv: cabeçalho real está na linha 0 dos dados (header=0 gera Unnamed).
-#   Solução: ler com header=0, usar row[0] como nomes de colunas, descartar row[0].
-#   A coluna de categoria não tem nome → renomeada para 'Categoria'.
-# • 'FUNDEB Princicipal' (typo no dado) → cat_receita classifica como 'Principal' corretamente.
+# • Pratápolis_R.csv: cabeçalho real está na linha 0 dos dados.
+#   Solução: ler com header=0, usar row[0] como nomes, descartar row[0], renomear
+#   coluna vazia para 'Categoria'. Coluna prevista é 'Orçado' (não 'Orçado Receitas').
+# • 'Atualização Quadrimestral' NÃO entra em COLS_R → limpar_valor é aplicado
+#   apenas UMA vez no bloco FUNDEB (evita o bug de double-parse que gerava 482M).
+# • 'FUNDEB Princicipal' (typo no dado) → classificado como 'Principal' corretamente.
 # • VAAT, VAAR, ETI, Rendimentos = R$ 0,00 no período Jan–Fev.
-# • Atualização Quadrimestral = R$ 4.829.817,79 | % = −1,15%.
-# • Pratápolis_DF.csv: coluna 'Empenhado' guarda o rótulo de estágio (Liquidado/Pago);
-#   os primeiros 12 registros não têm label → preenchidos como 'Empenhado'.
-#   Fonte vem da coluna 'nº'.
+# • Pratápolis_DF.csv: coluna 'Empenhado' guarda o rótulo do estágio;
+#   os primeiros registros sem label → preenchidos como 'Empenhado'. Fonte = 'nº'.
 # • FUNDEB 70% Liq = R$ 794.159,07 | FUNDEB 30% Liq = R$ 0,00
-# • RP 15001 Liq = R$ 500.442,13
-# • Capital = R$ 23.144,26 | Custeio = R$ 1.468.107,64
-# • QESE fontes: 1550 (+ 2540, 2546 presentes nas fichas)
-# • Folha: sem 'Auxílio-alimentação' nem 'Aposentadorias' no período
+# • RP 15001 Liq = R$ 500.442,13 | Capital = R$ 23.144,26 | Custeio = R$ 1.468.107,64
 @st.cache_data
 def load_all_data():
     path_f  = buscar_arquivo("zEducação/Pratápolis.csv")
@@ -134,33 +131,30 @@ def load_all_data():
     df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0','',regex=False).str.strip()
 
     # ── RECEITAS — header real está na linha 0 dos dados ─────────────────────
+    # IMPORTANTE: 'Atualização Quadrimestral' NÃO está em COLS_R para evitar
+    # double-parse (o bloco FUNDEB aplicará limpar_valor uma única vez na string bruta).
     df_r_raw = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
     df_r = df_r_raw.copy()
-    # Row 0 contém os nomes reais das colunas
     df_r.columns = df_r.iloc[0].fillna('').str.strip()
     df_r = df_r.iloc[1:].reset_index(drop=True)
-    # A coluna de categoria não tem nome → renomeia
-    cols_r = list(df_r.columns)
-    if '' in cols_r:
-        cols_r[cols_r.index('')] = 'Categoria'
-    df_r.columns = cols_r
-    COLS_R = ORDEM_MESES + ['Total','Orçado','Repasse','2025','Atualização Quadrimestral']
+    cols_list = list(df_r.columns)
+    if '' in cols_list:
+        cols_list[cols_list.index('')] = 'Categoria'
+    df_r.columns = cols_list
+    # Só converte colunas numéricas padrão — NÃO inclui 'Atualização Quadrimestral'
+    COLS_R = ORDEM_MESES + ['Total','Orçado','Repasse','2025']
     for col in df_r.columns:
         if col in COLS_R:
             df_r[col] = df_r[col].apply(limpar_valor)
 
     # ── DESPESAS POR FONTE — estágio inferido da coluna 'Empenhado' ───────────
-    # O arquivo tem três blocos: Empenhado (sem label) | Liquidado | Pago
-    # A coluna 'Empenhado' guarda o rótulo do bloco; 'nº' é a fonte.
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
     df_df = df_df.rename(columns={'Empenhado': 'Tipo', 'nº': 'Fonte'})
-    # Forward-fill rótulos de estágio
     df_df['Tipo'] = df_df['Tipo'].where(
         df_df['Tipo'].isin(['Empenhado','Liquidado','Pago'])
     ).ffill()
-    df_df['Tipo'] = df_df['Tipo'].fillna('Empenhado')   # primeiro bloco sem label
-    # Remover linhas de cabeçalho repetido
+    df_df['Tipo'] = df_df['Tipo'].fillna('Empenhado')
     df_df = df_df[~df_df['Nomenclatura'].isin(['Nomenclatura'])]
     df_df = df_df[df_df['Fonte'].notna() & (df_df['Fonte'].astype(str).str.strip() != 'nº')]
     df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0','',regex=False).str.strip()
@@ -189,7 +183,6 @@ if df_f_raw is not None and df_r is not None:
         if st.sidebar.button(label, use_container_width=True):
             st.session_state.setor = key
 
-    # ── Logo iG2P na Sidebar ──────────────────────────────────────────────────
     import base64 as _b64
 
     def _ler_logo(nome_arquivo):
@@ -274,8 +267,8 @@ if df_f_raw is not None and df_r is not None:
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
 
         # Pratápolis: Prev Município = R$ 4.700.000,00 | Portaria = R$ 4.885.877,54
-        # Quadrimestral = R$ 4.829.817,79 (−1,15%) | Receitas Jan+Fev = R$ 895.300,27
-        # Apenas 'FUNDEB Princicipal' tem arrecadação — VAAT/VAAR/ETI = R$ 0,00
+        # Quadrimestral = R$ 4.829.817,79 (−1,15%) | Jan+Fev = R$ 895.300,27
+        # Coluna orçado: 'Orçado' (sem ' Receitas')
         tot_prev_municipio = df_r_fundeb[df_r_fundeb['Subcategoria']=='Principal'
                                          ]['Orçado'].sum()
         tot_prev_portaria  = df_r_fundeb['Repasse'].sum()
@@ -285,8 +278,7 @@ if df_f_raw is not None and df_r is not None:
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(
             lambda x: 'FUNDEB 70%' if x=='15407' else 'FUNDEB 30%')
 
-        # Pratápolis: base 70% = Principal + Rendimentos + VAAT
-        # VAAT = R$ 0,00 no período, mas incluído por completude legal
+        # Base 70% = Principal + Rendimentos + VAAT (VAAT = R$ 0 no período, mas incluído)
         base_indice_70  = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
                                 ['Principal','Rendimentos','VAAT'])], meses_disponiveis)
         desp_70_vigente = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15407') &
@@ -302,20 +294,25 @@ if df_f_raw is not None and df_r is not None:
                             formar_real(tot_prev_municipio))
         with p2: st.metric("Previsão de Receitas (Portaria Interministerial MEC/MF Nº 5 de Abril de 2026)",
                             formar_real(tot_prev_portaria))
-        # Pratápolis: Atualização Quadrimestral lida da coluna correta ('Atualização Quadrimestral')
+
+        # Atualização Quadrimestral: limpar_valor aplicado UMA VEZ sobre a string bruta
+        # (a coluna NÃO foi pré-convertida em load_all_data — fix do bug de double-parse)
         _val_quad = df_r_fundeb['Atualização Quadrimestral'].apply(
             lambda v: limpar_valor(v)
         ).sum() if 'Atualização Quadrimestral' in df_r_fundeb.columns else 0.0
+
         def _parse_perc_quad(v):
             try:
                 s = str(v).replace('%','').replace(',','.').strip()
                 return float(s)
             except: return None
+
         _perc_quad = None
         if '% Atualização' in df_r_fundeb.columns:
             _vals_p = df_r_fundeb['% Atualização'].apply(_parse_perc_quad).dropna()
             if len(_vals_p) > 0: _perc_quad = _vals_p.iloc[0]
         _delta_quad = f"{_perc_quad:.2f}%" if _perc_quad is not None else None
+
         with p3: st.metric(
             "Atualização Quadrimestral",
             formar_real(_val_quad) if _val_quad > 0 else "—",
@@ -636,7 +633,6 @@ if df_f_raw is not None and df_r is not None:
                      '#00acc1','#26c6da','#43a047','#66bb6a',
                      '#80cbc4','#4dd0e1']
 
-        # Pratápolis: 'Cota-Parte ' com espaço no final → .str.strip() garante o filtro
         df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos','Cota-Parte'])].copy()
         df_r_base['Descrição da Receita'] = df_r_base['Descrição da Receita'].str.strip()
         df_r_base['Abrev'] = df_r_base['Descrição da Receita'].apply(abrev_imposto)
@@ -648,6 +644,7 @@ if df_f_raw is not None and df_r is not None:
 
         df_r_ded = df_r[df_r['Categoria'].str.strip().str.startswith('Dedução', na=False)].copy()
 
+        # Pratápolis: coluna orçado = 'Orçado' (não 'Orçado Receitas')
         prev_total_rp = df_r_base['Orçado'].sum()
         tot_rec_base  = obter_soma_rp(df_r_base, meses_disponiveis)
         tot_deducoes  = abs(obter_soma_rp(df_r_ded, meses_disponiveis))
@@ -669,6 +666,7 @@ if df_f_raw is not None and df_r is not None:
         perc_25          = (esforco_total/tot_rec_base*100) if tot_rec_base>0 else 0.0
         saldo_nec_25     = max(0.0, meta_25_valor - esforco_total)
 
+        # Outras fontes 150xx
         df_15000_outras = df_df_raw[
             df_df_raw['Fonte'].str.match(r'^150\d*$', na=False) &
             (df_df_raw['Fonte']!='15001') & (df_df_raw['Tipo']=='Liquidado')].copy()
@@ -742,7 +740,7 @@ if df_f_raw is not None and df_r is not None:
                         "</span><extra></extra>"
                     ), hoverlabel=HOVER_STYLE
                 )
-        else:  # Mensal
+        else:
             if ativo == "Acumulado Geral":
                 totais_mes = {m: df_r_base[m].sum() for m in meses_disponiveis}
                 dados_m = []
@@ -953,8 +951,7 @@ if df_f_raw is not None and df_r is not None:
     # =========================================================================
     # SETOR RECURSOS VINCULADOS
     # Pratápolis: PNAE(1552), PNATE(1553), PTE(1576), QESE(1550)
-    # PTE tem empenhado em Fev (R$ 87.300,00) mas Liquidado = R$ 0,00
-    # QESE Liq = R$ 29.444,12 (1197,96 + 28246,16)
+    # QESE Liq = R$ 29.444,12 | PTE Liq = R$ 0,00 (só empenhado)
     # =========================================================================
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align:left;'>📖 Pratápolis — Recursos Vinculados</h1>",
@@ -975,26 +972,25 @@ if df_f_raw is not None and df_r is not None:
             cols = [col_map[m.lower()] for m in meses if m.lower() in col_map]
             return df[cols].sum().sum() if cols else 0.0
 
-        # Pratápolis: 'Tranferência Programas Federais ' e 'Tranferência Programas Estaduais'
-        # com espaço no final → .str.strip() garante o filtro correto
         df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)].copy()
         st.markdown("---")
 
         for prog in programas:
             df_prog_r = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip()==prog].copy()
 
-            rep_2025     = df_prog_r['2025'].sum()    if '2025'    in df_prog_r.columns else 0
+            rep_2025     = df_prog_r['2025'].sum()    if '2025'   in df_prog_r.columns else 0
             prev_repasse = df_prog_r['Repasse'].sum() if 'Repasse' in df_prog_r.columns else 0
-            orcado_2026  = df_prog_r['Orçado'].sum()  if 'Orçado'  in df_prog_r.columns else 0
+            # Pratápolis: coluna orçado dos vinculados = 'Orçado'
+            orcado_2026  = df_prog_r['Orçado'].sum()  if 'Orçado' in df_prog_r.columns else 0
             desp_liq     = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
                                       (df_df_raw['Tipo']=='Liquidado')][meses_disponiveis].sum().sum()
 
             st.markdown(f"<h4 style='color:{COR_PROG[prog]};margin-bottom:4px;'>"
                         f"📊 Programa: {prog}</h4>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
-            with c1: st.metric("Arrecadado em 2025",       formar_real(rep_2025))
-            with c2: st.metric("Previsão de Repasse",       formar_real(prev_repasse))
-            with c3: st.metric("Orçado 2026 (Município)",   formar_real(orcado_2026))
+            with c1: st.metric("Arrecadado em 2025",     formar_real(rep_2025))
+            with c2: st.metric("Previsão de Repasse",     formar_real(prev_repasse))
+            with c3: st.metric("Orçado 2026 (Município)", formar_real(orcado_2026))
 
             tipo_vinc = st.segmented_control(
                 "Visualização:", ["Mensal","Acumulado"],
@@ -1004,8 +1000,8 @@ if df_f_raw is not None and df_r is not None:
             if tipo_vinc == "Mensal":
                 dados_m = []
                 for m in meses_disponiveis:
-                    col_r  = m if m in df_prog_r.columns  else None
-                    col_df = m if m in df_df_raw.columns  else None
+                    col_r  = m if m in df_prog_r.columns else None
+                    col_df = m if m in df_df_raw.columns else None
                     rec_m  = df_prog_r[col_r].sum() if col_r else 0.0
                     desp_m = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
                                         (df_df_raw['Tipo']=='Liquidado')][col_df].sum() if col_df else 0.0
@@ -1055,8 +1051,7 @@ if df_f_raw is not None and df_r is not None:
 
     # =========================================================================
     # SETOR VISÃO MACRO
-    # Pratápolis: Capital = R$ 23.144,26 (Obras + Equipamentos)
-    #             Custeio = R$ 1.468.107,64 | Total = R$ 1.491.251,90
+    # Pratápolis: Capital = R$ 23.144,26 | Custeio = R$ 1.468.107,64
     # =========================================================================
     elif st.session_state.setor == 'Visão Macro':
         st.markdown("<h1 style='text-align:left;'>📖 Pratápolis — Visão Macro da Educação</h1>",
@@ -1091,7 +1086,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.subheader("🔹 1. Capital × Custeio (Liquidado Jan–Fev)")
-
         df_pizza = pd.DataFrame([
             {"Natureza":"Capital","Valor":total_capital},
             {"Natureza":"Custeio","Valor":total_custeio},
@@ -1100,8 +1094,7 @@ if df_f_raw is not None and df_r is not None:
 
         fig_macro_pizza = px.pie(
             df_pizza, values='Valor', names='Natureza', hole=0.42,
-            color='Natureza',
-            color_discrete_map={'Capital':'#e74c3c','Custeio':'#1a7a4a'},
+            color='Natureza', color_discrete_map={'Capital':'#e74c3c','Custeio':'#1a7a4a'},
         )
         fig_macro_pizza.update_traces(
             textinfo='percent+label', textposition='inside',
@@ -1123,15 +1116,13 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.subheader("🔹 2. Liquidado por Elemento")
-
         df_elem = df_macro.groupby(['Elemento','Natureza'])[liq_cols].sum().reset_index()
         df_elem['Total'] = df_elem[liq_cols].sum(axis=1)
         df_elem = df_elem[df_elem['Total']>0].sort_values('Total', ascending=True)
 
         fig_macro_elem = px.bar(
             df_elem, x='Total', y='Elemento', orientation='h',
-            color='Natureza',
-            color_discrete_map={'Capital':'#e74c3c','Custeio':'#1a7a4a'},
+            color='Natureza', color_discrete_map={'Capital':'#e74c3c','Custeio':'#1a7a4a'},
             text='Total',
         )
         fig_macro_elem.update_traces(
@@ -1144,8 +1135,7 @@ if df_f_raw is not None and df_r is not None:
             hoverlabel=HOVER_STYLE,
         )
         fig_macro_elem.update_layout(
-            separators=",.",
-            xaxis=dict(showticklabels=False, title=None),
+            separators=",.", xaxis=dict(showticklabels=False, title=None),
             yaxis=dict(title=None), showlegend=True,
             legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
             height=520, margin=dict(r=200),
@@ -1155,10 +1145,7 @@ if df_f_raw is not None and df_r is not None:
     # =========================================================================
     # SETOR FOLHA DE PAGAMENTO
     # Pratápolis: Total = R$ 1.255.852,19 | FUNDEB 70% = R$ 794.159,07
-    #             RP (15001) = R$ 335.721,18 | FUNDEB 30% = R$ 0,00
-    # Elementos presentes: Vencimentos, Obrigações Patronais,
-    #                      Contratação Determinado, Indenizações
-    # (sem Auxílio-alimentação e Aposentadorias no período)
+    #             RP = R$ 335.721,18 | FUNDEB 30% = R$ 0,00
     # =========================================================================
     elif st.session_state.setor == 'Folha de Pagamento':
         st.markdown("<h1 style='text-align:left;'>📖 Pratápolis — Folha de Pagamento</h1>",
@@ -1192,7 +1179,6 @@ if df_f_raw is not None and df_r is not None:
         total_fund70 = df_folha[df_folha['Origem']=='FUNDEB 70%'][liq_cols_f].sum().sum()
         total_fund30 = df_folha[df_folha['Origem']=='FUNDEB 30%'][liq_cols_f].sum().sum()
         total_rp     = df_folha[df_folha['Origem']=='Recursos Próprios'][liq_cols_f].sum().sum()
-        total_outros = df_folha[df_folha['Origem']=='Outras Fontes'][liq_cols_f].sum().sum()
 
         f1, f2, f3, f4 = st.columns(4)
         with f1: st.metric("Total Folha (Jan–Fev)", formar_real(total_folha))
@@ -1208,7 +1194,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.subheader("🔹 1. Origem dos Recursos — Folha de Pagamento")
-
         df_orig = (df_folha.groupby('Origem')[liq_cols_f].sum()
                    .sum(axis=1).reset_index().rename(columns={0:'Valor'}))
         df_orig = df_orig[df_orig['Valor']>0]
@@ -1243,7 +1228,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.subheader("🔹 2. Liquidado por Elemento da Folha")
-
         df_elem_f = df_folha.groupby(['Elemento','Origem'])[liq_cols_f].sum().reset_index()
         df_elem_f['Total'] = df_elem_f[liq_cols_f].sum(axis=1)
         df_elem_f = df_elem_f[df_elem_f['Total']>0].sort_values('Total', ascending=True)
@@ -1264,8 +1248,7 @@ if df_f_raw is not None and df_r is not None:
             hoverlabel=HOVER_STYLE,
         )
         fig_folha_elem.update_layout(
-            separators=",.",
-            xaxis=dict(showticklabels=False, title=None),
+            separators=",.", xaxis=dict(showticklabels=False, title=None),
             yaxis=dict(title=None), showlegend=True,
             legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
             height=480, margin=dict(r=150),
@@ -1274,7 +1257,6 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.subheader("🔹 3. Evolução Mensal da Folha")
-
         dados_mensal_f = []
         for m in ['Janeiro','Fevereiro']:
             col = f"{m}_Liquidado"
