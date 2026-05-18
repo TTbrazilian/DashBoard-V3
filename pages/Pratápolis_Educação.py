@@ -1058,7 +1058,7 @@ if df_f_raw is not None and df_r is not None:
                     unsafe_allow_html=True)
         st.markdown("---")
 
-        liq_cols = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro', 'Março']
+        liq_cols = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro','Março']
                     if f"{m}_Liquidado" in df_f_raw.columns]
 
         CAPITAL_ELEMENTOS = [
@@ -1076,7 +1076,7 @@ if df_f_raw is not None and df_r is not None:
         total_macro   = total_capital + total_custeio
 
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Total Liquidado (Jan–Fev)", formar_real(total_macro))
+        with m1: st.metric("Total Liquidado (Jan–Mar)", formar_real(total_macro))
         with m2: st.metric("Capital Liquidado", formar_real(total_capital),
                            delta=f"{total_capital/total_macro*100:.1f}% do total" if total_macro>0 else "—",
                            delta_color="off")
@@ -1085,7 +1085,7 @@ if df_f_raw is not None and df_r is not None:
                            delta_color="off")
         st.markdown("---")
 
-        st.subheader("🔹 1. Capital × Custeio (Liquidado Jan–Fev)")
+        st.subheader("🔹 1. Capital × Custeio (Liquidado Jan–Mar)")
         df_pizza = pd.DataFrame([
             {"Natureza":"Capital","Valor":total_capital},
             {"Natureza":"Custeio","Valor":total_custeio},
@@ -1162,7 +1162,7 @@ if df_f_raw is not None and df_r is not None:
             'Aposentadorias, Reserva Remunerada e Reformas',
             '- Aposentadorias, Reserva Remunerada e Reformas',
         ]
-        liq_cols_f = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro', 'Março']
+        liq_cols_f = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro','Março']
                       if f"{m}_Liquidado" in df_f_raw.columns]
 
         df_folha = df_f_raw[df_f_raw['Elemento'].isin(FOLHA_ELEMENTOS)].copy()
