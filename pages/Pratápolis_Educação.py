@@ -1058,7 +1058,7 @@ if df_f_raw is not None and df_r is not None:
                     unsafe_allow_html=True)
         st.markdown("---")
 
-        liq_cols = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro']
+        liq_cols = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro', 'Março']
                     if f"{m}_Liquidado" in df_f_raw.columns]
 
         CAPITAL_ELEMENTOS = [
@@ -1162,7 +1162,7 @@ if df_f_raw is not None and df_r is not None:
             'Aposentadorias, Reserva Remunerada e Reformas',
             '- Aposentadorias, Reserva Remunerada e Reformas',
         ]
-        liq_cols_f = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro']
+        liq_cols_f = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro', 'Março']
                       if f"{m}_Liquidado" in df_f_raw.columns]
 
         df_folha = df_f_raw[df_f_raw['Elemento'].isin(FOLHA_ELEMENTOS)].copy()
