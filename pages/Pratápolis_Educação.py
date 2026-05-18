@@ -1181,7 +1181,7 @@ if df_f_raw is not None and df_r is not None:
         total_rp     = df_folha[df_folha['Origem']=='Recursos Próprios'][liq_cols_f].sum().sum()
 
         f1, f2, f3, f4 = st.columns(4)
-        with f1: st.metric("Total Folha (Jan–Fev)", formar_real(total_folha))
+        with f1: st.metric("Total Folha (Jan–Mar)", formar_real(total_folha))
         with f2: st.metric("FUNDEB 70% (Fonte 15407)", formar_real(total_fund70),
                            delta=f"{total_fund70/total_folha*100:.1f}%" if total_folha>0 else "—",
                            delta_color="off")
@@ -1258,7 +1258,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.subheader("🔹 3. Evolução Mensal da Folha")
         dados_mensal_f = []
-        for m in ['Janeiro','Fevereiro']:
+        for m in ['Janeiro','Fevereiro','Março']:
             col = f"{m}_Liquidado"
             if col not in df_folha.columns: continue
             for orig in df_folha['Origem'].unique():
