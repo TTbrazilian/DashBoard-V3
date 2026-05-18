@@ -166,7 +166,7 @@ def load_all_data():
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
-meses_disponiveis = ['Janeiro','Fevereiro']
+meses_disponiveis = ['Janeiro','Fevereiro','Março']
 
 if df_f_raw is not None and df_r is not None:
 
