@@ -62,9 +62,9 @@ def load_data():
             if os.path.exists(p): return p
         return None
 
-    path_f  = _buscar("Bom Jesus da Penha.csv")
-    path_r  = _buscar("Bom Jesus da Penha R.csv")
-    path_df = _buscar("Bom Jesus da Penha DF.csv")
+    path_f  = _buscar("Bom_Jesus_da_Penha.csv")
+    path_r  = _buscar("Bom_Jesus_da_Penha_R.csv")
+    path_df = _buscar("Bom_Jesus_da_Penha_DF.csv")
     if not path_f: return None, None, None
 
     # ── FICHAS ───────────────────────────────────────────────────────────────
@@ -488,6 +488,90 @@ if df_raw is not None:
             st.plotly_chart(fig_fonte, use_container_width=True, config=CONFIG_PT)
 
         st.markdown("---")
+
+    # ── TOTAL INVESTIDO EM SAÚDE — PIZZA POR CATEGORIA ───────────────────────
+    st.subheader("🏥 Total Investido em Saúde — Valor Liquidado (Janeiro a Março)")
+
+    # Mapa de nomes exibidos: alinha com a imagem de referência
+    NOME_CATEGORIA = {
+        'Secretaria':      'Administração',
+        'Atenção Primária': 'Atenção Primária',
+        'MAC':             'Ambulatorial e Especialidades (MAC)',
+        'Farmácia':        'Farmácia',
+        'Vigilância':      'Vigilância',
+    }
+    # Paleta visual — cores distintas por fatia
+    CORES_CATEGORIA = {
+        'Administração':                        '#f39c12',
+        'Atenção Primária':                     '#4A90D9',
+        'Ambulatorial e Especialidades (MAC)':  '#1a3a6b',
+        'Farmácia':                             '#27ae60',
+        'Vigilância':                           '#e74c3c',
+    }
+
+    df_pizza_cat = (
+        df_raw                                          # usa base completa, sem filtro
+        .groupby('Categoria')['Total_Liq']
+        .sum()
+        .reset_index()
+    )
+    df_pizza_cat['Categoria_Label'] = df_pizza_cat['Categoria'].map(NOME_CATEGORIA).fillna(df_pizza_cat['Categoria'])
+    df_pizza_cat = df_pizza_cat[df_pizza_cat['Total_Liq'] > 0]
+    total_liq_geral = df_pizza_cat['Total_Liq'].sum()
+
+    fig_pizza_cat = px.pie(
+        df_pizza_cat,
+        values='Total_Liq',
+        names='Categoria_Label',
+        hole=0.0,                               # pizza sólida (como na imagem)
+        color='Categoria_Label',
+        color_discrete_map=CORES_CATEGORIA,
+    )
+    fig_pizza_cat.update_traces(
+        textinfo='label+percent',
+        textposition='outside',
+        pull=[0.03] * len(df_pizza_cat),        # leve separação entre fatias
+        hovertemplate=(
+            "<span style='color:white;'>"
+            "<b>%{label}</b><br>"
+            "Liquidado: <b>R$ %{value:,.2f}</b><br>"
+            "Participação: <b>%{percent}</b>"
+            "</span><extra></extra>"
+        ),
+        hoverlabel=dict(
+            bgcolor="rgba(0,0,0,0.85)",
+            font_size=13,
+            font_family="Arial",
+            font_color="white"
+        ),
+    )
+    fig_pizza_cat.update_layout(
+        title=dict(
+            text=f"Total Liquidado: <b>R$ {total_liq_geral:,.2f}".replace(',','X').replace('.',',').replace('X','.') + "</b>",
+            x=0.5, xanchor='center',
+            font=dict(size=14)
+        ),
+        showlegend=True,
+        legend=dict(
+            orientation="v",
+            yanchor="middle", y=0.5,
+            xanchor="left",   x=1.02,
+            font=dict(size=13),
+            itemclick="toggle",
+            itemdoubleclick="toggleothers",
+        ),
+        height=480,
+        separators=',.',
+        margin=dict(t=60, b=40, l=20, r=180),
+        # Animação de entrada das fatias
+        transition={'duration': 800, 'easing': 'cubic-in-out'},
+    )
+
+    _, col_pizza_cat, _ = st.columns([0.5, 3, 0.5])
+    with col_pizza_cat:
+        st.plotly_chart(fig_pizza_cat, use_container_width=True, config=CONFIG_PT)
+
+    st.markdown("---")
 
     # ── RELATÓRIO DETALHADO ────────────────────────────────────────────────────
     st.subheader("📋 Relatório Detalhado")
