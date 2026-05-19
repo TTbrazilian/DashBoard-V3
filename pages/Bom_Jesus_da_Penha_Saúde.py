@@ -262,6 +262,13 @@ if df_raw is not None:
         '});'
         '}catch(e){}}'
         'run();setTimeout(run,50);setTimeout(run,200);setTimeout(run,600);'
+        'try{'
+        'var _body=window.parent.document.body;'
+        'if(_body){'
+        'var _obs=new MutationObserver(function(){run();});'
+        '_obs.observe(_body,{childList:true,subtree:true});'
+        '}'
+        '}catch(e){}'
         '})()</script>'
     )
     components.html(_js_sidebar, height=0)
@@ -532,6 +539,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
+
     # ── TOTAL INVESTIDO EM SAÚDE — PIZZA POR CATEGORIA ───────────────────────
     st.subheader("🏥 Total Investido em Saúde — Valor Liquidado (Janeiro a Março)")
 
@@ -597,7 +605,7 @@ if df_raw is not None:
         showlegend=True,
         legend=dict(
             orientation="v",
-            yanchor="middle", y=0.5,
+            yanchor="middle", y=0.8,
             xanchor="left",   x=1.02,
             font=dict(size=13),
             itemclick="toggle",
