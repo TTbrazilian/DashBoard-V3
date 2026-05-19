@@ -233,7 +233,8 @@ if df_raw is not None:
         'if(!nav)return;'
         'nav.querySelectorAll(\'li\').forEach(function(it){'
         # Oculta municípios de Educação (página de Saúde não os exibe)
-        'if(it.textContent.indexOf(\'Educa\u00e7\u00e3o\')!==-1){'
+        # Usa 'Educa' em vez de 'Educação' para evitar problemas de codificação NFD/NFC
+        'if(it.textContent.indexOf(\'Educa\')!==-1){'
         'it.style.setProperty(\'display\',\'none\',\'important\');return;}'
         # Substitui o link Home pelo logo iG2P
         'var lk=it.querySelector(\'a\');if(!lk)return;'
@@ -531,7 +532,6 @@ if df_raw is not None:
 
     st.markdown("---")
 
-
     # ── TOTAL INVESTIDO EM SAÚDE — PIZZA POR CATEGORIA ───────────────────────
     st.subheader("🏥 Total Investido em Saúde — Valor Liquidado (Janeiro a Março)")
 
@@ -597,7 +597,7 @@ if df_raw is not None:
         showlegend=True,
         legend=dict(
             orientation="v",
-            yanchor="middle", y=0.8,
+            yanchor="middle", y=0.5,
             xanchor="left",   x=1.02,
             font=dict(size=13),
             itemclick="toggle",
