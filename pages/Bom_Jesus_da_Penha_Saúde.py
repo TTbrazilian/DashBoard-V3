@@ -10,6 +10,31 @@ from random import random
 
 st.set_page_config(page_title="Gestão de Recursos - Bom Jesus", layout="wide")
 
+st.markdown("""
+    <style>
+        @keyframes subirBarra {
+            from { clip-path: inset(100% 0 0 0); }
+            to   { clip-path: inset(0%   0 0 0); }
+        }
+        .js-plotly-plot .point path {
+            animation: subirBarra 1.5s cubic-bezier(0.25,1,0.5,1) forwards;
+            animation-delay: 0.3s;
+            clip-path: inset(100% 0 0 0);
+        }
+        @keyframes slideIn {
+            from { opacity:0; transform:translateX(20px); }
+            to   { opacity:1; transform:translateX(0);    }
+        }
+        .stButton button {
+            animation: slideIn 0.4s ease-out;
+        }
+        [data-testid="stSidebarNav"] li:first-child > a > span,
+        [data-testid="stSidebarNav"] li:first-child > a > p {
+            display: none !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 pio.templates.default = "plotly_white"
 
 CONFIG_PT = {
@@ -168,26 +193,77 @@ if df_raw is not None:
         st.session_state.busca = ""
         st.rerun()
 
-    # Oculta municípios de Educação da sidebar
-    components.html("""
-        <script>
-        (function() {
-            function esconderEducacao() {
-                try {
-                    var nav = window.parent.document.querySelector('[data-testid="stSidebarNav"]');
-                    if (!nav) return;
-                    nav.querySelectorAll('li').forEach(function(item) {
-                        if (item.textContent.indexOf('Educação') !== -1) {
-                            item.style.setProperty('display', 'none', 'important');
-                        }
-                    });
-                } catch(e) {}
-            }
-            esconderEducacao();
-            [200, 600, 1200].forEach(t => setTimeout(esconderEducacao, t));
-        })();
-        </script>
-    """, height=0)
+    # ── Sidebar: logo iG2P + oculta municípios de Educação ───────────────────
+    # Mesma lógica do template de Educação, invertida:
+    # • Saúde → oculta itens contendo 'Educação'
+    # • Substitui o link Home pelo logotipo iG2P (modo escuro / claro)
+    import base64 as _b64
+
+    def _ler_logo(nome_arquivo):
+        candidatos = [f"Logos/{nome_arquivo}", f"../Logos/{nome_arquivo}"]
+        try:
+            d = os.path.dirname(__file__)
+            candidatos += [
+                os.path.join(d, "Logos", nome_arquivo),
+                os.path.join(d, "..", "Logos", nome_arquivo),
+            ]
+        except NameError:
+            pass
+        for p in candidatos:
+            if os.path.exists(p):
+                with open(p, "rb") as _f:
+                    return "data:image/png;base64," + _b64.b64encode(_f.read()).decode()
+        return ""
+
+    _logo_escuro = _ler_logo("LOGOTIPO IG2P - OFICIAL - BRANCO.png")
+    _logo_claro  = _ler_logo("LOGOTIPO IG2P - OFICIAL.png")
+
+    _js_sidebar = (
+        '<script>(function(){'
+        'var LE="' + _logo_escuro + '";'
+        'var LC="' + _logo_claro  + '";'
+        'function dE(){try{'
+        'var bg=window.parent.getComputedStyle(window.parent.document.body).backgroundColor;'
+        'if(!bg||bg==="rgba(0,0,0,0)")return true;'
+        'var v=bg.match(/[0-9]+/g).map(Number);return v[0]<128;'
+        '}catch(e){return true;}}'
+        'function run(){try{'
+        'var doc=window.parent.document;'
+        'var nav=doc.querySelector(\'[data-testid="stSidebarNav"]\');'
+        'if(!nav)return;'
+        'nav.querySelectorAll(\'li\').forEach(function(it){'
+        # Oculta municípios de Educação (página de Saúde não os exibe)
+        'if(it.textContent.indexOf(\'Educa\u00e7\u00e3o\')!==-1){'
+        'it.style.setProperty(\'display\',\'none\',\'important\');return;}'
+        # Substitui o link Home pelo logo iG2P
+        'var lk=it.querySelector(\'a\');if(!lk)return;'
+        'var sp=lk.querySelector(\'span\');'
+        'var tx=(sp?sp.textContent:lk.textContent).trim();'
+        'var eh=tx==="Home"||tx.toLowerCase()==="home"||'
+        '(lk.href&&lk.href.toLowerCase().indexOf(\'/home\')!==-1);'
+        'if(!eh)return;'
+        'if(lk.querySelector(\'img.ig2p-logo-sidebar\'))return;'
+        'if(sp)sp.style.setProperty(\'display\',\'none\',\'important\');'
+        'lk.style.setProperty(\'padding\',\'4px 8px 4px 8px\',\'important\');'
+        'lk.style.setProperty(\'display\',\'flex\',\'important\');'
+        'lk.style.setProperty(\'align-items\',\'center\',\'important\');'
+        'lk.style.setProperty(\'background\',\'transparent\',\'important\');'
+        'var img=doc.createElement(\'img\');'
+        'img.src=dE()?LE:LC;'
+        'img.className=\'ig2p-logo-sidebar\';'
+        'img.style.cssText=\'width:130px;height:auto;cursor:pointer;'
+        'display:block;margin:4px 0;\';'
+        'var mq=window.parent.matchMedia(\'(prefers-color-scheme:dark)\');'
+        'function up(){img.src=dE()?LE:LC;}'
+        'if(mq.addEventListener)mq.addEventListener(\'change\',up);'
+        'else if(mq.addListener)mq.addListener(up);'
+        'lk.insertBefore(img,lk.firstChild);'
+        '});'
+        '}catch(e){}}'
+        'run();setTimeout(run,50);setTimeout(run,200);setTimeout(run,600);'
+        '})()</script>'
+    )
+    components.html(_js_sidebar, height=0)
 
     # ── FILTRO GLOBAL ─────────────────────────────────────────────────────────
     df_filtrado_global = df_raw.copy()
@@ -455,6 +531,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
+
     # ── TOTAL INVESTIDO EM SAÚDE — PIZZA POR CATEGORIA ───────────────────────
     st.subheader("🏥 Total Investido em Saúde — Valor Liquidado (Janeiro a Março)")
 
@@ -520,7 +597,7 @@ if df_raw is not None:
         showlegend=True,
         legend=dict(
             orientation="v",
-            yanchor="middle", y=0.8,
+            yanchor="middle", y=0.5,
             xanchor="left",   x=1.02,
             font=dict(size=13),
             itemclick="toggle",
