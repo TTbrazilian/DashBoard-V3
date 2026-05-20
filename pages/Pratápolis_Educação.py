@@ -166,7 +166,7 @@ def load_all_data():
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
-meses_disponiveis = ['Janeiro','Fevereiro','Março']
+meses_disponiveis = ['Janeiro','Fevereiro']
 
 if df_f_raw is not None and df_r is not None:
 
@@ -199,53 +199,80 @@ if df_f_raw is not None and df_r is not None:
                     return "data:image/png;base64," + _b64.b64encode(_f.read()).decode()
         return ""
 
-    _logo_escuro = _ler_logo("LOGOTIPO IG2P - OFICIAL - BRANCO.png")
-    _logo_claro  = _ler_logo("LOGOTIPO IG2P - OFICIAL.png")
+    # ── Sidebar universal iG2P ────────────────────────────────────────────────
+    # Detecta setor pelo pathname (ASCII-safe) e oculta o setor oposto.
+    # MutationObserver garante persistência após 'view less / view more'.
+    def _js_sidebar_universal(logo_escuro, logo_claro):
+        return (
+            "<script>(function(){"
+            'var LE="' + logo_escuro + '";'
+            'var LC="' + logo_claro  + '";'
+            "function dE(){try{"
+            "var bg=window.parent.getComputedStyle(window.parent.document.body).backgroundColor;"
+            "if(!bg||bg===\"rgba(0,0,0,0)\")return true;"
+            "var v=bg.match(/[0-9]+/g).map(Number);return v[0]<128;"
+            "}catch(e){return true;}}"
+            "var _p=(window.parent.location.pathname||'').toLowerCase();"
+            "var _home=_p==='/'||_p.indexOf('/home')!==-1;"
+            "var _edu=!_home&&_p.indexOf('educa')!==-1;"
+            "var _sau=!_home&&!_edu;"
+            "var _busy=false;"
+            "function run(){"
+            "if(_busy)return;_busy=true;"
+            "try{"
+            "var doc=window.parent.document;"
+            "var nav=doc.querySelector('[data-testid=\"stSidebarNav\"]');"
+            "if(!nav){_busy=false;return;}"
+            "nav.querySelectorAll('li').forEach(function(it){"
+            "var txt=it.textContent;"
+            "var temEduca=txt.indexOf('Educa')!==-1;"
+            "var ocultar=false;"
+            "if(_edu&&!temEduca){"
+            "var _a=it.querySelector('a');"
+            "var _h=_a&&(_a.href||'').toLowerCase().indexOf('/home')!==-1;"
+            "if(!_h)ocultar=true;"
+            "}"
+            "if(_sau&&temEduca)ocultar=true;"
+            "if(ocultar){it.style.setProperty('display','none','important');return;}"
+            "var lk=it.querySelector('a');if(!lk)return;"
+            "var sp=lk.querySelector('span');"
+            "var tx=(sp?sp.textContent:lk.textContent).trim();"
+            "var isH=tx==='Home'||tx.toLowerCase()==='home'||"
+            "(lk.href&&lk.href.toLowerCase().indexOf('/home')!==-1);"
+            "if(!isH)return;"
+            "if(lk.querySelector('img.ig2p-logo-sidebar'))return;"
+            "if(sp)sp.style.setProperty('display','none','important');"
+            "lk.style.setProperty('padding','4px 8px 4px 8px','important');"
+            "lk.style.setProperty('display','flex','important');"
+            "lk.style.setProperty('align-items','center','important');"
+            "lk.style.setProperty('background','transparent','important');"
+            "var img=doc.createElement('img');"
+            "img.src=dE()?LE:LC;"
+            "img.className='ig2p-logo-sidebar';"
+            "img.style.cssText='width:130px;height:auto;cursor:pointer;display:block;margin:4px 0;';"
+            "var mq=window.parent.matchMedia('(prefers-color-scheme:dark)');"
+            "function up(){img.src=dE()?LE:LC;}"
+            "if(mq.addEventListener)mq.addEventListener('change',up);"
+            "else if(mq.addListener)mq.addListener(up);"
+            "lk.insertBefore(img,lk.firstChild);"
+            "});"
+            "}catch(e){}"
+            "_busy=false;}"
+            "run();setTimeout(run,50);setTimeout(run,200);setTimeout(run,600);"
+            "try{"
+            "var _ob=new MutationObserver(function(){run();});"
+            "_ob.observe(window.parent.document.body,{childList:true,subtree:true});"
+            "}catch(e){}"
+            "})()</script>"
+        )
 
-    _js_sidebar = (
-        '<script>(function(){'
-        'var LE="' + _logo_escuro + '";'
-        'var LC="' + _logo_claro  + '";'
-        'function dE(){try{'
-        'var bg=window.parent.getComputedStyle(window.parent.document.body).backgroundColor;'
-        'if(!bg||bg==="rgba(0,0,0,0)")return true;'
-        'var v=bg.match(/[0-9]+/g).map(Number);return v[0]<128;'
-        '}catch(e){return true;}}'
-        'function run(){try{'
-        'var doc=window.parent.document;'
-        'var nav=doc.querySelector(\'[data-testid="stSidebarNav"]\');'
-        'if(!nav)return;'
-        'nav.querySelectorAll(\'li\').forEach(function(it){'
-        'if(it.textContent.indexOf(\'Sa\u00fade\')!==-1){'
-        'it.style.setProperty(\'display\',\'none\',\'important\');return;}'
-        'var lk=it.querySelector(\'a\');if(!lk)return;'
-        'var sp=lk.querySelector(\'span\');'
-        'var tx=(sp?sp.textContent:lk.textContent).trim();'
-        'var eh=tx==="Home"||tx.toLowerCase()==="home"||'
-        '(lk.href&&lk.href.toLowerCase().indexOf(\'/home\')!==-1);'
-        'if(!eh)return;'
-        'if(lk.querySelector(\'img.ig2p-logo-sidebar\'))return;'
-        'if(sp)sp.style.setProperty(\'display\',\'none\',\'important\');'
-        'lk.style.setProperty(\'padding\',\'4px 8px 4px 8px\',\'important\');'
-        'lk.style.setProperty(\'display\',\'flex\',\'important\');'
-        'lk.style.setProperty(\'align-items\',\'center\',\'important\');'
-        'lk.style.setProperty(\'background\',\'transparent\',\'important\');'
-        'var img=doc.createElement(\'img\');'
-        'img.src=dE()?LE:LC;'
-        'img.className=\'ig2p-logo-sidebar\';'
-        'img.style.cssText=\'width:130px;height:auto;cursor:pointer;'
-        'display:block;margin:4px 0;\';'
-        'var mq=window.parent.matchMedia(\'(prefers-color-scheme:dark)\');'
-        'function up(){img.src=dE()?LE:LC;}'
-        'if(mq.addEventListener)mq.addEventListener(\'change\',up);'
-        'else if(mq.addListener)mq.addListener(up);'
-        'lk.insertBefore(img,lk.firstChild);'
-        '});'
-        '}catch(e){}}'
-        'run();setTimeout(run,50);setTimeout(run,200);setTimeout(run,600);'
-        '})()</script>'
+    components.html(
+        _js_sidebar_universal(
+            _ler_logo("LOGOTIPO IG2P - OFICIAL - BRANCO.png"),
+            _ler_logo("LOGOTIPO IG2P - OFICIAL.png"),
+        ),
+        height=0,
     )
-    components.html(_js_sidebar, height=0)
 
     # =========================================================================
     # SETOR FUNDEB
@@ -1058,7 +1085,7 @@ if df_f_raw is not None and df_r is not None:
                     unsafe_allow_html=True)
         st.markdown("---")
 
-        liq_cols = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro','Março']
+        liq_cols = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro']
                     if f"{m}_Liquidado" in df_f_raw.columns]
 
         CAPITAL_ELEMENTOS = [
@@ -1076,7 +1103,7 @@ if df_f_raw is not None and df_r is not None:
         total_macro   = total_capital + total_custeio
 
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Total Liquidado (Jan–Mar)", formar_real(total_macro))
+        with m1: st.metric("Total Liquidado (Jan–Fev)", formar_real(total_macro))
         with m2: st.metric("Capital Liquidado", formar_real(total_capital),
                            delta=f"{total_capital/total_macro*100:.1f}% do total" if total_macro>0 else "—",
                            delta_color="off")
@@ -1085,7 +1112,7 @@ if df_f_raw is not None and df_r is not None:
                            delta_color="off")
         st.markdown("---")
 
-        st.subheader("🔹 1. Capital × Custeio (Liquidado Jan–Mar)")
+        st.subheader("🔹 1. Capital × Custeio (Liquidado Jan–Fev)")
         df_pizza = pd.DataFrame([
             {"Natureza":"Capital","Valor":total_capital},
             {"Natureza":"Custeio","Valor":total_custeio},
@@ -1162,7 +1189,7 @@ if df_f_raw is not None and df_r is not None:
             'Aposentadorias, Reserva Remunerada e Reformas',
             '- Aposentadorias, Reserva Remunerada e Reformas',
         ]
-        liq_cols_f = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro','Março']
+        liq_cols_f = [f"{m}_Liquidado" for m in ['Janeiro','Fevereiro']
                       if f"{m}_Liquidado" in df_f_raw.columns]
 
         df_folha = df_f_raw[df_f_raw['Elemento'].isin(FOLHA_ELEMENTOS)].copy()
@@ -1181,7 +1208,7 @@ if df_f_raw is not None and df_r is not None:
         total_rp     = df_folha[df_folha['Origem']=='Recursos Próprios'][liq_cols_f].sum().sum()
 
         f1, f2, f3, f4 = st.columns(4)
-        with f1: st.metric("Total Folha (Jan–Mar)", formar_real(total_folha))
+        with f1: st.metric("Total Folha (Jan–Fev)", formar_real(total_folha))
         with f2: st.metric("FUNDEB 70% (Fonte 15407)", formar_real(total_fund70),
                            delta=f"{total_fund70/total_folha*100:.1f}%" if total_folha>0 else "—",
                            delta_color="off")
@@ -1258,7 +1285,7 @@ if df_f_raw is not None and df_r is not None:
 
         st.subheader("🔹 3. Evolução Mensal da Folha")
         dados_mensal_f = []
-        for m in ['Janeiro','Fevereiro','Março']:
+        for m in ['Janeiro','Fevereiro']:
             col = f"{m}_Liquidado"
             if col not in df_folha.columns: continue
             for orig in df_folha['Origem'].unique():
