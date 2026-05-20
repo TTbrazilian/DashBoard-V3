@@ -246,6 +246,7 @@ if df_raw is not None:
             "}"
             "if(_sau&&temEduca)ocultar=true;"
             "if(ocultar){it.style.setProperty('display','none','important');return;}"
+            "it.style.removeProperty('display');"
             "var lk=it.querySelector('a');if(!lk)return;"
             "var sp=lk.querySelector('span');"
             "var tx=(sp?sp.textContent:lk.textContent).trim();"
