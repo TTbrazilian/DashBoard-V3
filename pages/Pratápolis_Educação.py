@@ -229,7 +229,7 @@ if df_f_raw is not None and df_r is not None:
             "var ocultar=false;"
             "if(_edu&&!temEduca){"
             "var _a=it.querySelector('a');"
-            "var _h=_a&&(_a.href||'').toLowerCase().indexOf('/home')!==-1;"
+            "var _h=_a&&((_a.href||'').toLowerCase().indexOf('/home')!==-1||txt.trim().toLowerCase()==='home');"
             "if(!_h)ocultar=true;"
             "}"
             "if(_sau&&temEduca)ocultar=true;"
