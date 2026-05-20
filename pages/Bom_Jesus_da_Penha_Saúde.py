@@ -87,9 +87,9 @@ def load_data():
             if os.path.exists(p): return p
         return None
 
-    path_f  = _buscar("Bom Jesus da Penha.csv")
-    path_r  = _buscar("Bom Jesus da Penha_R.csv")
-    path_df = _buscar("Bom Jesus da Penha_DF.csv")
+    path_f  = _buscar("Bom_Jesus_da_Penha.csv")
+    path_r  = _buscar("Bom_Jesus_da_Penha_R.csv")
+    path_df = _buscar("Bom_Jesus_da_Penha_DF.csv")
     if not path_f: return None, None, None
 
     # ── FICHAS ───────────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ if df_raw is not None:
             "var ocultar=false;"
             "if(_edu&&!temEduca){"
             "var _a=it.querySelector('a');"
-            "var _h=_a&&(_a.href||'').toLowerCase().indexOf('/home')!==-1;"
+            "var _h=_a&&((_a.href||'').toLowerCase().indexOf('/home')!==-1||txt.trim().toLowerCase()==='home');"
             "if(!_h)ocultar=true;"
             "}"
             "if(_sau&&temEduca)ocultar=true;"
