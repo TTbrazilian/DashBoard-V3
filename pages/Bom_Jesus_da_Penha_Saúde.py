@@ -87,9 +87,9 @@ def load_data():
             if os.path.exists(p): return p
         return None
 
-    path_f  = _buscar("Bom Jesus da Penha.csv")
-    path_r  = _buscar("Bom Jesus da Penha_R.csv")
-    path_df = _buscar("Bom Jesus da Penha_DF.csv")
+    path_f  = _buscar("Bom_Jesus_da_Penha.csv")
+    path_r  = _buscar("Bom_Jesus_da_Penha_R.csv")
+    path_df = _buscar("Bom_Jesus_da_Penha_DF.csv")
     if not path_f: return None, None, None
 
     # ── FICHAS ───────────────────────────────────────────────────────────────
@@ -193,10 +193,9 @@ if df_raw is not None:
         st.session_state.busca = ""
         st.rerun()
 
-    # ── Sidebar: logo iG2P + oculta municípios de Educação ───────────────────
-    # Mesma lógica do template de Educação, invertida:
-    # • Saúde → oculta itens contendo 'Educação'
-    # • Substitui o link Home pelo logotipo iG2P (modo escuro / claro)
+    # ── Sidebar universal iG2P ────────────────────────────────────────────────
+    # Detecta setor pelo pathname (ASCII-safe) e oculta o setor oposto.
+    # MutationObserver garante persistência após 'view less / view more'.
     import base64 as _b64
 
     def _ler_logo(nome_arquivo):
@@ -215,63 +214,77 @@ if df_raw is not None:
                     return "data:image/png;base64," + _b64.b64encode(_f.read()).decode()
         return ""
 
-    _logo_escuro = _ler_logo("LOGOTIPO IG2P - OFICIAL - BRANCO.png")
-    _logo_claro  = _ler_logo("LOGOTIPO IG2P - OFICIAL.png")
+    def _js_sidebar_universal(logo_escuro, logo_claro):
+        return (
+            "<script>(function(){"
+            'var LE="' + logo_escuro + '";'
+            'var LC="' + logo_claro  + '";'
+            "function dE(){try{"
+            "var bg=window.parent.getComputedStyle(window.parent.document.body).backgroundColor;"
+            "if(!bg||bg===\"rgba(0,0,0,0)\")return true;"
+            "var v=bg.match(/[0-9]+/g).map(Number);return v[0]<128;"
+            "}catch(e){return true;}}"
+            "var _p=(window.parent.location.pathname||'').toLowerCase();"
+            "var _home=_p==='/'||_p.indexOf('/home')!==-1;"
+            "var _edu=!_home&&_p.indexOf('educa')!==-1;"
+            "var _sau=!_home&&!_edu;"
+            "var _busy=false;"
+            "function run(){"
+            "if(_busy)return;_busy=true;"
+            "try{"
+            "var doc=window.parent.document;"
+            "var nav=doc.querySelector('[data-testid=\"stSidebarNav\"]');"
+            "if(!nav){_busy=false;return;}"
+            "nav.querySelectorAll('li').forEach(function(it){"
+            "var txt=it.textContent;"
+            "var temEduca=txt.indexOf('Educa')!==-1;"
+            "var ocultar=false;"
+            "if(_edu&&!temEduca){"
+            "var _a=it.querySelector('a');"
+            "var _h=_a&&(_a.href||'').toLowerCase().indexOf('/home')!==-1;"
+            "if(!_h)ocultar=true;"
+            "}"
+            "if(_sau&&temEduca)ocultar=true;"
+            "if(ocultar){it.style.setProperty('display','none','important');return;}"
+            "var lk=it.querySelector('a');if(!lk)return;"
+            "var sp=lk.querySelector('span');"
+            "var tx=(sp?sp.textContent:lk.textContent).trim();"
+            "var isH=tx==='Home'||tx.toLowerCase()==='home'||"
+            "(lk.href&&lk.href.toLowerCase().indexOf('/home')!==-1);"
+            "if(!isH)return;"
+            "if(lk.querySelector('img.ig2p-logo-sidebar'))return;"
+            "if(sp)sp.style.setProperty('display','none','important');"
+            "lk.style.setProperty('padding','4px 8px 4px 8px','important');"
+            "lk.style.setProperty('display','flex','important');"
+            "lk.style.setProperty('align-items','center','important');"
+            "lk.style.setProperty('background','transparent','important');"
+            "var img=doc.createElement('img');"
+            "img.src=dE()?LE:LC;"
+            "img.className='ig2p-logo-sidebar';"
+            "img.style.cssText='width:130px;height:auto;cursor:pointer;display:block;margin:4px 0;';"
+            "var mq=window.parent.matchMedia('(prefers-color-scheme:dark)');"
+            "function up(){img.src=dE()?LE:LC;}"
+            "if(mq.addEventListener)mq.addEventListener('change',up);"
+            "else if(mq.addListener)mq.addListener(up);"
+            "lk.insertBefore(img,lk.firstChild);"
+            "});"
+            "}catch(e){}"
+            "_busy=false;}"
+            "run();setTimeout(run,50);setTimeout(run,200);setTimeout(run,600);"
+            "try{"
+            "var _ob=new MutationObserver(function(){run();});"
+            "_ob.observe(window.parent.document.body,{childList:true,subtree:true});"
+            "}catch(e){}"
+            "})()</script>"
+        )
 
-    _js_sidebar = (
-        '<script>(function(){'
-        'var LE="' + _logo_escuro + '";'
-        'var LC="' + _logo_claro  + '";'
-        'function dE(){try{'
-        'var bg=window.parent.getComputedStyle(window.parent.document.body).backgroundColor;'
-        'if(!bg||bg==="rgba(0,0,0,0)")return true;'
-        'var v=bg.match(/[0-9]+/g).map(Number);return v[0]<128;'
-        '}catch(e){return true;}}'
-        'function run(){try{'
-        'var doc=window.parent.document;'
-        'var nav=doc.querySelector(\'[data-testid="stSidebarNav"]\');'
-        'if(!nav)return;'
-        'nav.querySelectorAll(\'li\').forEach(function(it){'
-        # Oculta municípios de Educação (página de Saúde não os exibe)
-        # Usa 'Educa' em vez de 'Educação' para evitar problemas de codificação NFD/NFC
-        'if(it.textContent.indexOf(\'Educa\')!==-1){'
-        'it.style.setProperty(\'display\',\'none\',\'important\');return;}'
-        # Substitui o link Home pelo logo iG2P
-        'var lk=it.querySelector(\'a\');if(!lk)return;'
-        'var sp=lk.querySelector(\'span\');'
-        'var tx=(sp?sp.textContent:lk.textContent).trim();'
-        'var eh=tx==="Home"||tx.toLowerCase()==="home"||'
-        '(lk.href&&lk.href.toLowerCase().indexOf(\'/home\')!==-1);'
-        'if(!eh)return;'
-        'if(lk.querySelector(\'img.ig2p-logo-sidebar\'))return;'
-        'if(sp)sp.style.setProperty(\'display\',\'none\',\'important\');'
-        'lk.style.setProperty(\'padding\',\'4px 8px 4px 8px\',\'important\');'
-        'lk.style.setProperty(\'display\',\'flex\',\'important\');'
-        'lk.style.setProperty(\'align-items\',\'center\',\'important\');'
-        'lk.style.setProperty(\'background\',\'transparent\',\'important\');'
-        'var img=doc.createElement(\'img\');'
-        'img.src=dE()?LE:LC;'
-        'img.className=\'ig2p-logo-sidebar\';'
-        'img.style.cssText=\'width:130px;height:auto;cursor:pointer;'
-        'display:block;margin:4px 0;\';'
-        'var mq=window.parent.matchMedia(\'(prefers-color-scheme:dark)\');'
-        'function up(){img.src=dE()?LE:LC;}'
-        'if(mq.addEventListener)mq.addEventListener(\'change\',up);'
-        'else if(mq.addListener)mq.addListener(up);'
-        'lk.insertBefore(img,lk.firstChild);'
-        '});'
-        '}catch(e){}}'
-        'run();setTimeout(run,50);setTimeout(run,200);setTimeout(run,600);'
-        'try{'
-        'var _body=window.parent.document.body;'
-        'if(_body){'
-        'var _obs=new MutationObserver(function(){run();});'
-        '_obs.observe(_body,{childList:true,subtree:true});'
-        '}'
-        '}catch(e){}'
-        '})()</script>'
+    components.html(
+        _js_sidebar_universal(
+            _ler_logo("LOGOTIPO IG2P - OFICIAL - BRANCO.png"),
+            _ler_logo("LOGOTIPO IG2P - OFICIAL.png"),
+        ),
+        height=0,
     )
-    components.html(_js_sidebar, height=0)
 
     # ── FILTRO GLOBAL ─────────────────────────────────────────────────────────
     df_filtrado_global = df_raw.copy()
@@ -539,6 +552,39 @@ if df_raw is not None:
 
     st.markdown("---")
 
+    # ── DESPESAS POR FONTE (DF file) ───────────────────────────────────────────
+    if df_df is not None:
+        st.subheader("🏦 Execução por Fonte de Recurso")
+
+        meses_disp = ['Janeiro','Fevereiro','Março']
+        df_liq_fonte = df_df[df_df['Tipo']=='Liquidado'].copy()
+        df_liq_fonte = df_liq_fonte[df_liq_fonte['Nomenclatura'].notna()].copy()
+        df_liq_fonte['Total_Liq'] = df_liq_fonte[meses_disp].sum(axis=1)
+        df_liq_fonte = df_liq_fonte[df_liq_fonte['Total_Liq'] > 0]
+
+        if not df_liq_fonte.empty:
+            fig_fonte = px.bar(
+                df_liq_fonte.sort_values('Total_Liq', ascending=True),
+                x='Total_Liq', y='Nomenclatura', orientation='h',
+                color='Nomenclatura',
+                text='Total_Liq',
+                color_discrete_sequence=px.colors.qualitative.Safe
+            )
+            fig_fonte.update_traces(
+                texttemplate='R$ %{x:,.2f}', textposition='outside',
+                hovertemplate=(
+                    "<b>Fonte:</b> %{y}<br>"
+                    "<b>Liquidado (Jan–Mar):</b> R$ %{x:,.2f}<extra></extra>"
+                )
+            )
+            fig_fonte.update_layout(
+                xaxis_title="Liquidado (R$)", yaxis_title="",
+                showlegend=False, height=420, separators=',.',
+                margin=dict(r=200, l=20)
+            )
+            st.plotly_chart(fig_fonte, use_container_width=True, config=CONFIG_PT)
+
+        st.markdown("---")
 
     # ── TOTAL INVESTIDO EM SAÚDE — PIZZA POR CATEGORIA ───────────────────────
     st.subheader("🏥 Total Investido em Saúde — Valor Liquidado (Janeiro a Março)")
@@ -605,7 +651,7 @@ if df_raw is not None:
         showlegend=True,
         legend=dict(
             orientation="v",
-            yanchor="middle", y=0.8,
+            yanchor="middle", y=0.5,
             xanchor="left",   x=1.02,
             font=dict(size=13),
             itemclick="toggle",
