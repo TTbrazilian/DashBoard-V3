@@ -453,19 +453,19 @@ if df_raw is not None:
     st.subheader("📊 Custeio × Capital")
 
     df_natureza = (
-        df_filtrado_global.groupby('Natureza')['Orçado']
+        df_filtrado_global.groupby('Natureza')['Total_Liq']
         .sum().reset_index()
     )
     # Garante que ambas as categorias apareçam
     for nat in ['Capital (Invest.)','Custeio (Manut.)']:
         if nat not in df_natureza['Natureza'].values:
             df_natureza = pd.concat(
-                [df_natureza, pd.DataFrame({'Natureza':[nat],'Orçado':[0.0]})],
+                [df_natureza, pd.DataFrame({'Natureza':[nat],'Total_Liq':[0.0]})],
                 ignore_index=True
             )
 
     fig_natureza = px.pie(
-        df_natureza, values='Orçado', names='Natureza', hole=.4,
+        df_natureza, values='Total_Liq', names='Natureza', hole=.4,
         color='Natureza',
         color_discrete_map={'Custeio (Manut.)':'#00CC96','Capital (Invest.)':'#EF553B'}
     )
