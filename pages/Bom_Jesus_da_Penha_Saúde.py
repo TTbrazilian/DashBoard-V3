@@ -87,9 +87,9 @@ def load_data():
             if os.path.exists(p): return p
         return None
 
-    path_f  = _buscar("Bom_Jesus_da_Penha.csv")
-    path_r  = _buscar("Bom_Jesus_da_Penha_R.csv")
-    path_df = _buscar("Bom_Jesus_da_Penha_DF.csv")
+    path_f  = _buscar("Bom Jesus da Penha.csv")
+    path_r  = _buscar("Bom Jesus da Penha_R.csv")
+    path_df = _buscar("Bom Jesus da Penha_DF.csv")
     if not path_f: return None, None, None
 
     # ── FICHAS ───────────────────────────────────────────────────────────────
@@ -551,40 +551,6 @@ if df_raw is not None:
     st.plotly_chart(fig_comp, use_container_width=True, config=CONFIG_PT)
 
     st.markdown("---")
-
-    # ── DESPESAS POR FONTE (DF file) ───────────────────────────────────────────
-    if df_df is not None:
-        st.subheader("🏦 Execução por Fonte de Recurso")
-
-        meses_disp = ['Janeiro','Fevereiro','Março']
-        df_liq_fonte = df_df[df_df['Tipo']=='Liquidado'].copy()
-        df_liq_fonte = df_liq_fonte[df_liq_fonte['Nomenclatura'].notna()].copy()
-        df_liq_fonte['Total_Liq'] = df_liq_fonte[meses_disp].sum(axis=1)
-        df_liq_fonte = df_liq_fonte[df_liq_fonte['Total_Liq'] > 0]
-
-        if not df_liq_fonte.empty:
-            fig_fonte = px.bar(
-                df_liq_fonte.sort_values('Total_Liq', ascending=True),
-                x='Total_Liq', y='Nomenclatura', orientation='h',
-                color='Nomenclatura',
-                text='Total_Liq',
-                color_discrete_sequence=px.colors.qualitative.Safe
-            )
-            fig_fonte.update_traces(
-                texttemplate='R$ %{x:,.2f}', textposition='outside',
-                hovertemplate=(
-                    "<b>Fonte:</b> %{y}<br>"
-                    "<b>Liquidado (Jan–Mar):</b> R$ %{x:,.2f}<extra></extra>"
-                )
-            )
-            fig_fonte.update_layout(
-                xaxis_title="Liquidado (R$)", yaxis_title="",
-                showlegend=False, height=420, separators=',.',
-                margin=dict(r=200, l=20)
-            )
-            st.plotly_chart(fig_fonte, use_container_width=True, config=CONFIG_PT)
-
-        st.markdown("---")
 
     # ── TOTAL INVESTIDO EM SAÚDE — PIZZA POR CATEGORIA ───────────────────────
     st.subheader("🏥 Total Investido em Saúde — Valor Liquidado (Janeiro a Março)")
