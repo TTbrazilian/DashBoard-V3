@@ -111,7 +111,7 @@ def soma(df, cols):
 # • QESE fontes DF: ['1550','2550'] | PTE: ['1576'] | PNAE: ['1552'] | PNATE: ['1553']
 # • PTE no R file: categoria 'Tranferência Programas Estaduais' (não Federal).
 # • Ibiraci_DF.csv: tem linha Tipo='Tipo' → filtrar via isin().
-# • _desconto_fundeb_nao_util = 0.0 | _desconto_superavit_ant = 0.0
+# • _desconto_fundeb_nao_util = 98.048,09 | _desconto_superavit_ant = 85.418,87
 # • Capital Liq Jan–Mar = R$ 171.278,57 | Custeio = R$ 5.051.582,91
 # • FUNDEB 70% Liq = R$ 2.195.215,97 | FUNDEB 30% = R$ 268.984,82
 # • RP 15001 Liq = R$ 1.882.005,15
@@ -692,8 +692,8 @@ if df_f_raw is not None and df_r is not None:
         df_df_15001 = df_df_raw[(df_df_raw['Fonte']=='15001') &
                                  (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        _desconto_fundeb_nao_util = 0.0
-        _desconto_superavit_ant   = 0.0
+        _desconto_fundeb_nao_util = 98_048.09
+        _desconto_superavit_ant   = 85_418.87
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
 
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
