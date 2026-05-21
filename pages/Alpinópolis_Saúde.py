@@ -541,41 +541,6 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # ── EXECUÇÃO POR FONTE DE RECURSO (DF file) ───────────────────────────────
-    if df_df is not None:
-        st.subheader("🏦 Execução por Fonte de Recurso")
-
-        meses_disp = ['Janeiro','Fevereiro','Março']
-        df_liq_fonte = df_df[df_df['Tipo']=='Liquidado'].copy()
-        df_liq_fonte = df_liq_fonte[df_liq_fonte['Nomenclatura'].notna()].copy()
-        cols_meses_fonte = [c for c in meses_disp if c in df_liq_fonte.columns]
-        df_liq_fonte['Total_Liq'] = df_liq_fonte[cols_meses_fonte].sum(axis=1)
-        df_liq_fonte = df_liq_fonte[df_liq_fonte['Total_Liq'] > 0]
-
-        if not df_liq_fonte.empty:
-            fig_fonte = px.bar(
-                df_liq_fonte.sort_values('Total_Liq', ascending=True),
-                x='Total_Liq', y='Nomenclatura', orientation='h',
-                color='Nomenclatura',
-                text='Total_Liq',
-                color_discrete_sequence=px.colors.qualitative.Safe
-            )
-            fig_fonte.update_traces(
-                texttemplate='R$ %{x:,.2f}', textposition='outside',
-                hovertemplate=(
-                    "<b>Fonte:</b> %{y}<br>"
-                    "<b>Liquidado (Jan–Mar):</b> R$ %{x:,.2f}<extra></extra>"
-                )
-            )
-            fig_fonte.update_layout(
-                xaxis_title="Liquidado (R$)", yaxis_title="",
-                showlegend=False, height=420, separators=',.',
-                margin=dict(r=200, l=20)
-            )
-            st.plotly_chart(fig_fonte, use_container_width=True, config=CONFIG_PT)
-
-        st.markdown("---")
-
     # ── TOTAL INVESTIDO EM SAÚDE — PIZZA POR CATEGORIA ───────────────────────
     st.subheader("🏥 Total Investido em Saúde — Valor Liquidado (Janeiro a Março)")
 
