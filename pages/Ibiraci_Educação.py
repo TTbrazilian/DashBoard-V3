@@ -403,25 +403,23 @@ if df_f_raw is not None and df_r is not None:
                             "Participação: %{customdata[5]}</span><extra></extra>"
                         ),
                     ))
-                for fonte_cod, label_desp in [('15407','FUNDEB 70% – Vigente'),
-                                              ('15403','FUNDEB 30% – Vigente')]:
-                    # FUNDEB 30%: agrupa 15403+25403
-                    if fonte_cod == '15403':
-                        val = soma(df_df_fundeb[
-                            df_df_fundeb['Fonte'].isin(['15403','25403']) &
-                            (df_df_fundeb['Tipo']=='Liquidado')], [m])
-                    else:
-                        val = soma(df_df_fundeb[(df_df_fundeb['Fonte']==fonte_cod) &
-                                                (df_df_fundeb['Tipo']=='Liquidado')], [m])
+                for fonte_cod, label_desp, cor_desp in [
+                    ('15407','FUNDEB 70% – Vigente',     COR_DESP['FUNDEB 70% – Vigente']),
+                    ('15403','FUNDEB 30% – Vigente',     COR_DESP['FUNDEB 30% – Vigente']),
+                    ('25403','FUNDEB 30% – Superávit',   '#ff6b6b'),
+                ]:
+                    val = soma(df_df_fundeb[(df_df_fundeb['Fonte']==fonte_cod) &
+                                            (df_df_fundeb['Tipo']=='Liquidado')], [m])
+                    if val == 0 and fonte_cod == '25403': continue
                     show = label_desp not in legendas_usadas
                     legendas_usadas.add(label_desp)
                     prop = f"{val/tot_desp_m*100:.1f}%" if tot_desp_m>0 else "—"
                     fig_rd.add_trace(go.Bar(
                         name=label_desp, x=[[m],["Despesas"]], y=[val],
-                        marker_color=COR_DESP[label_desp],
+                        marker_color=cor_desp,
                         legendgroup=label_desp, showlegend=show,
                         text=formar_real(val) if val>0 else "",
-                        textposition='outside' if fonte_cod=='15403' else 'inside',
+                        textposition='outside' if fonte_cod in ('15403','25403') else 'inside',
                         insidetextanchor='middle',
                         customdata=[[fonte_cod,"Liquidado – Ano Vigente",prop,
                                      formar_real(val),formar_real(tot_desp_m),prop,m]],
@@ -459,22 +457,21 @@ if df_f_raw is not None and df_r is not None:
                         "Participação: %{customdata[5]}</span><extra></extra>"
                     ),
                 ))
-            for fonte_cod, label_desp in [('15407','FUNDEB 70% – Vigente'),
-                                          ('15403','FUNDEB 30% – Vigente')]:
-                if fonte_cod == '15403':
-                    val = soma(df_df_fundeb[
-                        df_df_fundeb['Fonte'].isin(['15403','25403']) &
-                        (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
-                else:
-                    val = soma(df_df_fundeb[(df_df_fundeb['Fonte']==fonte_cod) &
-                                            (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
+            for fonte_cod, label_desp, cor_desp in [
+                ('15407','FUNDEB 70% – Vigente',   COR_DESP['FUNDEB 70% – Vigente']),
+                ('15403','FUNDEB 30% – Vigente',   COR_DESP['FUNDEB 30% – Vigente']),
+                ('25403','FUNDEB 30% – Superávit', '#ff6b6b'),
+            ]:
+                val = soma(df_df_fundeb[(df_df_fundeb['Fonte']==fonte_cod) &
+                                        (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
+                if val == 0 and fonte_cod == '25403': continue
                 prop = f"{val/tot_desp_vigente*100:.1f}%" if tot_desp_vigente>0 else "—"
                 fig_rd.add_trace(go.Bar(
                     name=label_desp, x=[["Acumulado"],["Despesas"]], y=[val],
-                    marker_color=COR_DESP[label_desp],
+                    marker_color=cor_desp,
                     legendgroup=label_desp, showlegend=True,
                     text=formar_real(val) if val>0 else "",
-                    textposition='outside' if fonte_cod=='15403' else 'inside',
+                    textposition='outside' if fonte_cod in ('15403','25403') else 'inside',
                     insidetextanchor='middle',
                     customdata=[[fonte_cod,"Liquidado – Ano Vigente",prop,
                                  formar_real(val),formar_real(tot_desp_vigente),prop]],
@@ -591,26 +588,26 @@ if df_f_raw is not None and df_r is not None:
 
         meta_eti_perc = 4.0
         _base_eti = soma(
-            df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal','Rendimentos','VAAT'])],
+            df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal','Rendimentos','VAAT','VAAR'])],
             meses_disponiveis
         )
         val_meta_eti = _base_eti * (meta_eti_perc/100)
 
         e1, e2 = st.columns(2)
-        with e1: st.metric("Base para Cálculo ETI (Principal + Rendimentos + VAAT)",
+        with e1: st.metric("Base para Cálculo ETI (Principal + Rendimentos + VAAT + VAAR)",
                             formar_real(_base_eti))
         with e2: st.metric(f"Meta {meta_eti_perc:.0f}% (Referência ETI)",
                             formar_real(val_meta_eti))
 
         fig_eti = go.Figure()
         fig_eti.add_trace(go.Bar(
-            x=["Base ETI\n(Principal + Rend. + VAAT)"], y=[_base_eti],
+            x=["Base ETI\n(Principal + Rend. + VAAT + VAAR)"], y=[_base_eti],
             name="Base ETI", marker_color="#003366",
             text=[formar_real(_base_eti)],
             textposition='inside', insidetextanchor='middle',
             hovertemplate=("<span style='color:white;'><b>Base de Cálculo ETI</b><br>"
-                           "Principal + Rendimentos + VAAT<br>"
-                           "(VAAR e ETI não entram no cálculo)<br>"
+                           "Principal + Rendimentos + VAAT + VAAR<br>"
+                           "(ETI não entra no cálculo)<br>"
                            "Valor: <b>"+formar_real(_base_eti)+"</b></span><extra></extra>"),
         ))
         fig_eti.add_hline(
