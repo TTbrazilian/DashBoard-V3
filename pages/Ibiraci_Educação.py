@@ -5,1330 +5,1331 @@ import plotly.io as pio
 import os
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
-import random
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+# ── CONFIGURAÇÃO DA PÁGINA ────────────────────────────────────────────────────
 st.set_page_config(page_title="Ibiraci - Gestão Educação", layout="wide")
 
-# --- ESTILIZAÇÃO E GRADE PADRONIZADA ---
-st.markdown(
-    """
+st.markdown("""
     <style>
-        [data-testid="stSidebarNav"] ul li div:has(span:contains("Bom Jesus")),
-        [data-testid="stSidebarNav"] ul li:has(span:contains("Bom Jesus")),
-        [data-testid="stSidebarNav"] ul li:has(span:contains("Penha")),
-        [data-testid="stSidebarNav"] ul li:has(span:contains("São José da Barra")) {
-            display: none !important;
-        }
-        
         @keyframes subirBarra {
             from { clip-path: inset(100% 0 0 0); }
-            to { clip-path: inset(0% 0 0 0); }
+            to   { clip-path: inset(0%   0 0 0); }
         }
-        
         .js-plotly-plot .point path {
-            animation: subirBarra 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-            animation-delay: 0.3s; 
+            animation: subirBarra 1.5s cubic-bezier(0.25,1,0.5,1) forwards;
+            animation-delay: 0.3s;
             clip-path: inset(100% 0 0 0);
         }
-
         @keyframes slideIn {
-            from { opacity: 0; transform: translateX(20px); }
-            to { opacity: 1; transform: translateX(0); }
+            from { opacity:0; transform:translateX(20px); }
+            to   { opacity:1; transform:translateX(0);    }
         }
-
         .stButton button {
-            width: 100% !important;
-            height: 45px !important;
-            padding: 0px !important;
-            font-size: 10px !important;
-            font-weight: 700 !important;
-            border-radius: 4px !important;
-            white-space: nowrap !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            text-align: center;
+            width:100%!important; height:45px!important;
+            padding:0!important; font-size:10px!important;
+            font-weight:700!important; border-radius:4px!important;
+            white-space:nowrap!important;
+            display:flex!important; align-items:center!important;
+            justify-content:center!important;
             animation: slideIn 0.4s ease-out;
         }
-        
-        .stButton button:focus {
-            outline: none !important;
-            box-shadow: none !important;
-        }
-
-        [data-testid="column"] {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .stButton button:focus { outline:none!important; box-shadow:none!important; }
+        [data-testid="column"]  { display:flex; align-items:center; justify-content:center; }
+        [data-testid="stSidebarNav"] li:first-child > a > span,
+        [data-testid="stSidebarNav"] li:first-child > a > p {
+            display: none !important;
         }
     </style>
-    """,
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 pio.templates.default = "plotly_dark"
-CONFIG_PT = {'displaylogo': False, 'showTips': False}
-HOVER_STYLE = dict(bgcolor="rgba(0,0,0,0.9)", font_size=13, font_family="Arial", font_color="white")
-
-ORDEM_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+CONFIG_PT   = {'displaylogo': False, 'showTips': False}
+HOVER_STYLE = dict(bgcolor="rgba(0,0,0,0.9)", font_size=13,
+                   font_family="Arial", font_color="white")
+ORDEM_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+               'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
 if 'setor' not in st.session_state:
     st.session_state.setor = 'FUNDEB'
 
-# --- FUNÇÕES UTILITÁRIAS ---
-def metric_contabil(label, valor_atual, meta):
-    delta = valor_atual - meta
-    status_icon = "✅" if valor_atual >= meta else "⚠️"
-    return st.metric(
-        label=label,
-        value=f"{status_icon} {valor_atual:.2f}%",
-        delta=f"{delta:.2f}%",
-        delta_color="normal"
-    )
+# ── PALETA DE CORES GLOBAL ────────────────────────────────────────────────────
+COR_REC = {
+    'Principal':   '#1a7a4a',
+    'Rendimentos': '#0d47a1',
+    'VAAT':        '#69f0ae',
+    'VAAR':        '#b2dfdb',
+    'ETI':         '#40c4ff',
+}
+COR_DESP = {
+    'FUNDEB 70% – Vigente': '#4a0000',
+    'FUNDEB 30% – Vigente': '#ff1744',
+}
 
+# ── FUNÇÕES UTILITÁRIAS ───────────────────────────────────────────────────────
 def limpar_valor(valor):
-    if pd.isna(valor) or str(valor).strip() in ["", "-", "R$ 0,00", "0"]:
+    if pd.isna(valor) or str(valor).strip() in ["","−","-","R$ 0,00","0"]:
         return 0.0
-    s_valor = str(valor).replace('R$', '').replace(' ', '').replace('.', '').replace(',', '.')
-    try: 
-        if '(' in s_valor and ')' in s_valor:
-            s_valor = '-' + s_valor.replace('(', '').replace(')', '')
-        return float(s_valor)
+    s = str(valor).replace('R$','').replace(' ','').replace('.','').replace(',','.')
+    try:
+        if '(' in s and ')' in s: s = '-' + s.replace('(','').replace(')','')
+        return float(s)
     except: return 0.0
 
-def formar_real(valor):
-    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+def formar_real(v):
+    return f"R$ {v:,.2f}".replace(",","X").replace(".",",").replace("X",".")
 
-def abreviar_extremo(nome):
-    if "📊" in nome: return "GERAL"
-    n = nome.upper()
-    mapeamento = {
-        "IMPOSTO SOBRE A PROPRIEDADE PREDIAL E TERRITORIAL URBANA": "IPTU",
-        "IMPOSTO SOBRE TRANSMISSÃO DE BENS IMÓVEIS": "ITBI",
-        "IMPOSTO SOBRE SERVIÇOS DE QUALQUER NATUREZA": "ISS",
-        "IMPOSTO SOBRE A RENDA": "IR",
-        "IMPOSTO TERRITORIAL RURAL": "ITR",
-        "DÍVIDA ATIVA": "D.A.",
-        "CONTRIBUIÇÃO PARA O CUSTEIO DO SERVIÇO DE ILUMINAÇÃO PÚBLICA": "COSIP",
-        "COTA-PARTE": "COTA"
-    }
-    for longo, curto in mapeamento.items():
-        n = n.replace(longo, curto)
-    n = n.replace("PRINCIPAL", "PRIN.")
-    n = n.replace("MULTAS E JUROS", "M/J")
-    n = n.replace("OUTRAS RECEITAS", "OUTR.")
-    if "-" in n:
-        partes = n.split("-")
-        return f"{partes[0].strip()[:6]} {partes[1].strip()[:5]}"
-    return n[:12]
+def metric_contabil(label, valor_atual, meta):
+    delta       = valor_atual - meta
+    status_icon = "✅" if valor_atual >= meta else "⚠️"
+    return st.metric(label=label,
+                     value=f"{status_icon} {valor_atual:.2f}%",
+                     delta=f"{delta:.2f}%",
+                     delta_color="normal")
 
 def buscar_arquivo(nome):
-    caminhos = [nome, os.path.join("..", nome), os.path.join("pages", nome),
-                os.path.join(os.path.dirname(__file__), "..", nome)]
+    caminhos = [nome, os.path.join("..",nome), os.path.join("pages",nome),
+                os.path.join(os.path.dirname(__file__),"..",nome)]
     for p in caminhos:
         if os.path.exists(p): return p
     return None
 
+def soma(df, cols):
+    presentes = [c for c in cols if c in df.columns]
+    return df[presentes].sum().sum() if presentes else 0.0
+
+# ── CARGA DE DADOS ────────────────────────────────────────────────────────────
+# Individualidades Ibiraci vs Pratápolis:
+# • Ibiraci.csv: cabeçalho duplo padrão [0,1] → colunas Mes_Liquidado.
+#   Coluna total tem typo: 'Toral_Liquidado' → não usar; somar meses disponíveis.
+# • meses_disponiveis = ['Janeiro','Fevereiro','Março']
+# • Ibiraci_R.csv: header=0 direto. Coluna orçado = 'Orçado Receitas'.
+#   CRÍTICO: meses em minúsculas ('fevereiro','março'...) → normalizar para título.
+#   Coluna Total vem como 'TOTAL' → normalizar para 'Total'.
+#   'Atualização Quadrimestral' NÃO entra em COLS_R (evita double-parse).
+#   VAAR e ETI têm valores (diferente de Pratápolis/Restinga).
+# • FUNDEB 30%: fontes ['15403','25403'] no DF (duas fontes).
+# • QESE fontes DF: ['1550','2550'] | PTE: ['1576'] | PNAE: ['1552'] | PNATE: ['1553']
+# • PTE no R file: categoria 'Tranferência Programas Estaduais' (não Federal).
+# • Ibiraci_DF.csv: tem linha Tipo='Tipo' → filtrar via isin().
+# • _desconto_fundeb_nao_util = 0.0 | _desconto_superavit_ant = 0.0
+# • Capital Liq Jan–Mar = R$ 171.278,57 | Custeio = R$ 5.051.582,91
+# • FUNDEB 70% Liq = R$ 2.195.215,97 | FUNDEB 30% = R$ 268.984,82
+# • RP 15001 Liq = R$ 1.882.005,15
 @st.cache_data
 def load_all_data():
-    arquivo_f  = "zEducação/Ibiraci.csv"
-    arquivo_r  = "zEducação/Ibiraci_R.csv"
-    arquivo_df = "zEducação/Ibiraci_DF.csv"
-    
-    path_f, path_r, path_df = buscar_arquivo(arquivo_f), buscar_arquivo(arquivo_r), buscar_arquivo(arquivo_df)
+    path_f  = buscar_arquivo("zEducação/Ibiraci.csv")
+    path_r  = buscar_arquivo("zEducação/Ibiraci_R.csv")
+    path_df = buscar_arquivo("zEducação/Ibiraci_DF.csv")
     if not path_f or not path_r or not path_df: return None, None, None
-    
-    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0, 1])
+
+    # ── FICHAS — cabeçalho duplo padrão ──────────────────────────────────────
+    df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0,1])
     new_cols = []
     for col in df_f.columns:
-        if "Unnamed" in col[0]: new_cols.append(col[1].strip())
-        else: new_cols.append(f"{col[1].strip()}_{col[0].strip()}")
+        new_cols.append(col[1].strip() if "Unnamed" in col[0]
+                        else f"{col[1].strip()}_{col[0].strip()}")
     df_f.columns = new_cols
-    
+    for col in df_f.columns:
+        if any(k in col for k in ['Orçado','Saldo','Liquidado','Empenhado','Pago',
+                                   'Creditado','Anulado']):
+            df_f[col] = df_f[col].apply(limpar_valor)
+    df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0','',regex=False).str.strip()
+
+    # ── RECEITAS — header=0 direto + normalização de nomes de colunas ────────
+    # Ibiraci_R.csv: meses em minúsculas → normalizar para título.
+    # 'TOTAL' → 'Total'. 'Atualização Quadrimestral' NÃO incluída em COLS_R.
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
     df_r.columns = [str(c).strip() for c in df_r.columns]
-    
+    # Normaliza nomes de colunas de meses (case-insensitive)
+    meses_norm = {m.lower(): m for m in ORDEM_MESES}
+    col_rename = {}
+    for col in df_r.columns:
+        low = col.lower()
+        if low in meses_norm:
+            col_rename[col] = meses_norm[low]
+        elif low == 'total':
+            col_rename[col] = 'Total'
+    if col_rename:
+        df_r = df_r.rename(columns=col_rename)
+    COLS_R = ORDEM_MESES + ['Total','Orçado Receitas','Repasse','2025']
+    for col in df_r.columns:
+        if col in COLS_R:
+            df_r[col] = df_r[col].apply(limpar_valor)
+
+    # ── DESPESAS POR FONTE — estrutura limpa, remove Tipo='Tipo' ─────────────
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
-    
-    meses_limpeza = ORDEM_MESES + [m.lower() for m in ORDEM_MESES] + ['Total', 'TOTAL', 'Orçado', 'Dedução', 'Orçado Receitas']
-    
-    for col in df_f.columns:
-        if any(k in col for k in ['Orçado', 'Saldo', 'Liquidado', 'Empenhado', 'Pago']):
-            df_f[col] = df_f[col].apply(limpar_valor)
-    for col in df_r.columns:
-        if col in meses_limpeza:
-            df_r[col] = df_r[col].apply(limpar_valor)
+    df_df = df_df[df_df['Tipo'].isin(['Empenhado','Liquidado','Pago'])].copy()
+    df_df['Tipo']  = df_df['Tipo'].str.strip()
+    df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0','',regex=False).str.strip()
     for col in df_df.columns:
-        if col in meses_limpeza:
+        if col in ORDEM_MESES + ['Total']:
             df_df[col] = df_df[col].apply(limpar_valor)
-            
-    if 'Fonte' in df_f.columns:
-        df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-    if 'Fonte' in df_df.columns:
-        df_df['Fonte'] = df_df['Fonte'].astype(str).str.replace('.0', '', regex=False).str.strip()
-        
+
     return df_f, df_r, df_df
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
-meses_disponiveis = ['Janeiro', 'Fevereiro']
+meses_disponiveis = ['Janeiro','Fevereiro','Março']
 
 if df_f_raw is not None and df_r is not None:
-    # --- SIDEBAR ---
+
+    # ── SIDEBAR ───────────────────────────────────────────────────────────────
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Filtrar Fichas:", "")
     st.sidebar.markdown("---")
     st.sidebar.subheader("Setores")
-    if st.sidebar.button("FUNDEB", use_container_width=True): st.session_state.setor = 'FUNDEB'
-    if st.sidebar.button("Recursos Próprios", use_container_width=True): st.session_state.setor = 'Recursos Próprios'
-    if st.sidebar.button("Recursos Vinculados", use_container_width=True): st.session_state.setor = 'Recursos Vinculados'
+    for label, key in [("FUNDEB","FUNDEB"),
+                        ("Recursos Próprios","Recursos Próprios"),
+                        ("Recursos Vinculados","Recursos Vinculados"),
+                        ("Visão Macro","Visão Macro"),
+                        ("Folha de Pagamento","Folha de Pagamento")]:
+        if st.sidebar.button(label, use_container_width=True):
+            st.session_state.setor = key
+
+    import base64 as _b64
+
+    def _ler_logo(nome_arquivo):
+        candidatos = [f"Logos/{nome_arquivo}", f"../Logos/{nome_arquivo}"]
+        try:
+            d = os.path.dirname(__file__)
+            candidatos += [os.path.join(d,"Logos",nome_arquivo),
+                           os.path.join(d,"..","Logos",nome_arquivo)]
+        except NameError:
+            pass
+        for p in candidatos:
+            if os.path.exists(p):
+                with open(p,"rb") as _f:
+                    return "data:image/png;base64," + _b64.b64encode(_f.read()).decode()
+        return ""
+
+    def _js_sidebar_universal(logo_escuro, logo_claro):
+        return (
+            "<script>(function(){"
+            'var LE="' + logo_escuro + '";'
+            'var LC="' + logo_claro  + '";'
+            "function dE(){try{"
+            "var bg=window.parent.getComputedStyle(window.parent.document.body).backgroundColor;"
+            "if(!bg||bg===\"rgba(0,0,0,0)\")return true;"
+            "var v=bg.match(/[0-9]+/g).map(Number);return v[0]<128;"
+            "}catch(e){return true;}}"
+            "var _p=(window.parent.location.pathname||'').toLowerCase();"
+            "var _home=_p==='/'||_p.indexOf('/home')!==-1;"
+            "var _edu=!_home&&_p.indexOf('educa')!==-1;"
+            "var _sau=!_home&&!_edu;"
+            "var _busy=false;"
+            "function run(){"
+            "if(_busy)return;_busy=true;"
+            "try{"
+            "var doc=window.parent.document;"
+            "var nav=doc.querySelector('[data-testid=\"stSidebarNav\"]');"
+            "if(!nav){_busy=false;return;}"
+            "nav.querySelectorAll('li').forEach(function(it){"
+            "var txt=it.textContent;"
+            "var temEduca=txt.indexOf('Educa')!==-1;"
+            "var ocultar=false;"
+            "if(_edu&&!temEduca){"
+            "var _a=it.querySelector('a');"
+            "var _h=_a&&((_a.href||'').toLowerCase().indexOf('/home')!==-1||txt.trim().toLowerCase()==='home');"
+            "if(!_h)ocultar=true;"
+            "}"
+            "if(_sau&&temEduca)ocultar=true;"
+            "if(ocultar){it.style.setProperty('display','none','important');return;}"
+            "it.style.removeProperty('display');"
+            "var lk=it.querySelector('a');if(!lk)return;"
+            "var sp=lk.querySelector('span');"
+            "var tx=(sp?sp.textContent:lk.textContent).trim();"
+            "var isH=tx==='Home'||tx.toLowerCase()==='home'||"
+            "(lk.href&&lk.href.toLowerCase().indexOf('/home')!==-1);"
+            "if(!isH)return;"
+            "if(lk.querySelector('img.ig2p-logo-sidebar'))return;"
+            "if(sp)sp.style.setProperty('display','none','important');"
+            "lk.style.setProperty('padding','4px 8px 4px 8px','important');"
+            "lk.style.setProperty('display','flex','important');"
+            "lk.style.setProperty('align-items','center','important');"
+            "lk.style.setProperty('background','transparent','important');"
+            "var img=doc.createElement('img');"
+            "img.src=dE()?LE:LC;"
+            "img.className='ig2p-logo-sidebar';"
+            "img.style.cssText='width:130px;height:auto;cursor:pointer;display:block;margin:4px 0;';"
+            "var mq=window.parent.matchMedia('(prefers-color-scheme:dark)');"
+            "function up(){img.src=dE()?LE:LC;}"
+            "if(mq.addEventListener)mq.addEventListener('change',up);"
+            "else if(mq.addListener)mq.addListener(up);"
+            "lk.insertBefore(img,lk.firstChild);"
+            "});"
+            "}catch(e){}"
+            "_busy=false;}"
+            "run();setTimeout(run,50);setTimeout(run,200);setTimeout(run,600);"
+            "try{"
+            "if(window.parent._ig2p_obs)window.parent._ig2p_obs.disconnect();"
+            "var _ob=new MutationObserver(function(){run();});"
+            "_ob.observe(window.parent.document.body,{childList:true,subtree:true});"
+            "window.parent._ig2p_obs=_ob;"
+            "}catch(e){}"
+            "})()</script>"
+        )
+
+    components.html(
+        _js_sidebar_universal(
+            _ler_logo("LOGOTIPO IG2P - OFICIAL - BRANCO.png"),
+            _ler_logo("LOGOTIPO IG2P - OFICIAL.png"),
+        ),
+        height=0,
+    )
 
     # =========================================================================
     # SETOR FUNDEB
     # =========================================================================
     if st.session_state.setor == 'FUNDEB':
-        st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - FUNDEB</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:left;'>📖 Ibiraci — FUNDEB</h1>",
+                    unsafe_allow_html=True)
 
-        # ── FUNÇÕES DE SUPORTE ────────────────────────────────────────────────
         def cat_receita(desc):
-            desc = str(desc).upper().strip()
-            if 'VAAR' in desc or 'VAAT' in desc: return 'VAAR/VAAT'
-            if 'ETI' in desc or 'TEMPO INTEGRAL' in desc: return 'ETI'
-            if 'APLICAÇÃO' in desc or 'RENDIMENTOS' in desc: return 'Rendimentos'
+            d = str(desc).upper().strip()
+            if 'VAAT' in d:                              return 'VAAT'
+            if 'VAAR' in d:                              return 'VAAR'
+            if 'ETI'  in d or 'TEMPO INTEGRAL' in d:    return 'ETI'
+            if 'APLICAÇÃO' in d or 'RENDIMENTOS' in d:  return 'Rendimentos'
             return 'Principal'
 
-        def obter_soma_mensal_robusta(df, meses):
-            """Soma colunas de meses independentemente de maiúsculas/minúsculas."""
-            colunas_map = {c.strip().lower(): c for c in df.columns}
-            cols = [colunas_map[m.strip().lower()] for m in meses if m.strip().lower() in colunas_map]
-            return df[cols].sum().sum() if cols else 0.0
-
-        # ── RECEITAS ─────────────────────────────────────────────────────────
         df_r_fundeb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
+        df_r_fundeb['Descrição da Receita'] = df_r_fundeb['Descrição da Receita'].str.strip()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
 
-        # Previsão Orçamento Município = só linha Principal
-        tot_prev_municipio = df_r_fundeb[df_r_fundeb['Subcategoria'] == 'Principal']['Orçado Receitas'].sum()
-        # Previsão Portaria Interministerial = soma de todas as previsões
-        tot_prev_portaria  = df_r_fundeb['Orçado Receitas'].sum()
-        # Total arrecadado no período (todas as subcategorias)
-        tot_rec_periodo    = obter_soma_mensal_robusta(df_r_fundeb, meses_disponiveis)
+        # Ibiraci: coluna orçado = 'Orçado Receitas'
+        tot_prev_municipio = df_r_fundeb[df_r_fundeb['Subcategoria']=='Principal'
+                                         ]['Orçado Receitas'].sum()
+        tot_prev_portaria  = df_r_fundeb['Repasse'].sum()
+        tot_rec_periodo    = soma(df_r_fundeb, meses_disponiveis)
 
-        # ETI: valor recebido no período
-        tot_eti = obter_soma_mensal_robusta(
-            df_r_fundeb[df_r_fundeb['Subcategoria'] == 'ETI'], meses_disponiveis
-        )
-
-        # ── DESPESAS — APENAS FONTES DO ANO VIGENTE (15407 / 15403) ──────────
-        # Fontes 25407 / 25403 = superávit de anos anteriores → aparecem no
-        # gráfico com destaque diferenciado, mas NÃO entram no índice 70%.
-        df_df_fundeb = df_df_raw[
-            df_df_raw['Fonte'].str.contains('1540|2540', na=False)
-        ].copy()
+        # FUNDEB 30%: fontes 15403 + 25403
+        df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407','15403','25403'])].copy()
         df_df_fundeb['Fonte_Nome'] = df_df_fundeb['Fonte'].apply(
-            lambda x: 'FUNDEB 70%' if '15407' in str(x) or '25407' in str(x) else 'FUNDEB 30%'
-        )
-        df_df_fundeb['Ano_Vigente'] = df_df_fundeb['Fonte'].apply(
-            lambda x: True if x in ['15407', '15403'] else False
-        )
+            lambda x: 'FUNDEB 70%' if x=='15407' else 'FUNDEB 30%')
 
-        # Índice 70%: Liquidado FUNDEB 70% SOMENTE do ano vigente (15407)
-        # VAAR e ETI não entram no denominador — base = Principal + Rendimentos
-        base_indice_70 = obter_soma_mensal_robusta(
-            df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal', 'Rendimentos'])],
-            meses_disponiveis
-        )
-        desp_70_vigente = obter_soma_mensal_robusta(
-            df_df_fundeb[
-                (df_df_fundeb['Fonte'] == '15407') &
-                (df_df_fundeb['Tipo'] == 'Liquidado')
-            ],
-            meses_disponiveis
-        )
-        perc_70_indice = (desp_70_vigente / base_indice_70 * 100) if base_indice_70 > 0 else 0.0
+        # Base 70% = Principal + Rendimentos + VAAT
+        base_indice_70  = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
+                                ['Principal','Rendimentos','VAAT'])], meses_disponiveis)
+        desp_70_vigente = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15407') &
+                                (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
+        # FUNDEB 30%: soma fontes 15403 + 25403
+        desp_30_vigente = soma(df_df_fundeb[
+            df_df_fundeb['Fonte'].isin(['15403','25403']) &
+            (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
+        tot_desp_vigente = desp_70_vigente + desp_30_vigente
+        perc_70_indice   = (desp_70_vigente/base_indice_70*100) if base_indice_70>0 else 0.0
 
-        # Total despesas liquidadas no período (ano vigente)
-        tot_desp_vigente = obter_soma_mensal_robusta(
-            df_df_fundeb[
-                df_df_fundeb['Ano_Vigente'] &
-                (df_df_fundeb['Tipo'] == 'Liquidado')
-            ],
-            meses_disponiveis
-        )
-        # Superávit de anos anteriores (25407 / 25403)
-        tot_desp_superavit = obter_soma_mensal_robusta(
-            df_df_fundeb[
-                ~df_df_fundeb['Ano_Vigente'] &
-                (df_df_fundeb['Tipo'] == 'Liquidado')
-            ],
-            meses_disponiveis
-        )
-
-        # ── ITEM 1: CARDS DE PREVISÃO (sem percentual) ───────────────────────
         st.markdown("##### Previsões Orçamentárias")
         p1, p2, p3 = st.columns(3)
-        with p1:
-            st.metric(
-                "Previsão Receitas (Orçamento Município)",
-                formar_real(tot_prev_municipio)
-            )
-        with p2:
-            st.metric(
-                "Previsão de Receitas (Port. Intermin. nº 14/dez 2025)",
-                formar_real(tot_prev_portaria)
-            )
-        with p3:
-            st.metric("Atualização Quadrimestral", "—")
+        with p1: st.metric("Previsão Receitas (Orçamento Município)",
+                            formar_real(tot_prev_municipio))
+        with p2: st.metric("Previsão de Receitas (Portaria Interministerial MEC/MF Nº 5 de Abril de 2026)",
+                            formar_real(tot_prev_portaria))
 
+        # 'Atualização Quadrimestral': limpar_valor aplicado UMA VEZ sobre a string bruta
+        _val_quad = df_r_fundeb['Atualização Quadrimestral'].apply(
+            lambda v: limpar_valor(v)
+        ).sum() if 'Atualização Quadrimestral' in df_r_fundeb.columns else 0.0
+
+        def _parse_perc_quad(v):
+            try:
+                s = str(v).replace('%','').replace(',','.').strip()
+                return float(s)
+            except: return None
+
+        _perc_quad = None
+        if '% Atualização' in df_r_fundeb.columns:
+            _vals_p = df_r_fundeb['% Atualização'].apply(_parse_perc_quad).dropna()
+            if len(_vals_p) > 0: _perc_quad = _vals_p.iloc[0]
+        _delta_quad = f"{_perc_quad:.2f}%" if _perc_quad is not None else None
+
+        with p3: st.metric(
+            "Atualização Quadrimestral",
+            formar_real(_val_quad) if _val_quad > 0 else "—",
+            delta=_delta_quad,
+            delta_color="normal"
+        )
         st.markdown("---")
 
-        # ── GRÁFICO 1: RECEITAS + DESPESAS UNIFICADO ─────────────────────────
         st.subheader("🔹 1. Receitas e Despesas FUNDEB")
 
-        # Totalizadores abaixo do título
+        saldo     = tot_rec_periodo - tot_desp_vigente
+        exec_perc = (tot_desp_vigente/tot_rec_periodo*100) if tot_rec_periodo>0 else 0
+
         t1, t2, t3 = st.columns(3)
-        with t1:
-            st.metric(
-                f"Total Receitas ({meses_disponiveis[0]}–{meses_disponiveis[-1]})",
-                formar_real(tot_rec_periodo)
-            )
-        with t2:
-            st.metric(
-                f"Total Despesas Liquidadas – Ano Vigente",
-                formar_real(tot_desp_vigente)
-            )
+        with t1: st.metric(f"Total Receitas ({meses_disponiveis[0]}–{meses_disponiveis[-1]})",
+                            formar_real(tot_rec_periodo))
+        with t2: st.metric("Total Despesas Liquidadas – Ano Vigente",
+                            formar_real(tot_desp_vigente))
         with t3:
-            saldo = tot_rec_periodo - tot_desp_vigente
-            exec_perc = (tot_desp_vigente / tot_rec_periodo * 100) if tot_rec_periodo > 0 else 0
-            st.metric(
-                "Saldo (Receitas − Despesas Vigentes)",
-                formar_real(saldo),
-                delta=f"{exec_perc:.1f}% executado",
-                delta_color="inverse"
-            )
+            delta_val = exec_perc if saldo >= 0 else -exec_perc
+            st.metric("Saldo (Receitas − Despesas Vigentes)", formar_real(saldo),
+                      delta=f"{delta_val:.1f}% Saldo", delta_color="normal")
 
-        # ITEM 5: Mensal primeiro, depois Acumulado
-        tipo_rd = st.segmented_control(
-            "Visualização:", ["Mensal", "Acumulado"], default="Mensal", key="rd_btn_f"
-        )
-
-        # Paleta de cores para receitas (verde/teal/azul — imagem enviada)
-        COR_REC = {
-            'Principal':    '#1a7a4a',   # verde escuro
-            'VAAR/VAAT':    '#2ecc71',   # verde médio
-            'ETI':          '#17a589',   # teal
-            'Rendimentos':  '#1abc9c',   # teal claro
-        }
-        COR_DESP = {
-            'FUNDEB 70% – Vigente':    '#660000',
-            'FUNDEB 30% – Vigente':    '#cc0000',
-            'FUNDEB 70% – Superávit':  '#8B4513',
-            'FUNDEB 30% – Superávit':  '#CD853F',
-        }
+        tipo_rd = st.segmented_control("Visualização:", ["Mensal","Acumulado"],
+                                       default="Mensal", key="rd_btn_f")
+        fig_rd = go.Figure()
+        categorias_rec  = list(df_r_fundeb['Subcategoria'].unique())
+        legendas_usadas = set()
 
         if tipo_rd == "Mensal":
-            fig_rd = go.Figure()
-            categorias_rec = list(df_r_fundeb['Subcategoria'].unique())
-            legendas_usadas = set()
-
             for m in meses_disponiveis:
-                tot_rec_m  = obter_soma_mensal_robusta(df_r_fundeb, [m])
-                tot_desp_m = obter_soma_mensal_robusta(
-                    df_df_fundeb[df_df_fundeb['Ano_Vigente'] & (df_df_fundeb['Tipo'] == 'Liquidado')], [m]
-                )
-
-                # ─ Receitas empilhadas por subcategoria ─
+                tot_rec_m  = soma(df_r_fundeb, [m])
+                tot_desp_m = soma(df_df_fundeb[df_df_fundeb['Tipo']=='Liquidado'], [m])
                 for cat in categorias_rec:
-                    val = obter_soma_mensal_robusta(
-                        df_r_fundeb[df_r_fundeb['Subcategoria'] == cat], [m]
-                    )
-                    desc_list = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat]['Descrição da Receita'].str.strip().unique().tolist()
-                    show_leg  = f"rec_{cat}" not in legendas_usadas
+                    val = soma(df_r_fundeb[df_r_fundeb['Subcategoria']==cat], [m])
+                    if val == 0: continue
+                    desc_list = df_r_fundeb[df_r_fundeb['Subcategoria']==cat][
+                        'Descrição da Receita'].unique().tolist()
+                    show = f"rec_{cat}" not in legendas_usadas
                     legendas_usadas.add(f"rec_{cat}")
-                    part = f"{(val/tot_rec_m*100):.1f}%" if tot_rec_m > 0 else "—"
-
-                    # Texto dentro da barra apenas se valor > 0
-                    texto_barra = formar_real(val) if val > 0 else ""
-
+                    part = f"{val/tot_rec_m*100:.1f}%" if tot_rec_m>0 else "—"
                     fig_rd.add_trace(go.Bar(
-                        name=cat,
-                        x=[[m], ["Receitas"]],
-                        y=[val],
-                        marker_color=COR_REC.get(cat, '#27ae60'),
-                        legendgroup=f"rec_{cat}",
-                        showlegend=show_leg,
-                        text=texto_barra,
-                        textposition='inside',
-                        insidetextanchor='middle',
-                        customdata=[[cat, "FUNDEB", " | ".join(desc_list),
-                                     formar_real(val), formar_real(tot_rec_m), part, m]],
+                        name=cat, x=[[m],["Receitas"]], y=[val],
+                        marker_color=COR_REC.get(cat,'#27ae60'),
+                        legendgroup=f"rec_{cat}", showlegend=show,
+                        text=formar_real(val),
+                        textposition='inside', insidetextanchor='middle',
+                        customdata=[[cat,"FUNDEB"," | ".join(desc_list),
+                                     formar_real(val),formar_real(tot_rec_m),part,m]],
                         hovertemplate=(
                             "<span style='color:white;'>"
                             "<b>📥 %{customdata[6]} — Receita %{customdata[0]}</b><br>"
-                            "Categoria: %{customdata[0]}<br>"
-                            "Fundo: %{customdata[1]}<br>"
-                            "Rubrica(s): %{customdata[2]}<br>"
-                            "─────────────────────<br>"
+                            "Categoria: %{customdata[0]}<br>Fundo: %{customdata[1]}<br>"
+                            "Rubrica(s): %{customdata[2]}<br>─────────────────────<br>"
                             "Valor: <b>%{customdata[3]}</b><br>"
                             "Total Rec. mês: %{customdata[4]}<br>"
-                            "Participação: %{customdata[5]}"
-                            "</span><extra></extra>"
+                            "Participação: %{customdata[5]}</span><extra></extra>"
                         ),
                     ))
-
-                # ─ Despesas ano vigente empilhadas ─
-                for fonte_cod, label_desp in [('15407','FUNDEB 70% – Vigente'), ('15403','FUNDEB 30% – Vigente')]:
-                    val = obter_soma_mensal_robusta(
-                        df_df_fundeb[(df_df_fundeb['Fonte'] == fonte_cod) & (df_df_fundeb['Tipo'] == 'Liquidado')], [m]
-                    )
-                    show_leg = label_desp not in legendas_usadas
+                for fonte_cod, label_desp in [('15407','FUNDEB 70% – Vigente'),
+                                              ('15403','FUNDEB 30% – Vigente')]:
+                    # FUNDEB 30%: agrupa 15403+25403
+                    if fonte_cod == '15403':
+                        val = soma(df_df_fundeb[
+                            df_df_fundeb['Fonte'].isin(['15403','25403']) &
+                            (df_df_fundeb['Tipo']=='Liquidado')], [m])
+                    else:
+                        val = soma(df_df_fundeb[(df_df_fundeb['Fonte']==fonte_cod) &
+                                                (df_df_fundeb['Tipo']=='Liquidado')], [m])
+                    show = label_desp not in legendas_usadas
                     legendas_usadas.add(label_desp)
-                    prop = f"{(val/tot_desp_m*100):.1f}%" if tot_desp_m > 0 else "—"
-                    texto_barra = formar_real(val) if val > 0 else ""
+                    prop = f"{val/tot_desp_m*100:.1f}%" if tot_desp_m>0 else "—"
                     fig_rd.add_trace(go.Bar(
-                        name=label_desp,
-                        x=[[m], ["Despesas"]],
-                        y=[val],
+                        name=label_desp, x=[[m],["Despesas"]], y=[val],
                         marker_color=COR_DESP[label_desp],
-                        legendgroup=label_desp,
-                        showlegend=show_leg,
-                        text=texto_barra,
-                        textposition='inside',
+                        legendgroup=label_desp, showlegend=show,
+                        text=formar_real(val) if val>0 else "",
+                        textposition='outside' if fonte_cod=='15403' else 'inside',
                         insidetextanchor='middle',
-                        customdata=[[fonte_cod, "Liquidado – Ano Vigente",
-                                     prop, formar_real(val), formar_real(tot_desp_m), prop, m]],
+                        customdata=[[fonte_cod,"Liquidado – Ano Vigente",prop,
+                                     formar_real(val),formar_real(tot_desp_m),prop,m]],
                         hovertemplate=(
                             "<span style='color:white;'>"
                             "<b>📤 %{customdata[6]} — %{customdata[0]}</b><br>"
-                            "Fonte: %{customdata[0]}<br>"
-                            "Estágio: %{customdata[1]}<br>"
-                            "─────────────────────<br>"
-                            "Valor: <b>%{customdata[3]}</b><br>"
-                            "Total Desp. vigentes mês: %{customdata[4]}<br>"
-                            "Participação: %{customdata[5]}"
-                            "</span><extra></extra>"
+                            "Fonte: %{customdata[0]}<br>Estágio: %{customdata[1]}<br>"
+                            "─────────────────────<br>Valor: <b>%{customdata[3]}</b><br>"
+                            "Total Desp. mês: %{customdata[4]}<br>"
+                            "Participação: %{customdata[5]}</span><extra></extra>"
                         ),
                     ))
-
-                # ─ Despesas superávit (anos anteriores) ─
-                for fonte_cod, label_desp in [('25407','FUNDEB 70% – Superávit'), ('25403','FUNDEB 30% – Superávit')]:
-                    val = obter_soma_mensal_robusta(
-                        df_df_fundeb[(df_df_fundeb['Fonte'] == fonte_cod) & (df_df_fundeb['Tipo'] == 'Liquidado')], [m]
-                    )
-                    if val == 0: continue
-                    show_leg = label_desp not in legendas_usadas
-                    legendas_usadas.add(label_desp)
-                    texto_barra = f"⚠️ {formar_real(val)}"
-                    fig_rd.add_trace(go.Bar(
-                        name=label_desp,
-                        x=[[m], ["Despesas"]],
-                        y=[val],
-                        marker_color=COR_DESP[label_desp],
-                        marker_pattern_shape="/",
-                        legendgroup=label_desp,
-                        showlegend=show_leg,
-                        text=texto_barra,
-                        textposition='inside',
-                        insidetextanchor='middle',
-                        customdata=[[fonte_cod, "Liquidado – Superávit Anos Anteriores",
-                                     "⚠️ Não computa no índice 70% do ano vigente",
-                                     formar_real(val), m]],
-                        hovertemplate=(
-                            "<span style='color:white;'>"
-                            "<b>⚠️ %{customdata[4]} — Superávit Anos Anteriores</b><br>"
-                            "Fonte: %{customdata[0]}<br>"
-                            "Estágio: %{customdata[1]}<br>"
-                            "Obs.: %{customdata[2]}<br>"
-                            "─────────────────────<br>"
-                            "Valor: <b>%{customdata[3]}</b>"
-                            "</span><extra></extra>"
-                        ),
-                    ))
-
-        else:  # ACUMULADO
-            fig_rd = go.Figure()
-            categorias_rec  = list(df_r_fundeb['Subcategoria'].unique())
-            legendas_usadas = set()
-
-            # ─ Receitas ─
+        else:
             for cat in categorias_rec:
-                val = obter_soma_mensal_robusta(
-                    df_r_fundeb[df_r_fundeb['Subcategoria'] == cat], meses_disponiveis
-                )
-                desc_list = df_r_fundeb[df_r_fundeb['Subcategoria'] == cat]['Descrição da Receita'].str.strip().unique().tolist()
-                part = f"{(val/tot_rec_periodo*100):.1f}%" if tot_rec_periodo > 0 else "—"
-                texto_barra = formar_real(val) if val > 0 else ""
+                val = soma(df_r_fundeb[df_r_fundeb['Subcategoria']==cat], meses_disponiveis)
+                if val == 0: continue
+                desc_list = df_r_fundeb[df_r_fundeb['Subcategoria']==cat][
+                    'Descrição da Receita'].unique().tolist()
+                part = f"{val/tot_rec_periodo*100:.1f}%" if tot_rec_periodo>0 else "—"
                 fig_rd.add_trace(go.Bar(
-                    name=cat,
-                    x=[["Acumulado"], ["Receitas"]],
-                    y=[val],
-                    marker_color=COR_REC.get(cat, '#27ae60'),
-                    legendgroup=f"rec_{cat}",
-                    showlegend=True,
-                    text=texto_barra,
-                    textposition='inside',
-                    insidetextanchor='middle',
-                    customdata=[[cat, "FUNDEB", " | ".join(desc_list),
-                                 formar_real(val), formar_real(tot_rec_periodo), part]],
+                    name=cat, x=[["Acumulado"],["Receitas"]], y=[val],
+                    marker_color=COR_REC.get(cat,'#27ae60'),
+                    legendgroup=f"rec_{cat}", showlegend=True,
+                    text=formar_real(val),
+                    textposition='inside', insidetextanchor='middle',
+                    customdata=[[cat,"FUNDEB"," | ".join(desc_list),
+                                 formar_real(val),formar_real(tot_rec_periodo),part]],
                     hovertemplate=(
                         "<span style='color:white;'>"
                         "<b>📥 Receita — %{customdata[0]}</b><br>"
-                        "Categoria: %{customdata[0]}<br>"
-                        "Fundo: %{customdata[1]}<br>"
-                        "Rubrica(s): %{customdata[2]}<br>"
-                        "─────────────────────<br>"
+                        "Categoria: %{customdata[0]}<br>Fundo: %{customdata[1]}<br>"
+                        "Rubrica(s): %{customdata[2]}<br>─────────────────────<br>"
                         "Valor: <b>%{customdata[3]}</b><br>"
                         "Total Receitas: %{customdata[4]}<br>"
-                        "Participação: %{customdata[5]}"
-                        "</span><extra></extra>"
+                        "Participação: %{customdata[5]}</span><extra></extra>"
                     ),
                 ))
-
-            # ─ Despesas vigentes ─
-            for fonte_cod, label_desp in [('15407','FUNDEB 70% – Vigente'), ('15403','FUNDEB 30% – Vigente')]:
-                val = obter_soma_mensal_robusta(
-                    df_df_fundeb[(df_df_fundeb['Fonte'] == fonte_cod) & (df_df_fundeb['Tipo'] == 'Liquidado')],
-                    meses_disponiveis
-                )
-                prop = f"{(val/tot_desp_vigente*100):.1f}%" if tot_desp_vigente > 0 else "—"
-                texto_barra = formar_real(val) if val > 0 else ""
+            for fonte_cod, label_desp in [('15407','FUNDEB 70% – Vigente'),
+                                          ('15403','FUNDEB 30% – Vigente')]:
+                if fonte_cod == '15403':
+                    val = soma(df_df_fundeb[
+                        df_df_fundeb['Fonte'].isin(['15403','25403']) &
+                        (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
+                else:
+                    val = soma(df_df_fundeb[(df_df_fundeb['Fonte']==fonte_cod) &
+                                            (df_df_fundeb['Tipo']=='Liquidado')], meses_disponiveis)
+                prop = f"{val/tot_desp_vigente*100:.1f}%" if tot_desp_vigente>0 else "—"
                 fig_rd.add_trace(go.Bar(
-                    name=label_desp,
-                    x=[["Acumulado"], ["Despesas"]],
-                    y=[val],
+                    name=label_desp, x=[["Acumulado"],["Despesas"]], y=[val],
                     marker_color=COR_DESP[label_desp],
-                    legendgroup=label_desp,
-                    showlegend=True,
-                    text=texto_barra,
-                    textposition='inside',
+                    legendgroup=label_desp, showlegend=True,
+                    text=formar_real(val) if val>0 else "",
+                    textposition='outside' if fonte_cod=='15403' else 'inside',
                     insidetextanchor='middle',
-                    customdata=[[fonte_cod, "Liquidado – Ano Vigente",
-                                 prop, formar_real(val), formar_real(tot_desp_vigente), prop]],
+                    customdata=[[fonte_cod,"Liquidado – Ano Vigente",prop,
+                                 formar_real(val),formar_real(tot_desp_vigente),prop]],
                     hovertemplate=(
                         "<span style='color:white;'>"
                         "<b>📤 Despesa — %{customdata[0]}</b><br>"
-                        "Fonte: %{customdata[0]}<br>"
-                        "Estágio: %{customdata[1]}<br>"
-                        "─────────────────────<br>"
-                        "Valor: <b>%{customdata[3]}</b><br>"
+                        "Fonte: %{customdata[0]}<br>Estágio: %{customdata[1]}<br>"
+                        "─────────────────────<br>Valor: <b>%{customdata[3]}</b><br>"
                         "Total Desp. vigentes: %{customdata[4]}<br>"
-                        "Participação: %{customdata[5]}"
-                        "</span><extra></extra>"
-                    ),
-                ))
-
-            # ─ Despesas superávit ─
-            for fonte_cod, label_desp in [('25407','FUNDEB 70% – Superávit'), ('25403','FUNDEB 30% – Superávit')]:
-                val = obter_soma_mensal_robusta(
-                    df_df_fundeb[(df_df_fundeb['Fonte'] == fonte_cod) & (df_df_fundeb['Tipo'] == 'Liquidado')],
-                    meses_disponiveis
-                )
-                if val == 0: continue
-                texto_barra = f"⚠️ {formar_real(val)}"
-                fig_rd.add_trace(go.Bar(
-                    name=label_desp,
-                    x=[["Acumulado"], ["Despesas"]],
-                    y=[val],
-                    marker_color=COR_DESP[label_desp],
-                    marker_pattern_shape="/",
-                    legendgroup=label_desp,
-                    showlegend=True,
-                    text=texto_barra,
-                    textposition='inside',
-                    insidetextanchor='middle',
-                    customdata=[[fonte_cod, "Liquidado – Superávit Anos Anteriores",
-                                 "⚠️ Não computa no índice 70% vigente",
-                                 formar_real(val)]],
-                    hovertemplate=(
-                        "<span style='color:white;'>"
-                        "<b>⚠️ Superávit Anos Anteriores — %{customdata[0]}</b><br>"
-                        "Fonte: %{customdata[0]}<br>"
-                        "Estágio: %{customdata[1]}<br>"
-                        "Obs.: %{customdata[2]}<br>"
-                        "─────────────────────<br>"
-                        "Valor: <b>%{customdata[3]}</b>"
-                        "</span><extra></extra>"
+                        "Participação: %{customdata[5]}</span><extra></extra>"
                     ),
                 ))
 
         fig_rd.update_layout(
-            separators=",.",
-            barmode='stack',
-            hoverlabel=HOVER_STYLE,
+            separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
             showlegend=True,
             legend=dict(orientation="h", yanchor="bottom", y=-0.30, xanchor="center", x=0.5),
-            height=500,
-            yaxis=dict(showticklabels=False),
-            uniformtext_minsize=9,
-            uniformtext_mode='hide',
+            height=500, yaxis=dict(showticklabels=False),
+            uniformtext_minsize=9, uniformtext_mode='hide',
         )
         st.plotly_chart(fig_rd, use_container_width=True, config=CONFIG_PT)
-
         st.markdown("---")
 
-        # ── GRÁFICO 2: COMPARATIVO ÍNDICE 70% — SOMENTE ACUMULADO ───────────
-        # ITEM 6: destaque do índice 70% apenas no acumulado
         st.subheader("🔹 2. Índice de Aplicação em Pessoal (Mín. 70%)")
+        tipo_70 = st.segmented_control("Visualização:", ["Mensal","Acumulado"],
+                                       default="Mensal", key="tipo_70_btn")
 
-        # Nota metodológica
-        st.info(
-            "**Base de cálculo:** receitas de Principal + Rendimentos (VAAR/VAAT e ETI não compõem o denominador). "
-            "**Numerador:** despesas liquidadas pela fonte 15407 (ano vigente). "
-            "Despesas de fontes 25407/25403 (superávit de anos anteriores) são exibidas no gráfico mas **não** compõem o índice."
-        )
+        if tipo_70 == "Acumulado":
+            a1, a2 = st.columns(2)
+            with a1: st.metric("Base de Cálculo (Principal + Rendimentos + VAAT)",
+                                formar_real(base_indice_70))
+            with a2: st.metric("Despesas FUNDEB 70% – Liquidado",
+                                formar_real(desp_70_vigente))
+            metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
 
-        # Cards do índice
-        i1, i2, i3 = st.columns(3)
-        with i1: st.metric("Base de Cálculo (Principal + Rendimentos)", formar_real(base_indice_70))
-        with i2: st.metric("Despesas FUNDEB 70% – Ano Vigente (Liquidado)", formar_real(desp_70_vigente))
-        with i3: metric_contabil("Aplicação em Pessoal (Mín. 70%)", perc_70_indice, 70.0)
+            fig_70 = go.Figure()
+            fig_70.add_trace(go.Bar(
+                x=["Receita Base\n(Principal + Rendimentos + VAAT)"], y=[base_indice_70],
+                name="Receita Base", marker_color="#003366",
+                text=[formar_real(base_indice_70)],
+                textposition='inside', insidetextanchor='middle',
+                hovertemplate=("<span style='color:white;'><b>Receita Base FUNDEB</b><br>"
+                               "Principal + Rendimentos + VAAT<br>"
+                               "Valor: <b>"+formar_real(base_indice_70)+"</b></span><extra></extra>"),
+            ))
+            fig_70.add_trace(go.Bar(
+                x=["Despesas 70%\n(Liquidado)"], y=[desp_70_vigente],
+                name=f"Despesas 70% — {perc_70_indice:.2f}%",
+                marker_color=COR_DESP['FUNDEB 70% – Vigente'],
+                text=[f"{formar_real(desp_70_vigente)}\n({perc_70_indice:.2f}%)"],
+                textposition='inside', insidetextanchor='middle',
+                hovertemplate=("<span style='color:white;'><b>Despesas FUNDEB 70%</b><br>"
+                               "Fonte: 15407 | Liquidado<br>"
+                               "Valor: <b>"+formar_real(desp_70_vigente)+"</b><br>"
+                               "Índice: <b>"+f"{perc_70_indice:.2f}%"+"</b></span><extra></extra>"),
+            ))
+            fig_70.add_hline(y=base_indice_70*0.70, line_dash="dot", line_color="green",
+                             annotation_text=f"Meta 70% = {formar_real(base_indice_70*0.70)}",
+                             annotation_position="top left")
+            fig_70.update_layout(
+                separators=",.", barmode='group', hoverlabel=HOVER_STYLE,
+                yaxis=dict(showticklabels=False), showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
+                height=440, margin=dict(b=80),
+            )
+        else:
+            dados_70_m = []
+            for m in meses_disponiveis:
+                base_m   = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
+                                    ['Principal','Rendimentos','VAAT'])], [m])
+                liq_70_m = soma(df_df_fundeb[(df_df_fundeb['Fonte']=='15407') &
+                                             (df_df_fundeb['Tipo']=='Liquidado')], [m])
+                perc_m   = (liq_70_m/base_m*100) if base_m>0 else 0.0
+                dados_70_m += [
+                    {"Mês":m,"Tipo":"Receita Base","Valor":base_m,"Texto":""},
+                    {"Mês":m,"Tipo":"FUNDEB 70% (Liquidado)","Valor":liq_70_m,
+                     "Texto":f"{perc_m:.1f}%"},
+                ]
+            fig_70 = px.bar(
+                pd.DataFrame(dados_70_m), x='Mês', y='Valor', color='Tipo',
+                barmode='group', text='Texto',
+                color_discrete_map={
+                    "Receita Base":           "#003366",
+                    "FUNDEB 70% (Liquidado)": COR_DESP['FUNDEB 70% – Vigente'],
+                },
+                category_orders={"Mês":ORDEM_MESES}
+            )
+            df_meta_70 = pd.DataFrame([
+                {"Mês":m, "Meta 70%": soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
+                    ['Principal','Rendimentos','VAAT'])],[m])*0.70}
+                for m in meses_disponiveis
+            ])
+            fig_70.add_trace(go.Scatter(
+                x=df_meta_70['Mês'], y=df_meta_70['Meta 70%'],
+                mode='lines+markers', name='Meta 70% (Mensal)',
+                line=dict(color='green', dash='dot')
+            ))
+            fig_70.update_traces(
+                selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
+                hovertemplate=("<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
+                               "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>")
+            )
+            fig_70.update_layout(
+                separators=",.", yaxis=dict(showticklabels=False), xaxis_title=None,
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
+                height=460, margin=dict(b=90),
+            )
 
-        # Gráfico acumulado de comparação
-        df_c = pd.DataFrame({
-            "Categoria": ["Receita Base\n(Principal + Rendimentos)", "Despesas 70%\n(Ano Vigente)"],
-            "Valor":     [base_indice_70, desp_70_vigente],
-            "Texto":     [formar_real(base_indice_70), f"{formar_real(desp_70_vigente)}\n({perc_70_indice:.2f}%)"],
-        })
-        cor_barra = "#27ae60" if perc_70_indice >= 70 else "#e74c3c"
-        fig_70 = go.Figure()
-        fig_70.add_trace(go.Bar(
-            x=["Receita Base\n(Principal + Rendimentos)"],
-            y=[base_indice_70],
-            name="Receita Base",
-            marker_color="#003366",
-            text=[formar_real(base_indice_70)],
-            textposition='inside',
-            insidetextanchor='middle',
-            hovertemplate="<span style='color:white;'><b>Receita Base FUNDEB</b><br>Principal + Rendimentos<br>Valor: <b>" + formar_real(base_indice_70) + "</b></span><extra></extra>",
-        ))
-        fig_70.add_trace(go.Bar(
-            x=["Despesas 70%\n(Ano Vigente – Liquidado)"],
-            y=[desp_70_vigente],
-            name=f"Despesas 70% — {perc_70_indice:.2f}%",
-            marker_color=cor_barra,
-            text=[f"{formar_real(desp_70_vigente)}\n({perc_70_indice:.2f}%)"],
-            textposition='inside',
-            insidetextanchor='middle',
-            hovertemplate=(
-                "<span style='color:white;'><b>Despesas FUNDEB 70% – Vigente</b><br>"
-                "Fonte: 15407 | Liquidado<br>"
-                "Valor: <b>" + formar_real(desp_70_vigente) + "</b><br>"
-                "Índice: <b>" + f"{perc_70_indice:.2f}%" + "</b></span><extra></extra>"
-            ),
-        ))
-        fig_70.add_hline(
-            y=base_indice_70 * 0.70,
-            line_dash="dot", line_color="green", line_width=2,
-            annotation_text=f"Meta 70% = {formar_real(base_indice_70 * 0.70)}",
-            annotation_position="top left",
-        )
-        fig_70.update_layout(
-            separators=",.",
-            barmode='group',
-            hoverlabel=HOVER_STYLE,
-            yaxis=dict(showticklabels=False),
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.20, xanchor="center", x=0.5),
-            height=420,
-        )
         st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
-
         st.markdown("---")
 
-        # ── ITEM 8: GRÁFICO 3 — PERCENTUAL TEMPO INTEGRAL (ETI) ─────────────
-        st.subheader("🔹 3. Percentual Tempo Integral (ETI)")
+        st.subheader("🔹 3. Percentual Tempo Integral")
 
-        meta_eti_perc  = 4.0  # mínimo legal: 4% do total FUNDEB
-        val_meta_eti   = base_indice_70 * (meta_eti_perc / 100)
-        perc_eti_real  = (tot_eti / base_indice_70 * 100) if base_indice_70 > 0 else 0.0
+        meta_eti_perc = 4.0
+        _base_eti = soma(
+            df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal','Rendimentos','VAAT'])],
+            meses_disponiveis
+        )
+        val_meta_eti = _base_eti * (meta_eti_perc/100)
 
-        e1, e2, e3 = st.columns(3)
-        with e1: st.metric("Receita ETI Recebida (período)", formar_real(tot_eti))
-        with e2: st.metric(f"Valor Equivalente a {meta_eti_perc:.0f}% da Receita Base", formar_real(val_meta_eti))
-        with e3: metric_contabil(f"ETI sobre Receita Base (Ref. {meta_eti_perc:.0f}%)", perc_eti_real, meta_eti_perc)
+        e1, e2 = st.columns(2)
+        with e1: st.metric("Base para Cálculo ETI (Principal + Rendimentos + VAAT)",
+                            formar_real(_base_eti))
+        with e2: st.metric(f"Meta {meta_eti_perc:.0f}% (Referência ETI)",
+                            formar_real(val_meta_eti))
 
-        cor_eti = "#27ae60" if perc_eti_real >= meta_eti_perc else "#e74c3c"
         fig_eti = go.Figure()
         fig_eti.add_trace(go.Bar(
-            x=["Receita Base FUNDEB"],
-            y=[base_indice_70],
-            name="Receita Base",
-            marker_color="#003366",
-            text=[formar_real(base_indice_70)],
-            textposition='inside',
-            insidetextanchor='middle',
-            hovertemplate="<span style='color:white;'><b>Receita Base FUNDEB</b><br>Valor: <b>" + formar_real(base_indice_70) + "</b></span><extra></extra>",
-        ))
-        fig_eti.add_trace(go.Bar(
-            x=["ETI Recebido (período)"],
-            y=[tot_eti],
-            name=f"ETI — {perc_eti_real:.2f}% da base",
-            marker_color=cor_eti,
-            text=[f"{formar_real(tot_eti)}\n({perc_eti_real:.2f}%)"],
-            textposition='inside',
-            insidetextanchor='middle',
-            hovertemplate=(
-                "<span style='color:white;'><b>Receita ETI</b><br>"
-                "Valor recebido: <b>" + formar_real(tot_eti) + "</b><br>"
-                "% sobre receita base: <b>" + f"{perc_eti_real:.2f}%" + "</b><br>"
-                "Meta de referência: <b>" + f"{meta_eti_perc:.0f}%" + " = " + formar_real(val_meta_eti) + "</b></span><extra></extra>"
-            ),
+            x=["Base ETI\n(Principal + Rend. + VAAT)"], y=[_base_eti],
+            name="Base ETI", marker_color="#003366",
+            text=[formar_real(_base_eti)],
+            textposition='inside', insidetextanchor='middle',
+            hovertemplate=("<span style='color:white;'><b>Base de Cálculo ETI</b><br>"
+                           "Principal + Rendimentos + VAAT<br>"
+                           "(VAAR e ETI não entram no cálculo)<br>"
+                           "Valor: <b>"+formar_real(_base_eti)+"</b></span><extra></extra>"),
         ))
         fig_eti.add_hline(
-            y=val_meta_eti,
-            line_dash="dot", line_color="#f39c12", line_width=2,
-            annotation_text=f"Referência {meta_eti_perc:.0f}% = {formar_real(val_meta_eti)}",
-            annotation_position="top left",
+            y=val_meta_eti, line_dash="dot", line_color="#f39c12", line_width=2,
+            annotation_text=f"Referência ETI {meta_eti_perc:.0f}% = {formar_real(val_meta_eti)}",
+            annotation_position="top left"
         )
         fig_eti.update_layout(
-            separators=",.",
-            barmode='group',
-            hoverlabel=HOVER_STYLE,
-            yaxis=dict(showticklabels=False),
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.20, xanchor="center", x=0.5),
-            height=400,
+            separators=",.", hoverlabel=HOVER_STYLE,
+            yaxis=dict(showticklabels=False), showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.30, xanchor="center", x=0.5),
+            height=380,
         )
         st.plotly_chart(fig_eti, use_container_width=True, config=CONFIG_PT)
-        
-        # --- SETOR RECURSOS PRÓPRIOS ---
-    elif st.session_state.setor == 'Recursos Próprios':
-        st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - Recursos Próprios (25%)</h1>", unsafe_allow_html=True)
 
-        # ── FUNÇÃO AUXILIAR ───────────────────────────────────────────────────
+    # =========================================================================
+    # SETOR RECURSOS PRÓPRIOS
+    # =========================================================================
+    elif st.session_state.setor == 'Recursos Próprios':
+        st.markdown("<h1 style='text-align:left;'>📖 Ibiraci — Recursos Próprios (25%)</h1>",
+                    unsafe_allow_html=True)
+
         def obter_soma_rp(df, meses):
-            """Soma robusto ignorando case nos nomes dos meses."""
-            col_map = {c.strip().lower(): c for c in df.columns}
+            col_map = {c.strip().lower():c for c in df.columns}
             cols = [col_map[m.lower()] for m in meses if m.lower() in col_map]
             return df[cols].sum().sum() if cols else 0.0
 
-        # ── ABREVIAÇÕES DOS IMPOSTOS (item 2) ─────────────────────────────────
         ABREV_IMPOSTO = {
-            'PROPRIEDADE PREDIAL E TERRITORIAL URBANA': 'IPTU',
-            'TRANSMISSÃO "INTER VIVOS"':               'ITBI',
-            'TRANSMISSÃO INTER VIVOS':                 'ITBI',
-            'RENDA - RETIDO NA FONTE':                 'IR',
-            'RENDA – RETIDO NA FONTE':                 'IR',
-            'SERVIÇOS DE QUALQUER NATUREZA':           'ISS',
-            'FUNDO DE PARTICIPAÇÃO DOS MUNICÍPIOS':    'FPM',
-            'FUNDO DE PARTICIPAÇÃO DO MUNICÍPIOS':     'FPM',
-            'PROPRIEDADE TERRITORIAL RURAL':           'ITR',
-            'ICMS':                                    'ICMS',
-            'IPVA':                                    'IPVA',
-            'IPI':                                     'IPI',
-            'INSS':                                    'INSS',
+            'PROPRIEDADE PREDIAL E TERRITORIAL URBANA':'IPTU',
+            'TRANSMISSÃO "INTER VIVOS"':'ITBI','TRANSMISSÃO INTER VIVOS':'ITBI',
+            'RENDA - RETIDO NA FONTE':'IR','RENDA – RETIDO NA FONTE':'IR',
+            'SERVIÇOS DE QUALQUER NATUREZA':'ISS',
+            'FUNDO DE PARTICIPAÇÃO DOS MUNICÍPIOS':'FPM',
+            'FUNDO DE PARTICIPAÇÃO DO MUNICÍPIOS':'FPM',
+            'PROPRIEDADE TERRITORIAL RURAL':'ITR',
+            'ICMS':'ICMS','IPVA':'IPVA','IPI':'IPI','INSS':'INSS',
         }
 
         def abrev_imposto(desc):
-            desc_up = str(desc).upper()
+            du = str(desc).upper()
+            du = du.replace('\u201c','"').replace('\u201d','"')\
+                   .replace('\u2018',"'").replace('\u2019',"'")
             for longo, curto in ABREV_IMPOSTO.items():
-                if longo in desc_up:
-                    # identifica subcategoria
-                    if 'DÍVIDA ATIVA' in desc_up and 'MULTAS' in desc_up: return f"{curto} – D.A. M/J"
-                    if 'DÍVIDA ATIVA' in desc_up:                          return f"{curto} – D.A."
-                    if 'MULTAS' in desc_up:                                return f"{curto} – M/J"
-                    if 'OUTROS RENDIMENTOS' in desc_up:                    return f"{curto} – Outros"
-                    if '1% DEZEMBRO' in desc_up or 'DEZEMBRO' in desc_up:  return f"{curto} – Dez"
-                    if '1% JULHO' in desc_up or 'JULHO' in desc_up:        return f"{curto} – Jul/Set"
+                if longo in du:
+                    if 'DÍVIDA ATIVA' in du and 'MULTAS' in du: return f"{curto} – D.A. M/J"
+                    if 'DÍVIDA ATIVA' in du:                     return f"{curto} – D.A."
+                    if 'MULTAS' in du:                           return f"{curto} – M/J"
+                    if 'OUTROS RENDIMENTOS' in du:               return f"{curto} – Outros"
+                    if 'DEZEMBRO' in du:                         return f"{curto} – Dez"
+                    if 'JULHO' in du or 'SETEMBRO' in du:        return f"{curto} – Jul/Set"
                     return curto
-            return desc[:20]
+            return desc.strip()[:20]
 
-        # ── PALETA POR TIPO DE RECEITA (item 5 — paleta verde/teal/azul) ─────
-        # Cada imposto / cota-parte recebe uma cor distinta
-        PALETA_RP = [
-            '#1a7a4a',  # verde escuro
-            '#27ae60',  # verde médio
-            '#17a589',  # teal
-            '#1abc9c',  # teal claro
-            '#2980b9',  # azul médio
-            '#1565c0',  # azul escuro
-            '#0288d1',  # azul céu
-            '#00838f',  # ciano escuro
-            '#00acc1',  # ciano
-            '#26c6da',  # ciano claro
-            '#43a047',  # verde lima
-            '#66bb6a',  # verde claro
-            '#80cbc4',  # verde água
-            '#4dd0e1',  # teal brilhante
-        ]
+        def grupo_imposto(abrev):
+            return abrev.split(' –')[0].strip()
 
-        # ── BASES DE DADOS ────────────────────────────────────────────────────
-        # Receitas base: Impostos + Cota-Parte
-        df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos', 'Cota-Parte'])].copy()
+        PALETA_RP = ['#1a7a4a','#27ae60','#17a589','#1abc9c',
+                     '#2980b9','#1565c0','#0288d1','#00838f',
+                     '#00acc1','#26c6da','#43a047','#66bb6a',
+                     '#80cbc4','#4dd0e1']
+
+        df_r_base = df_r[df_r['Categoria'].str.strip().isin(['Impostos','Cota-Parte'])].copy()
+        df_r_base['Descrição da Receita'] = df_r_base['Descrição da Receita'].str.strip()
         df_r_base['Abrev'] = df_r_base['Descrição da Receita'].apply(abrev_imposto)
+        df_r_base['Grupo'] = df_r_base['Abrev'].apply(grupo_imposto)
 
-        # Dedução FUNDEB
-        df_r_ded = df_r[df_r['Categoria'].str.contains('Dedução', case=False, na=False)].copy()
+        df_r_grupo = df_r_base.groupby('Grupo')[meses_disponiveis].sum().reset_index()
+        grupos_unicos = list(df_r_grupo['Grupo'].unique())
+        mapa_cores_grupos = {g: PALETA_RP[i%len(PALETA_RP)] for i,g in enumerate(grupos_unicos)}
 
-        # Previsão Orçamentária Impostos (só categoria Impostos)
-        df_r_imp = df_r[df_r['Categoria'].str.strip() == 'Impostos'].copy()
-        prev_impostos  = df_r_imp['Orçado Receitas'].sum()
-        prev_cota      = df_r[df_r['Categoria'].str.strip().str.contains('Cota', na=False)]['Orçado Receitas'].sum()
-        prev_total_rp  = df_r_base['Orçado Receitas'].sum()
+        df_r_ded = df_r[df_r['Categoria'].str.strip().str.startswith('Dedução', na=False)].copy()
 
-        # Arrecadado no período
+        # Ibiraci: coluna orçado = 'Orçado Receitas'
+        prev_total_rp = df_r_base['Orçado Receitas'].sum()
         tot_rec_base  = obter_soma_rp(df_r_base, meses_disponiveis)
         tot_deducoes  = abs(obter_soma_rp(df_r_ded, meses_disponiveis))
         meta_25_valor = tot_rec_base * 0.25
 
-        # Fase de despesa selecionável
         fase_despesa = st.segmented_control(
             " (Impacta Indicadores Superiores):",
-            ["Empenhado", "Liquidado", "Pago"],
-            default="Liquidado", key="fase_desp_rp"
-        )
-        df_df_15001 = df_df_raw[
-            (df_df_raw['Fonte'] == '15001') & (df_df_raw['Tipo'] == fase_despesa)
-        ].copy()
+            ["Empenhado","Liquidado","Pago"], default="Liquidado", key="fase_desp_rp")
+        df_df_15001 = df_df_raw[(df_df_raw['Fonte']=='15001') &
+                                 (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        total_desp_15001  = df_df_15001[meses_disponiveis].sum().sum()
-        esforco_total     = total_desp_15001 + tot_deducoes
-        perc_25           = (esforco_total / tot_rec_base * 100) if tot_rec_base > 0 else 0.0
-        saldo_nec_25      = max(0.0, meta_25_valor - esforco_total)
+        _desconto_fundeb_nao_util = 0.0
+        _desconto_superavit_ant   = 0.0
+        _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
 
-        # ── ITEM 1: CARDS SUPERIORES ──────────────────────────────────────────
+        total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
+        esforco_total    = max(0.0, total_desp_15001 + tot_deducoes - _total_descontos_25)
+        perc_25          = (esforco_total/tot_rec_base*100) if tot_rec_base>0 else 0.0
+        saldo_nec_25     = max(0.0, meta_25_valor - esforco_total)
+
+        df_15000_outras = df_df_raw[
+            df_df_raw['Fonte'].str.match(r'^150\d*$', na=False) &
+            (df_df_raw['Fonte']!='15001') & (df_df_raw['Tipo']=='Liquidado')].copy()
+        val_outras_fontes = df_15000_outras[meses_disponiveis].sum().sum()
+
         st.markdown("##### Previsões e Arrecadação")
         c1, c2, c3 = st.columns(3)
-        with c1:
-            st.metric("Previsão Orçamentária — Impostos", formar_real(prev_impostos))
-        with c2:
-            st.metric(
-                f"Receitas Arrecadadas ({meses_disponiveis[0]}–{meses_disponiveis[-1]})",
-                formar_real(tot_rec_base)
-            )
-        with c3:
-            st.metric(
-                "Meta 25% (sobre o arrecadado)",
-                formar_real(meta_25_valor),
-                delta=f"Saldo: {formar_real(saldo_nec_25)}" if saldo_nec_25 > 0 else "✅ Meta atingida",
-                delta_color="inverse" if saldo_nec_25 > 0 else "normal"
-            )
-
+        with c1: st.metric("Previsão Orçamentária — Impostos e Cota-Parte (Janeiro a Dezembro)",
+                            formar_real(prev_total_rp))
+        with c2: st.metric(f"Receitas Arrecadadas ({meses_disponiveis[0]}–{meses_disponiveis[-1]})",
+                            formar_real(tot_rec_base))
+        with c3: st.metric("Meta 25% (sobre o arrecadado)", formar_real(meta_25_valor))
         st.markdown("---")
 
-        # ── ITEM 2: RECEITAS POR IMPOSTO (paleta + abreviação) ───────────────
         st.subheader("🔹 Receitas Recursos Próprios (Impostos e Cota-Parte)")
+        view_rp = st.segmented_control("Visualização Receitas:", ["Mensal","Acumulado"],
+                                       default="Mensal", key="view_rp")
 
-        # Monta mapa de cores único por abreviação
-        abrevs_unicas = list(df_r_base['Abrev'].unique())
-        mapa_cores_rp = {abrev: PALETA_RP[i % len(PALETA_RP)] for i, abrev in enumerate(abrevs_unicas)}
-
-        # ITEM 5 — botão Mensal primeiro
-        view_rp = st.segmented_control(
-            "Visualização Receitas:", ["Mensal", "Acumulado"], default="Mensal", key="view_rp"
-        )
-
-        # Navegação de receitas
-        lista_completa = ["📊 Acumulado Geral"] + df_r_base['Descrição da Receita'].unique().tolist()
+        lista_completa = ["📊 Acumulado Geral"] + grupos_unicos
         if 'idx_nav_rp' not in st.session_state: st.session_state.idx_nav_rp = 0
 
-        grid = st.columns([0.5, 1.2, 1.2, 1.2, 1.2, 1.2, 0.5])
+        grid = st.columns([0.5,1.2,1.2,1.2,1.2,1.2,0.5])
         with grid[0]:
             if st.button("◀", key="rp_left"):
-                st.session_state.idx_nav_rp = max(0, st.session_state.idx_nav_rp - 5)
+                st.session_state.idx_nav_rp = max(0, st.session_state.idx_nav_rp-5)
                 st.rerun()
-
-        fim_idx = min(st.session_state.idx_nav_rp + 5, len(lista_completa))
+        fim_idx = min(st.session_state.idx_nav_rp+5, len(lista_completa))
         fatia   = lista_completa[st.session_state.idx_nav_rp:fim_idx]
-
         for i, item in enumerate(fatia):
-            with grid[i + 1]:
-                # Usa abreviação para o botão
-                label = abrev_imposto(item) if "📊" not in item else "GERAL"
+            with grid[i+1]:
+                label = item.replace("📊 ","") if "📊" in item else item
                 if st.button(label, key=f"rp_btn_{item}", help=item, use_container_width=True):
-                    st.session_state['ativo_rp'] = item.replace("📊 ", "")
+                    st.session_state['ativo_rp'] = item.replace("📊 ","")
                     st.rerun()
-
         with grid[6]:
             if st.button("▶", key="rp_right"):
-                if st.session_state.idx_nav_rp + 5 < len(lista_completa):
+                if st.session_state.idx_nav_rp+5 < len(lista_completa):
                     st.session_state.idx_nav_rp += 5
                     st.rerun()
 
         ativo = st.session_state.get('ativo_rp', "Acumulado Geral")
-        st.markdown(f"#### 📈 {abrev_imposto(ativo) if ativo != 'Acumulado Geral' else 'Acumulado Geral'}")
-
-        df_aux = (
-            df_r_base.copy()
-            if ativo == "Acumulado Geral"
-            else df_r_base[df_r_base['Descrição da Receita'] == ativo].copy()
-        )
+        st.markdown(f"#### 📈 {ativo}")
 
         if view_rp == "Acumulado":
             if ativo == "Acumulado Geral":
-                # Empilha por abreviação com cor individual
-                dados_acum = []
-                for abr in df_aux['Abrev'].unique():
-                    val = obter_soma_rp(df_aux[df_aux['Abrev'] == abr], meses_disponiveis)
-                    dados_acum.append({"Imposto": abr, "Valor": val})
-                df_acum = pd.DataFrame(dados_acum).sort_values("Valor", ascending=False)
-                fig_rp = px.bar(
-                    df_acum, x="Imposto", y="Valor", color="Imposto",
-                    color_discrete_map=mapa_cores_rp, text_auto='.3s'
+                df_acum = df_r_grupo.copy()
+                df_acum['Valor'] = df_acum[meses_disponiveis].sum(axis=1)
+                df_acum = df_acum.sort_values('Valor', ascending=False)
+                tot_acum = df_acum['Valor'].sum()
+                fig_rp = px.bar(df_acum, x='Grupo', y='Valor', color='Grupo',
+                                text_auto='.3s', color_discrete_map=mapa_cores_grupos)
+                fig_rp.update_traces(
+                    hovertemplate=(
+                        "<span style='color:white;'><b>%{x}</b><br>"
+                        "Imposto: %{data.name}<br>"
+                        "Valor: <b>R$ %{y:,.2f}</b><br>"
+                        f"Total Geral: <b>{formar_real(tot_acum)}</b>"
+                        "</span><extra></extra>"
+                    ), hoverlabel=HOVER_STYLE
                 )
             else:
-                val = obter_soma_rp(df_aux, meses_disponiveis)
-                fig_rp = px.bar(
-                    x=[abrev_imposto(ativo)], y=[val],
-                    text_auto='.3s',
-                    color_discrete_sequence=[mapa_cores_rp.get(df_aux['Abrev'].iloc[0], '#003366')]
+                row = df_r_grupo[df_r_grupo['Grupo']==ativo]
+                val = row[meses_disponiveis].sum().sum() if len(row)>0 else 0
+                fig_rp = px.bar(x=[ativo], y=[val], text_auto='.3s',
+                                color_discrete_sequence=[mapa_cores_grupos.get(ativo,'#003366')])
+                fig_rp.update_traces(
+                    hovertemplate=(
+                        "<span style='color:white;'>"
+                        f"<b>{ativo}</b><br>"
+                        "Valor Acumulado: <b>R$ %{y:,.2f}</b>"
+                        "</span><extra></extra>"
+                    ), hoverlabel=HOVER_STYLE
                 )
-        else:  # Mensal
+        else:
             if ativo == "Acumulado Geral":
+                totais_mes = {m: df_r_base[m].sum() for m in meses_disponiveis}
                 dados_m = []
                 for m in meses_disponiveis:
-                    col_map = {c.strip().lower(): c for c in df_aux.columns}
-                    col = col_map.get(m.lower())
-                    for abr in df_aux['Abrev'].unique():
-                        val = df_aux[df_aux['Abrev'] == abr][col].sum() if col else 0
-                        dados_m.append({"Mês": m, "Imposto": abr, "Valor": val})
-                fig_rp = px.bar(
-                    pd.DataFrame(dados_m), x='Mês', y='Valor', color='Imposto',
-                    barmode='stack', text_auto='.2s',
-                    color_discrete_map=mapa_cores_rp,
-                    category_orders={"Mês": ORDEM_MESES}
+                    for _, row in df_r_grupo.iterrows():
+                        dados_m.append({"Mês":m,"Imposto":row['Grupo'],"Valor":row[m],
+                                         "TotalMes":totais_mes[m]})
+                df_dm = pd.DataFrame(dados_m)
+                fig_rp = px.bar(df_dm, x='Mês', y='Valor', color='Imposto',
+                                barmode='stack', text_auto='.2s',
+                                color_discrete_map=mapa_cores_grupos,
+                                category_orders={"Mês":ORDEM_MESES},
+                                custom_data=['TotalMes','Imposto'])
+                fig_rp.update_traces(
+                    hovertemplate=(
+                        "<span style='color:white;'><b>%{x}</b><br>"
+                        "Imposto: %{customdata[1]}<br>"
+                        "Valor: <b>R$ %{y:,.2f}</b><br>"
+                        "Total do Mês: <b>R$ %{customdata[0]:,.2f}</b>"
+                        "</span><extra></extra>"
+                    ), hoverlabel=HOVER_STYLE
                 )
             else:
-                col_map = {c.strip().lower(): c for c in df_aux.columns}
-                dados_m = [
-                    {"Mês": m, "Valor": df_aux[col_map[m.lower()]].sum() if m.lower() in col_map else 0}
-                    for m in meses_disponiveis
-                ]
-                fig_rp = px.bar(
-                    pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s',
-                    color_discrete_sequence=[mapa_cores_rp.get(df_aux['Abrev'].iloc[0], '#003366')],
-                    category_orders={"Mês": ORDEM_MESES}
+                row = df_r_grupo[df_r_grupo['Grupo']==ativo]
+                dados_m = [{"Mês":m,"Valor":row[m].sum() if len(row)>0 else 0}
+                           for m in meses_disponiveis]
+                fig_rp = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', text_auto='.2s',
+                                color_discrete_sequence=[mapa_cores_grupos.get(ativo,'#003366')],
+                                category_orders={"Mês":ORDEM_MESES})
+                fig_rp.update_traces(
+                    hovertemplate=(
+                        "<span style='color:white;'><b>%{x}</b><br>"
+                        f"Imposto: {ativo}<br>"
+                        "Valor: <b>R$ %{y:,.2f}</b>"
+                        "</span><extra></extra>"
+                    ), hoverlabel=HOVER_STYLE
                 )
 
-        fig_rp.update_traces(
-            hovertemplate=(
-                "<span style='color:white;'><b>%{x}</b><br>"
-                "Setor: Recursos Próprios<br>"
-                "Valor: R$ %{y:,.2f}</span><extra></extra>"
-            ),
-            hoverlabel=HOVER_STYLE
-        )
         fig_rp.update_layout(separators=",.", yaxis=dict(showticklabels=False))
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
-
         st.markdown("---")
 
-        # ── DESPESAS FONTE 15001 ──────────────────────────────────────────────
         st.subheader("🔹 Despesas Fonte 15001")
         st.markdown("Detalhamento por Estágio (Empenhado, Liquidado, Pago)")
-        view_desp = st.segmented_control(
-            "Visualização Despesas:", ["Mensal", "Acumulado"], default="Mensal", key="view_desp"
-        )
-
-        df_15001_todas = df_df_raw[
-            (df_df_raw['Fonte'] == '15001') &
-            (df_df_raw['Tipo'].isin(['Empenhado', 'Liquidado', 'Pago']))
-        ].copy()
-
-        # Outras fontes 150xx além de 15001 (anos anteriores)
-        df_15000_outras = df_df_raw[
-            df_df_raw['Fonte'].str.startswith('150', na=False) &
-            (df_df_raw['Fonte'] != '15001') &
-            (df_df_raw['Tipo'] == 'Liquidado')
-        ].copy()
-        val_outras_fontes = df_15000_outras[meses_disponiveis].sum().sum()
+        view_desp = st.segmented_control("Visualização Despesas:", ["Mensal","Acumulado"],
+                                         default="Mensal", key="view_desp")
+        df_15001_todas = df_df_raw[(df_df_raw['Fonte']=='15001') &
+                                    (df_df_raw['Tipo'].isin(['Empenhado','Liquidado','Pago']))].copy()
 
         if view_desp == "Acumulado":
-            total_desp_acum_rp = df_15001_todas[meses_disponiveis].sum().sum()
-            df_desp_plot = []
-            for fase in ["Empenhado", "Liquidado", "Pago"]:
-                val  = df_15001_todas[df_15001_todas['Tipo'] == fase][meses_disponiveis].sum().sum()
-                prop = (val / total_desp_acum_rp * 100) if total_desp_acum_rp > 0 else 0
-                df_desp_plot.append({
-                    "Fase": fase, "Valor": val,
-                    "Proporção": f"{prop:.2f}%",
-                    "Dedução": tot_deducoes, "Despesa": val
-                })
+            total_rp_acum = df_15001_todas[meses_disponiveis].sum().sum()
+            df_desp_plot  = []
+            for fase in ["Empenhado","Liquidado","Pago"]:
+                val  = df_15001_todas[df_15001_todas['Tipo']==fase][meses_disponiveis].sum().sum()
+                prop = (val/total_rp_acum*100) if total_rp_acum>0 else 0
+                df_desp_plot.append({"Fase":fase,"Valor":val,
+                                     "Proporção":f"{prop:.2f}%","Dedução":tot_deducoes,"Despesa":val})
             df_desp_plot = pd.DataFrame(df_desp_plot)
-            df_desp_plot['Fase'] = pd.Categorical(df_desp_plot['Fase'], ["Empenhado", "Liquidado", "Pago"])
-            fig_d = px.bar(
-                df_desp_plot, x='Fase', y='Valor', color='Fase', text_auto='.3s',
-                custom_data=['Proporção', 'Dedução', 'Despesa'],
-                color_discrete_map={'Empenhado': "#fa3d3d", 'Liquidado': "#860000", 'Pago': "#470000"}
-            )
+            df_desp_plot['Fase'] = pd.Categorical(df_desp_plot['Fase'],["Empenhado","Liquidado","Pago"])
+            fig_d = px.bar(df_desp_plot, x='Fase', y='Valor', color='Fase', text_auto='.3s',
+                           custom_data=['Proporção','Dedução','Despesa'],
+                           color_discrete_map={'Empenhado':'#fa3d3d','Liquidado':'#860000','Pago':'#470000'})
         else:
             dados_d_m = []
             for m in meses_disponiveis:
-                col_map = {c.strip().lower(): c for c in df_15001_todas.columns}
-                col     = col_map.get(m.lower(), m)
-                col_ded = {c.strip().lower(): c for c in df_r_ded.columns}
-                c_ded   = col_ded.get(m.lower())
-                total_mes_rp = df_15001_todas[col].sum() if col in df_15001_todas.columns else 0
-                deducao_mes  = abs(df_r_ded[c_ded].sum()) if c_ded else 0
-                for fase in ['Empenhado', 'Liquidado', 'Pago']:
-                    val  = df_15001_todas[df_15001_todas['Tipo'] == fase][col].sum() if col in df_15001_todas.columns else 0
-                    prop = (val / total_mes_rp * 100) if total_mes_rp > 0 else 0
-                    dados_d_m.append({
-                        "Mês": m, "Fase": fase, "Valor": val,
-                        "Proporção": f"{prop:.2f}%",
-                        "Dedução": deducao_mes, "Despesa": val
-                    })
+                col_d   = m if m in df_15001_todas.columns else None
+                col_ded = m if m in df_r_ded.columns else None
+                total_m = df_15001_todas[col_d].sum() if col_d else 0
+                ded_m   = abs(df_r_ded[col_ded].sum()) if col_ded else 0
+                for fase in ['Empenhado','Liquidado','Pago']:
+                    val  = df_15001_todas[df_15001_todas['Tipo']==fase][col_d].sum() if col_d else 0
+                    prop = (val/total_m*100) if total_m>0 else 0
+                    dados_d_m.append({"Mês":m,"Fase":fase,"Valor":val,
+                                      "Proporção":f"{prop:.2f}%","Dedução":ded_m,"Despesa":val})
             df_dados_d_m = pd.DataFrame(dados_d_m)
-            df_dados_d_m['Fase'] = pd.Categorical(df_dados_d_m['Fase'], ["Empenhado", "Liquidado", "Pago"])
-            fig_d = px.bar(
-                df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group', text_auto='.2s',
-                custom_data=['Proporção', 'Dedução', 'Despesa'],
-                color_discrete_map={'Empenhado': '#fa3d3d', 'Liquidado': '#860000', 'Pago': '#470000'},
-                category_orders={"Mês": ORDEM_MESES, "Fase": ["Empenhado", "Liquidado", "Pago"]}
-            )
+            df_dados_d_m['Fase'] = pd.Categorical(df_dados_d_m['Fase'],["Empenhado","Liquidado","Pago"])
+            fig_d = px.bar(df_dados_d_m, x='Mês', y='Valor', color='Fase', barmode='group',
+                           text_auto='.2s', custom_data=['Proporção','Dedução','Despesa'],
+                           color_discrete_map={'Empenhado':'#fa3d3d','Liquidado':'#860000','Pago':'#470000'},
+                           category_orders={"Mês":ORDEM_MESES,"Fase":["Empenhado","Liquidado","Pago"]})
 
         fig_d.update_traces(
-            hovertemplate=(
-                "<span style='color:white;'><b>%{x}</b><br>"
-                "Estágio: %{fullData.name}<br>"
-                "Valor (15001): R$ %{customdata[2]:,.2f}<br>"
-                "Dedução FUNDEB: R$ %{customdata[1]:,.2f}<br>"
-                "Proporção: %{customdata[0]}</span><extra></extra>"
-            ),
-            hoverlabel=HOVER_STYLE
-        )
+            hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
+                           "Estágio: %{fullData.name}<br>"
+                           "Valor (15001): R$ %{customdata[2]:,.2f}<br>"
+                           "Dedução FUNDEB: R$ %{customdata[1]:,.2f}<br>"
+                           "Proporção: %{customdata[0]}</span><extra></extra>"),
+            hoverlabel=HOVER_STYLE)
         fig_d.update_layout(separators=",.", yaxis=dict(showticklabels=False))
         st.plotly_chart(fig_d, use_container_width=True, config=CONFIG_PT)
-
-        # Nota sobre outras fontes (anos anteriores)
-        if val_outras_fontes > 0:
-            st.info(
-                f"ℹ️ **Outras despesas de anos anteriores (Fonte 1500 — Liquidado):** "
-                f"{formar_real(val_outras_fontes)} — não compõem o índice do ano vigente."
-            )
-
         st.markdown("---")
 
-        # ── ITEM 3 + 4: ANÁLISE COMPARATIVA — ÍNDICE 25% APENAS ACUMULADO ───
         st.subheader("🔹 Análise Comparativa e Meta (Mínimo 25%)")
-
-        # Botão Mensal / Acumulado
-        view_meta = st.segmented_control(
-            "Visualização Meta:", ["Mensal", "Acumulado"], default="Mensal", key="view_meta"
-        )
-
-        cor_aplicacao = "#27ae60" if perc_25 >= 25 else "#e74c3c"
+        view_meta = st.segmented_control("Visualização Meta:", ["Mensal","Acumulado"],
+                                         default="Mensal", key="view_meta")
 
         if view_meta == "Acumulado":
-            # ITEM 4: índice 25% só no acumulado
-            # ITEM 3: barra empilhada Liquidado (vermelho escuro) + Dedução (laranja)
-            #         com percentual de cada um sobre o total
-
-            # Card do índice
             idx1, idx2, idx3 = st.columns(3)
             with idx1: st.metric("Receitas Base (Impostos + Cota-Parte)", formar_real(tot_rec_base))
             with idx2: st.metric(f"Esforço Total ({fase_despesa} 15001 + Deduções)", formar_real(esforco_total))
             with idx3: metric_contabil("Índice de Aplicação (Mín. 25%)", perc_25, 25.0)
 
-            # Proporções dentro da barra de Aplicação Total
-            prop_desp = (total_desp_15001 / esforco_total * 100) if esforco_total > 0 else 0
-            prop_ded  = (tot_deducoes    / esforco_total * 100) if esforco_total > 0 else 0
-
-            fig_meta = go.Figure()
-
-            # Barra Receitas Base
+            prop_desp = (total_desp_15001/esforco_total*100) if esforco_total>0 else 0
+            prop_ded  = (tot_deducoes/esforco_total*100)    if esforco_total>0 else 0
+            fig_meta  = go.Figure()
             fig_meta.add_trace(go.Bar(
-                x=["Receitas Base"],
-                y=[tot_rec_base],
-                name="Receitas Base",
-                marker_color="#003366",
-                text=[formar_real(tot_rec_base)],
-                textposition='inside',
-                insidetextanchor='middle',
-                hovertemplate=(
-                    "<span style='color:white;'><b>Receitas Base</b><br>"
-                    "Impostos + Cota-Parte<br>"
-                    "Valor: <b>" + formar_real(tot_rec_base) + "</b></span><extra></extra>"
-                ),
+                x=["Receitas Base"], y=[tot_rec_base], name="Receitas Base",
+                marker_color="#003366", text=[formar_real(tot_rec_base)],
+                textposition='inside', insidetextanchor='middle',
+                hovertemplate=("<span style='color:white;'><b>Receitas Base</b><br>"
+                               "Impostos + Cota-Parte<br>Valor: <b>"+formar_real(tot_rec_base)+"</b></span><extra></extra>"),
             ))
-
-            # Barra empilhada: Liquidado 15001 (vermelho escuro)
             fig_meta.add_trace(go.Bar(
-                x=["Aplicação Total"],
-                y=[total_desp_15001],
-                name=f"Despesa 15001 ({fase_despesa})",
-                marker_color="#860000",
-                text=[f"{formar_real(total_desp_15001)}\n({prop_desp:.1f}%)"],
-                textposition='inside',
-                insidetextanchor='middle',
-                customdata=[[formar_real(total_desp_15001), f"{prop_desp:.1f}%", fase_despesa]],
-                hovertemplate=(
-                    "<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
-                    "Estágio: %{customdata[2]}<br>"
-                    "Valor: <b>%{customdata[0]}</b><br>"
-                    "% do esforço total: %{customdata[1]}</span><extra></extra>"
-                ),
-            ))
-
-            # Barra empilhada: Dedução FUNDEB (laranja)
-            fig_meta.add_trace(go.Bar(
-                x=["Aplicação Total"],
-                y=[tot_deducoes],
-                name="Dedução FUNDEB",
-                marker_color="#f39c12",
+                x=["Aplicação Total"], y=[tot_deducoes],
+                name="Dedução FUNDEB", marker_color="#f39c12",
                 text=[f"{formar_real(tot_deducoes)}\n({prop_ded:.1f}%)"],
-                textposition='inside',
-                insidetextanchor='middle',
-                customdata=[[formar_real(tot_deducoes), f"{prop_ded:.1f}%"]],
-                hovertemplate=(
-                    "<span style='color:white;'><b>Dedução FUNDEB</b><br>"
-                    "Valor: <b>%{customdata[0]}</b><br>"
-                    "% do esforço total: %{customdata[1]}</span><extra></extra>"
-                ),
+                textposition='inside', insidetextanchor='middle',
+                customdata=[[formar_real(tot_deducoes),f"{prop_ded:.1f}%"]],
+                hovertemplate=("<span style='color:white;'><b>Dedução FUNDEB</b><br>"
+                               "Valor: <b>%{customdata[0]}</b><br>"
+                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
             ))
-
-            fig_meta.add_hline(
-                y=tot_rec_base * 0.25,
-                line_dash="dash", line_color="#f39c12", line_width=2,
-                annotation_text=f"Meta 25% = {formar_real(tot_rec_base * 0.25)}",
-                annotation_position="top left"
-            )
-
-            # Nota sobre outras fontes de anos anteriores
-            if val_outras_fontes > 0:
-                fig_meta.add_annotation(
-                    x="Aplicação Total", y=esforco_total * 1.05,
+            fig_meta.add_trace(go.Bar(
+                x=["Aplicação Total"], y=[total_desp_15001],
+                name=f"Despesa 15001 ({fase_despesa})", marker_color="#860000",
+                text=[f"{formar_real(total_desp_15001)}\n({prop_desp:.1f}%)"],
+                textposition='inside', insidetextanchor='middle',
+                customdata=[[formar_real(total_desp_15001),f"{prop_desp:.1f}%",fase_despesa]],
+                hovertemplate=("<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
+                               "Estágio: %{customdata[2]}<br>Valor: <b>%{customdata[0]}</b><br>"
+                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
+            ))
+            fig_meta.add_hline(y=tot_rec_base*0.25, line_dash="dash", line_color="#f39c12",
+                               annotation_text=f"Meta 25% = {formar_real(tot_rec_base*0.25)}",
+                               annotation_position="top left")
+            if val_outras_fontes>0:
+                fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
                     text=f"⚠️ Outras fontes (anos ant.): {formar_real(val_outras_fontes)}",
-                    showarrow=False, font=dict(color="#aaaaaa", size=11)
-                )
-
-            fig_meta.update_layout(
-                separators=",.",
-                barmode='stack',
-                hoverlabel=HOVER_STYLE,
-                yaxis=dict(showticklabels=False),
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.20, xanchor="center", x=0.5),
-                height=450,
-            )
-            st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
-
-        else:  # MENSAL — sem destaque do índice 25%, só comparativo visual
+                    showarrow=False, font=dict(color="#aaaaaa",size=11))
+            fig_meta.add_annotation(
+                x="Aplicação Total", y=esforco_total*0.50,
+                text=(f"🔻 Descontos aplicados:<br>"
+                      f"Rec. FUNDEB não util.: {formar_real(_desconto_fundeb_nao_util)}<br>"
+                      f"Superávit anos ant.: {formar_real(_desconto_superavit_ant)}<br>"
+                      f"Total descontado: {formar_real(_total_descontos_25)}"),
+                showarrow=False, font=dict(color="#aaaaaa",size=10), align='left')
+            fig_meta.update_layout(separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
+                                   yaxis=dict(showticklabels=False), showlegend=True,
+                                   legend=dict(orientation="h",yanchor="bottom",y=-0.20,
+                                               xanchor="center",x=0.5), height=450)
+        else:
             dados_meta_m = []
             for m in meses_disponiveis:
-                col_map_b = {c.strip().lower(): c for c in df_r_base.columns}
-                col_map_d = {c.strip().lower(): c for c in df_df_15001.columns}
-                col_map_e = {c.strip().lower(): c for c in df_r_ded.columns}
-
-                r_m   = df_r_base[col_map_b[m.lower()]].sum() if m.lower() in col_map_b else 0
-                d_m   = df_df_15001[col_map_d[m.lower()]].sum() if m.lower() in col_map_d else 0
-                ded_m = abs(df_r_ded[col_map_e[m.lower()]].sum()) if m.lower() in col_map_e else 0
-                perc_m = ((d_m + ded_m) / r_m * 100) if r_m > 0 else 0
-
-                dados_meta_m.append({
-                    "Mês": m, "Tipo": "Receitas Base",
-                    "Valor": r_m, "Dedução": 0, "Desp": 0, "Texto": ""
-                })
-                # Barra Liquidado 15001
-                dados_meta_m.append({
-                    "Mês": m, "Tipo": f"Desp. 15001 ({fase_despesa})",
-                    "Valor": d_m, "Dedução": ded_m, "Desp": d_m,
-                    "Texto": f"{(d_m/(d_m+ded_m)*100):.1f}% desp." if (d_m + ded_m) > 0 else ""
-                })
-                # Barra Dedução
-                dados_meta_m.append({
-                    "Mês": m, "Tipo": "Dedução FUNDEB",
-                    "Valor": ded_m, "Dedução": ded_m, "Desp": d_m,
-                    "Texto": f"{(ded_m/(d_m+ded_m)*100):.1f}% ded." if (d_m + ded_m) > 0 else ""
-                })
-
+                col_b = m if m in df_r_base.columns else None
+                col_d = m if m in df_df_15001.columns else None
+                col_e = m if m in df_r_ded.columns else None
+                r_m   = df_r_base[col_b].sum() if col_b else 0
+                d_m   = df_df_15001[col_d].sum() if col_d else 0
+                ded_m = abs(df_r_ded[col_e].sum()) if col_e else 0
+                total_desp_m = d_m + ded_m
+                perc_m = (total_desp_m / r_m * 100) if r_m > 0 else 0
+                dados_meta_m += [
+                    {"Mês":m,"Tipo":"Receitas (Impostos + Cota-Parte)","Valor":r_m,
+                     "DetalheA":formar_real(r_m),"DetalheB":"—","Total":r_m,"Perc":"100%"},
+                    {"Mês":m,"Tipo":"Despesas (15001 + Deduções)","Valor":total_desp_m,
+                     "DetalheA":formar_real(d_m),"DetalheB":formar_real(ded_m),
+                     "Total":total_desp_m,"Perc":f"{perc_m:.1f}% das receitas"},
+                ]
             df_meta_m = pd.DataFrame(dados_meta_m)
             fig_meta = px.bar(
                 df_meta_m, x='Mês', y='Valor', color='Tipo', barmode='group',
-                text='Texto',
-                custom_data=['Dedução', 'Desp'],
+                custom_data=['DetalheA','DetalheB','Perc'],
                 color_discrete_map={
-                    "Receitas Base":                   "#003366",
-                    f"Desp. 15001 ({fase_despesa})":   "#860000",
-                    "Dedução FUNDEB":                   "#f39c12",
+                    "Receitas (Impostos + Cota-Parte)": "#003366",
+                    "Despesas (15001 + Deduções)":      "#860000",
                 },
-                category_orders={"Mês": ORDEM_MESES}
+                text='Valor', category_orders={"Mês":ORDEM_MESES}
             )
             fig_meta.update_traces(
+                texttemplate="R$ %{y:,.0f}",
+                textposition='inside', insidetextanchor='middle',
                 hovertemplate=(
-                    "<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
-                    "Valor: R$ %{y:,.2f}<br>"
-                    "Dedução mês: R$ %{customdata[0]:,.2f}<br>"
-                    "Desp. 15001 mês: R$ %{customdata[1]:,.2f}"
+                    "<span style='color:white;'>"
+                    "<b>%{x} — %{data.name}</b><br>"
+                    "Total: <b>R$ %{y:,.2f}</b><br>"
+                    "── Detalhamento ──<br>"
+                    "%{customdata[0]}<br>%{customdata[1]}<br>%{customdata[2]}"
                     "</span><extra></extra>"
                 ),
                 hoverlabel=HOVER_STYLE
             )
-
-            df_linha = df_meta_m[df_meta_m['Tipo'] == 'Receitas Base'].copy()
+            df_linha = df_meta_m[df_meta_m['Tipo']=='Receitas (Impostos + Cota-Parte)'].copy()
             df_linha['Meta 25%'] = df_linha['Valor'] * 0.25
             fig_meta.add_trace(go.Scatter(
                 x=df_linha['Mês'], y=df_linha['Meta 25%'],
                 mode='lines+markers', name='Meta 25% (Mensal)',
                 line=dict(color='#f39c12', dash='dash')
             ))
-
             fig_meta.update_layout(
-                separators=",.",
-                yaxis=dict(showticklabels=False),
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
+                separators=",.", yaxis=dict(showticklabels=False), showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
             )
-            st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
 
-    # --- SETOR RECURSOS VINCULADOS ---
+        st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
+
+    # =========================================================================
+    # SETOR RECURSOS VINCULADOS
+    # Ibiraci: PNAE(1552), PNATE(1553), PTE(1576), QESE(1550,2550)
+    # PTE: categoria 'Tranferência Programas Estaduais' no R file.
+    # =========================================================================
     elif st.session_state.setor == 'Recursos Vinculados':
-        st.markdown("<h1 style='text-align: left;'>📖 Ibiraci - Recursos Vinculados</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:left;'>📖 Ibiraci — Recursos Vinculados</h1>",
+                    unsafe_allow_html=True)
 
-        # ── CONFIGURAÇÃO DE PROGRAMAS E FONTES ───────────────────────────────
-        # fontes: ano vigente + superávit anos anteriores (2xxx)
         mapa_desp = {
-            'PNAE':  ['1552', '2552'],
-            'PNATE': ['1553', '2553'],
-            'PTE':   ['1576', '2576'],
-            'QESE':  ['1550', '2550'],
+            'PNAE':  ['1552'],
+            'PNATE': ['1553'],
+            'PTE':   ['1576'],
+            'QESE':  ['1550','2550'],
         }
-        programas = ['PNAE', 'PNATE', 'PTE', 'QESE']
+        programas  = ['PNAE','PNATE','PTE','QESE']
+        COR_PROG   = {'PNAE':'#1a7a4a','PNATE':'#17a589','PTE':'#2980b9','QESE':'#1565c0'}
+        COR_DESP_V = '#860000'
 
-        # Paleta verde/teal/azul — uma cor por programa
-        COR_PROG = {
-            'PNAE':  '#1a7a4a',   # verde escuro
-            'PNATE': '#17a589',   # teal
-            'PTE':   '#2980b9',   # azul médio
-            'QESE':  '#1565c0',   # azul escuro
-        }
-        COR_DESP = '#860000'     # vermelho escuro para despesas
-
-        # ── FUNÇÃO AUXILIAR ROBUSTA ───────────────────────────────────────────
         def soma_vinc(df, meses):
-            """Soma colunas de meses ignorando case."""
-            col_map = {c.strip().lower(): c for c in df.columns}
+            col_map = {c.strip().lower():c for c in df.columns}
             cols = [col_map[m.lower()] for m in meses if m.lower() in col_map]
             return df[cols].sum().sum() if cols else 0.0
 
-        # ── BASE DE DADOS RECEITAS ────────────────────────────────────────────
-        df_r_vinc = df_r[
-            df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)
-        ].copy()
-
-        # ── BOTÃO — MENSAL PRIMEIRO ───────────────────────────────────────────
-        tipo_vinc = st.segmented_control(
-            "Visualização:", ["Mensal", "Acumulado"], default="Mensal", key="vinc_btn"
-        )
-
+        # Vinculados no R file: categorias Tranferência Programas Federais + Estaduais
+        df_r_vinc = df_r[df_r['Categoria'].str.strip().isin([
+            'Tranferência Programas Federais',
+            'Tranferência Programas Estaduais',
+        ])].copy()
         st.markdown("---")
 
-        # ── DETALHAMENTO POR PROGRAMA ─────────────────────────────────────────
         for prog in programas:
+            df_prog_r = df_r_vinc[
+                df_r_vinc['Descrição da Receita'].str.strip().str.upper() == prog
+            ].copy()
 
-            df_prog_r   = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip() == prog]
-            prev_prog   = df_prog_r['Orçado Receitas'].sum()          # Orçamento 2026 (Município)
-            rep_2025    = soma_vinc(df_prog_r, meses_disponiveis)     # Repasse 2025 (arrecadado no período)
+            rep_2025     = df_prog_r['2025'].sum()             if '2025'             in df_prog_r.columns else 0
+            prev_repasse = df_prog_r['Repasse'].sum()          if 'Repasse'          in df_prog_r.columns else 0
+            orcado_2026  = df_prog_r['Orçado Receitas'].sum()  if 'Orçado Receitas'  in df_prog_r.columns else 0
+            desp_liq     = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
+                                      (df_df_raw['Tipo']=='Liquidado')][meses_disponiveis].sum().sum()
 
-            # Previsão de repasse: consideramos o Orçado Receitas como referência de previsão
-            prev_repasse = prev_prog   # mesmo valor — pode ser atualizado quando vier dado externo
+            st.markdown(f"<h4 style='color:{COR_PROG[prog]};margin-bottom:4px;'>"
+                        f"📊 Programa: {prog}</h4>", unsafe_allow_html=True)
+            c1, c2, c3 = st.columns(3)
+            with c1: st.metric("Arrecadado em 2025",     formar_real(rep_2025))
+            with c2: st.metric("Previsão de Repasse",     formar_real(prev_repasse))
+            with c3: st.metric("Orçado 2026 (Município)", formar_real(orcado_2026))
 
-            # Liquidado no período
-            desp_liq = df_df_raw[
-                df_df_raw['Fonte'].isin(mapa_desp[prog]) &
-                (df_df_raw['Tipo'] == 'Liquidado')
-            ][meses_disponiveis].sum().sum()
-
-            # ── CARDS DE DESTAQUE POR PROGRAMA ───────────────────────────────
-            st.markdown(
-                f"<h4 style='color:{COR_PROG[prog]}; margin-bottom:4px;'>📊 Programa: {prog}</h4>",
-                unsafe_allow_html=True
+            tipo_vinc = st.segmented_control(
+                "Visualização:", ["Mensal","Acumulado"],
+                default="Mensal", key=f"vinc_btn_{prog}"
             )
 
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                st.metric(
-                    f"Repasse {meses_disponiveis[0]}–{meses_disponiveis[-1]} (Arrecadado)",
-                    formar_real(rep_2025),
-                )
-            with c2:
-                st.metric(
-                    "Previsão de Repasse (Orçado Receitas)",
-                    formar_real(prev_repasse),
-                )
-            with c3:
-                st.metric(
-                    "Orçamento 2026 (Município)",
-                    formar_real(prev_prog),
-                )
-
-            # ── GRÁFICO ───────────────────────────────────────────────────────
             if tipo_vinc == "Mensal":
                 dados_m = []
                 for m in meses_disponiveis:
-                    col_map_r  = {c.strip().lower(): c for c in df_prog_r.columns}
-                    col_map_df = {c.strip().lower(): c for c in df_df_raw.columns}
-                    col_r  = col_map_r.get(m.lower())
-                    col_df = col_map_df.get(m.lower())
+                    col_r  = m if m in df_prog_r.columns else None
+                    col_df = m if m in df_df_raw.columns else None
+                    rec_m  = df_prog_r[col_r].sum() if col_r and len(df_prog_r)>0 else 0.0
+                    desp_m = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
+                                        (df_df_raw['Tipo']=='Liquidado')][col_df].sum() if col_df else 0.0
+                    dados_m += [{"Mês":m,"Tipo":"Receita","Valor":rec_m},
+                                 {"Mês":m,"Tipo":"Despesa (Liquidado)","Valor":desp_m}]
+                fig_vinc = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', color='Tipo',
+                                  barmode='group', text_auto='.2s',
+                                  color_discrete_map={'Receita':COR_PROG[prog],'Despesa (Liquidado)':COR_DESP_V},
+                                  category_orders={"Mês":ORDEM_MESES})
+                fig_vinc.update_traces(
+                    selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
+                    hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
+                                   "Programa: "+prog+"<br>Tipo: %{data.name}<br>"
+                                   "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"))
+                fig_vinc.update_layout(
+                    separators=",.", yaxis=dict(showticklabels=False,title=None),
+                    xaxis_title=None, showlegend=True,
+                    legend=dict(orientation="h",yanchor="bottom",y=-0.30,
+                                xanchor="center",x=0.5), height=380)
+            else:
+                rec_acum = soma_vinc(df_prog_r, meses_disponiveis) if len(df_prog_r)>0 else 0.0
+                fig_vinc = go.Figure()
+                fig_vinc.add_trace(go.Bar(
+                    x=[f"Receita (Jan–{meses_disponiveis[-1][:3]})"], y=[rec_acum],
+                    name="Receita", marker_color=COR_PROG[prog],
+                    text=[formar_real(rec_acum)], textposition='outside',
+                    hovertemplate=("<span style='color:white;'><b>Receita Acumulada</b><br>"
+                                   "Programa: "+prog+"<br>Valor: <b>"+formar_real(rec_acum)+"</b></span><extra></extra>"),
+                ))
+                fig_vinc.add_trace(go.Bar(
+                    x=["Despesa (Liquidado)"], y=[desp_liq],
+                    name="Despesa (Liquidado)", marker_color=COR_DESP_V,
+                    text=[formar_real(desp_liq)], textposition='outside',
+                    hovertemplate=("<span style='color:white;'><b>Despesa Liquidada</b><br>"
+                                   "Programa: "+prog+"<br>Valor: <b>"+formar_real(desp_liq)+"</b></span><extra></extra>"),
+                ))
+                fig_vinc.update_layout(
+                    separators=",.", barmode='group',
+                    bargap=0.15, bargroupgap=0.05,
+                    yaxis=dict(showticklabels=False,title=None),
+                    xaxis_title=None, showlegend=True, hoverlabel=HOVER_STYLE,
+                    legend=dict(orientation="h",yanchor="bottom",y=-0.30,
+                                xanchor="center",x=0.5), height=380)
 
-                    rec_m  = df_prog_r[col_r].sum() if col_r else 0.0
-                    desp_m = df_df_raw[
-                        df_df_raw['Fonte'].isin(mapa_desp[prog]) &
-                        (df_df_raw['Tipo'] == 'Liquidado')
-                    ][col_df].sum() if col_df else 0.0
-
-                    dados_m.append({"Mês": m, "Tipo": "Receita", "Valor": rec_m})
-                    dados_m.append({"Mês": m, "Tipo": "Despesa (Liquidado)", "Valor": desp_m})
-
-                df_plot = pd.DataFrame(dados_m)
-                fig_vinc = px.bar(
-                    df_plot, x='Mês', y='Valor', color='Tipo', barmode='group',
-                    text_auto='.2s',
-                    color_discrete_map={
-                        'Receita':           COR_PROG[prog],
-                        'Despesa (Liquidado)': COR_DESP,
-                    },
-                    category_orders={"Mês": ORDEM_MESES},
-                )
-
-            else:  # ACUMULADO
-                dados_acum = [
-                    {"Tipo": "Receita",             "Valor": rep_2025},
-                    {"Tipo": "Despesa (Liquidado)", "Valor": desp_liq},
-                ]
-                fig_vinc = px.bar(
-                    pd.DataFrame(dados_acum),
-                    x='Tipo', y='Valor', color='Tipo', barmode='group',
-                    text_auto='.2s',
-                    color_discrete_map={
-                        'Receita':           COR_PROG[prog],
-                        'Despesa (Liquidado)': COR_DESP,
-                    },
-                )
-
-            fig_vinc.update_traces(
-                selector=dict(type='bar'),
-                textposition='outside',
-                hovertemplate=(
-                    "<span style='color:white;'>"
-                    "<b>%{x}</b><br>"
-                    "Programa: " + prog + "<br>"
-                    "Tipo: %{data.name}<br>"
-                    "Valor: <b>R$ %{y:,.2f}</b>"
-                    "</span><extra></extra>"
-                ),
-                hoverlabel=HOVER_STYLE,
-            )
-            fig_vinc.update_layout(
-                separators=",.",
-                yaxis=dict(showticklabels=False, title=None),
-                xaxis_title=None,
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.30, xanchor="center", x=0.5),
-                height=380,
-            )
             st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
             st.markdown("---")
 
-    # ── RELATÓRIO GERAL DE FICHAS ─────────────────────────────────────────────
+    # =========================================================================
+    # SETOR VISÃO MACRO
+    # Capital Jan–Mar = R$ 171.278,57 | Custeio = R$ 5.051.582,91
+    # =========================================================================
+    elif st.session_state.setor == 'Visão Macro':
+        st.markdown("<h1 style='text-align:left;'>📖 Ibiraci — Visão Macro da Educação</h1>",
+                    unsafe_allow_html=True)
+        st.markdown("---")
+
+        liq_cols = [f"{m}_Liquidado" for m in meses_disponiveis
+                    if f"{m}_Liquidado" in df_f_raw.columns]
+
+        CAPITAL_ELEMENTOS = [
+            'Obras e Instalações',
+            'Equipamentos e Materiais Permanentes',
+            'Aquisição de Imóveis',
+        ]
+        df_macro = df_f_raw.copy()
+        df_macro['Natureza'] = df_macro['Elemento'].apply(
+            lambda x: 'Capital' if str(x).strip() in CAPITAL_ELEMENTOS else 'Custeio'
+        )
+
+        total_capital = df_macro[df_macro['Natureza']=='Capital'][liq_cols].sum().sum()
+        total_custeio = df_macro[df_macro['Natureza']=='Custeio'][liq_cols].sum().sum()
+        total_macro   = total_capital + total_custeio
+
+        m1, m2, m3 = st.columns(3)
+        with m1: st.metric(f"Total Liquidado (Jan–{meses_disponiveis[-1][:3]})", formar_real(total_macro))
+        with m2: st.metric("Capital Liquidado", formar_real(total_capital),
+                           delta=f"{total_capital/total_macro*100:.1f}% do total" if total_macro>0 else "—",
+                           delta_color="off")
+        with m3: st.metric("Custeio Liquidado", formar_real(total_custeio),
+                           delta=f"{total_custeio/total_macro*100:.1f}% do total" if total_macro>0 else "—",
+                           delta_color="off")
+        st.markdown("---")
+
+        st.subheader(f"🔹 1. Capital × Custeio (Liquidado Jan–{meses_disponiveis[-1][:3]})")
+        df_pizza = pd.DataFrame([
+            {"Natureza":"Capital","Valor":total_capital},
+            {"Natureza":"Custeio","Valor":total_custeio},
+        ])
+        df_pizza = df_pizza[df_pizza['Valor']>0]
+
+        fig_macro_pizza = px.pie(
+            df_pizza, values='Valor', names='Natureza', hole=0.42,
+            color='Natureza', color_discrete_map={'Capital':'#e74c3c','Custeio':'#1a7a4a'},
+        )
+        fig_macro_pizza.update_traces(
+            textinfo='percent+label', textposition='inside',
+            hovertemplate=(
+                "<span style='color:white;'><b>%{label}</b><br>"
+                "Valor: <b>R$ %{value:,.2f}</b><br>"
+                "Participação: <b>%{percent}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_macro_pizza.update_layout(
+            separators=",.", showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+            height=420, margin=dict(t=40, b=60),
+        )
+        _, col_pizza, _ = st.columns([1,2,1])
+        with col_pizza:
+            st.plotly_chart(fig_macro_pizza, use_container_width=True, config=CONFIG_PT)
+        st.markdown("---")
+
+        st.subheader("🔹 2. Liquidado por Elemento")
+        df_elem = df_macro.groupby(['Elemento','Natureza'])[liq_cols].sum().reset_index()
+        df_elem['Total'] = df_elem[liq_cols].sum(axis=1)
+        df_elem = df_elem[df_elem['Total']>0].sort_values('Total', ascending=True)
+
+        fig_macro_elem = px.bar(
+            df_elem, x='Total', y='Elemento', orientation='h',
+            color='Natureza', color_discrete_map={'Capital':'#e74c3c','Custeio':'#1a7a4a'},
+            text='Total',
+        )
+        fig_macro_elem.update_traces(
+            texttemplate="R$ %{x:,.0f}", textposition='outside',
+            hovertemplate=(
+                "<span style='color:white;'><b>%{y}</b><br>"
+                "Natureza: %{data.name}<br>"
+                "Liquidado: <b>R$ %{x:,.2f}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_macro_elem.update_layout(
+            separators=",.", xaxis=dict(showticklabels=False, title=None),
+            yaxis=dict(title=None), showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+            height=520, margin=dict(r=200),
+        )
+        st.plotly_chart(fig_macro_elem, use_container_width=True, config=CONFIG_PT)
+
+    # =========================================================================
+    # SETOR FOLHA DE PAGAMENTO
+    # =========================================================================
+    elif st.session_state.setor == 'Folha de Pagamento':
+        st.markdown("<h1 style='text-align:left;'>📖 Ibiraci — Folha de Pagamento</h1>",
+                    unsafe_allow_html=True)
+        st.markdown("---")
+
+        FOLHA_ELEMENTOS = [
+            'Vencimentos e Vantagens Fixas - Pessoal Civil',
+            'Obrigações Patronais',
+            'Contratação por tempo Determinado',
+            'Outras Despesas Variáveis - Pessoal Civil',
+            'Indenizações e Restituições Trabalhistas',
+            'Auxílio-alimentação',
+            'Aposentadorias, Reserva Remunerada e Reformas',
+            '- Aposentadorias, Reserva Remunerada e Reformas',
+        ]
+        liq_cols_f = [f"{m}_Liquidado" for m in meses_disponiveis
+                      if f"{m}_Liquidado" in df_f_raw.columns]
+
+        df_folha = df_f_raw[df_f_raw['Elemento'].isin(FOLHA_ELEMENTOS)].copy()
+
+        def origem_fonte(f):
+            if f == '15407': return 'FUNDEB 70%'
+            if f in ('15403','25403'): return 'FUNDEB 30%'
+            if f in ('15001','1500'): return 'Recursos Próprios'
+            return 'Outras Fontes'
+
+        df_folha['Origem'] = df_folha['Fonte'].apply(origem_fonte)
+
+        total_folha  = df_folha[liq_cols_f].sum().sum()
+        total_fund70 = df_folha[df_folha['Origem']=='FUNDEB 70%'][liq_cols_f].sum().sum()
+        total_fund30 = df_folha[df_folha['Origem']=='FUNDEB 30%'][liq_cols_f].sum().sum()
+        total_rp     = df_folha[df_folha['Origem']=='Recursos Próprios'][liq_cols_f].sum().sum()
+
+        f1, f2, f3, f4 = st.columns(4)
+        with f1: st.metric(f"Total Folha (Jan–{meses_disponiveis[-1][:3]})", formar_real(total_folha))
+        with f2: st.metric("FUNDEB 70% (Fonte 15407)", formar_real(total_fund70),
+                           delta=f"{total_fund70/total_folha*100:.1f}%" if total_folha>0 else "—",
+                           delta_color="off")
+        with f3: st.metric("Recursos Próprios (15001/1500)", formar_real(total_rp),
+                           delta=f"{total_rp/total_folha*100:.1f}%" if total_folha>0 else "—",
+                           delta_color="off")
+        with f4: st.metric("FUNDEB 30% (Fontes 15403/25403)", formar_real(total_fund30),
+                           delta=f"{total_fund30/total_folha*100:.1f}%" if total_folha>0 else "—",
+                           delta_color="off")
+        st.markdown("---")
+
+        st.subheader("🔹 1. Origem dos Recursos — Folha de Pagamento")
+        df_orig = (df_folha.groupby('Origem')[liq_cols_f].sum()
+                   .sum(axis=1).reset_index().rename(columns={0:'Valor'}))
+        df_orig = df_orig[df_orig['Valor']>0]
+
+        COR_ORIGEM = {
+            'FUNDEB 70%':       '#4a0000',
+            'FUNDEB 30%':       '#ff1744',
+            'Recursos Próprios':'#1a7a4a',
+            'Outras Fontes':    '#888888',
+        }
+        fig_folha_pizza = px.pie(
+            df_orig, values='Valor', names='Origem', hole=0.42,
+            color='Origem', color_discrete_map=COR_ORIGEM,
+        )
+        fig_folha_pizza.update_traces(
+            textinfo='percent+label', textposition='inside',
+            hovertemplate=(
+                "<span style='color:white;'><b>%{label}</b><br>"
+                "Valor: <b>R$ %{value:,.2f}</b><br>"
+                "Participação: <b>%{percent}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_folha_pizza.update_layout(
+            separators=",.", showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+            height=420, margin=dict(t=40, b=60),
+        )
+        _, col_fpizza, _ = st.columns([1,2,1])
+        with col_fpizza:
+            st.plotly_chart(fig_folha_pizza, use_container_width=True, config=CONFIG_PT)
+        st.markdown("---")
+
+        st.subheader("🔹 2. Liquidado por Elemento da Folha")
+        df_elem_f = df_folha.groupby(['Elemento','Origem'])[liq_cols_f].sum().reset_index()
+        df_elem_f['Total'] = df_elem_f[liq_cols_f].sum(axis=1)
+        df_elem_f = df_elem_f[df_elem_f['Total']>0].sort_values('Total', ascending=True)
+
+        fig_folha_elem = px.bar(
+            df_elem_f, x='Total', y='Elemento', orientation='h',
+            color='Origem', color_discrete_map=COR_ORIGEM,
+            text='Total', barmode='stack',
+        )
+        fig_folha_elem.update_traces(
+            texttemplate="R$ %{x:,.0f}",
+            textposition='inside', insidetextanchor='middle',
+            hovertemplate=(
+                "<span style='color:white;'><b>%{y}</b><br>"
+                "Origem: %{data.name}<br>"
+                "Liquidado: <b>R$ %{x:,.2f}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_folha_elem.update_layout(
+            separators=",.", xaxis=dict(showticklabels=False, title=None),
+            yaxis=dict(title=None), showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+            height=480, margin=dict(r=150),
+        )
+        st.plotly_chart(fig_folha_elem, use_container_width=True, config=CONFIG_PT)
+        st.markdown("---")
+
+        st.subheader("🔹 3. Evolução Mensal da Folha")
+        dados_mensal_f = []
+        for m in meses_disponiveis:
+            col = f"{m}_Liquidado"
+            if col not in df_folha.columns: continue
+            for orig in df_folha['Origem'].unique():
+                v = df_folha[df_folha['Origem']==orig][col].sum()
+                dados_mensal_f.append({"Mês":m,"Origem":orig,"Valor":v})
+        df_mensal_f = pd.DataFrame(dados_mensal_f)
+        df_mensal_f = df_mensal_f[df_mensal_f['Valor']>0]
+
+        fig_folha_mensal = px.bar(
+            df_mensal_f, x='Mês', y='Valor', color='Origem',
+            barmode='stack', text_auto=False,
+            color_discrete_map=COR_ORIGEM,
+            category_orders={"Mês":ORDEM_MESES},
+        )
+        fig_folha_mensal.update_traces(
+            hovertemplate=(
+                "<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
+                "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        fig_folha_mensal.update_layout(
+            separators=",.", yaxis=dict(showticklabels=False), showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.30, xanchor="center", x=0.5),
+            height=400,
+        )
+        st.plotly_chart(fig_folha_mensal, use_container_width=True, config=CONFIG_PT)
+
+    # ── Relatório Geral de Fichas ─────────────────────────────────────────────
     st.markdown("### 📋 Relatório Geral de Fichas")
-    df_f_filt = df_f_raw[
-        df_f_raw['Atividade'].str.contains(search_term, na=False, case=False)
-    ].copy()
+    df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(
+        search_term, na=False, case=False)].copy()
     st.dataframe(df_f_filt, use_container_width=True, hide_index=True)
 
 else:
-    st.error("Erro ao carregar os arquivos CSV. Verifique se os arquivos de Ibiraci estão no diretório correto.")
+    st.error("Erro ao carregar os arquivos CSV. Verifique a pasta 'zEducação'.")
