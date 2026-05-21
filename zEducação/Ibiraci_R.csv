@@ -1,4 +1,4 @@
-Código,Categoria,Descrição da Receita,Janeiro,fevereiro,março,abril,maio,junho,julho,agosto,setembro,outubro,novembro,dezembro,TOTAL,Orçado Receitas,Repasse,2025,Atualização Quadrimestral,% Atualização 
+Código,Categoria,Descrição da Receita,Janeiro,Fevereiro,Março,Abril,Maio,Junho,Julho,Agosto,Setembro,Outubro,Novembro,Dezembro,TOTAL,Orçado Receitas,Repasse,2025,Atualização Quadrimestral,% Atualização 
 11180111000,Impostos,Propriedade Predial e Territorial Urbana - Principal ,"R$ 11.834,97","R$ 129,58","R$ 0,00",,,,,,,,,,"R$ 11.964,55","R$ 500.000,00",,,,
 11180112000,Impostos,Propriedade Predial e Territorial Urbana - Multas e Juros ,"R$ 2.838,93","R$ 27,39","R$ 0,00",,,,,,,,,,"R$ 2.866,32","R$ 1.000,00",,,,
 11180113000,Impostos,Propriedade Predial e Territorial Urbana - Dívida Ativa ,"R$ 7.863,76","R$ 2.985,66","R$ 2.829,78",,,,,,,,,,"R$ 13.679,20","R$ 250.000,00",,,,
@@ -35,7 +35,7 @@ Código,Categoria,Descrição da Receita,Janeiro,fevereiro,março,abril,maio,jun
 13210111016,Remunerações Bancárias,Rendimentos ,"R$ 2,33","R$ 1,56","R$ 355,64",,,,,,,,,,"R$ 359,53","R$ 1.000,00",,,,
 17145301000,Tranferência Programas Federais ,PNATE,"R$ 0,00","R$ 0,00","R$ 0,00",,,,,,,,,,"R$ 0,00","R$ 100.000,00","R$ 78.044,12","R$ 120.398,72",,
 13210111017,Remunerações Bancárias,Rendimentos ,"R$ 11,81","R$ 6,25","R$ 7,65",,,,,,,,,,"R$ 25,71","R$ 1.000,00",,,,
-17295201001,Tranferência Programas Estaduais,PTE,"R$ 0,00","R$ 124.776,98","R$ 124.776,98",,,,,,,,,,"R$ 249.553,96","R$ 825.823,90","R$ 1.247.769,80","R$ 1.427.769,80",,
+17295201001,Tranferência Programas Estaduais,PTE,"R$ 0,00","R$ 124.776,98","R$ 124.776,98",,,,,,,,,,"R$ 249.553,96","R$ 1.400.000,00","R$ 1.247.769,80","R$ 1.427.769,80",,
 13210111023,Remunerações Bancárias,Rendimentos ,"R$ 0,00","R$ 274,45","R$ 0,00",,,,,,,,,,"R$ 274,45","R$ 1.000,00",,,,
 17145001000,Tranferência Programas Federais ,QESE,"R$ 90.050,65","R$ 55.233,69","R$ 56.934,79",,,,,,,,,,"R$ 202.219,13","R$ 672.000,00","R$ 747.229,58","R$ 617.960,76",,
 13210111015,Remunerações Bancárias,Rendimentos ,"R$ 0,00","R$ 0,00","R$ 3.118,35",,,,,,,,,,"R$ 3.118,35","R$ 1.000,00",,,,
