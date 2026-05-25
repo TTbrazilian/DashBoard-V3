@@ -567,26 +567,26 @@ if df_f_raw is not None and df_r is not None:
 
         meta_eti_perc = 4.0
         _base_eti = soma(
-            df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal','Rendimentos','VAAT'])],
+            df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal','Rendimentos','VAAT','VAAR'])],
             meses_disponiveis
         )
         val_meta_eti = _base_eti * (meta_eti_perc/100)
 
         e1, e2 = st.columns(2)
-        with e1: st.metric("Base para Cálculo ETI (Principal + Rendimentos + VAAT)",
+        with e1: st.metric("Base para Cálculo ETI (Principal + Rendimentos + VAAT + VAAR)",
                             formar_real(_base_eti))
         with e2: st.metric(f"Meta {meta_eti_perc:.0f}% (Referência ETI)",
                             formar_real(val_meta_eti))
 
         fig_eti = go.Figure()
         fig_eti.add_trace(go.Bar(
-            x=["Base ETI\n(Principal + Rend. + VAAT)"], y=[_base_eti],
+            x=["Base ETI\n(Principal + Rend. + VAAT + VAAR)"], y=[_base_eti],
             name="Base ETI", marker_color="#003366",
             text=[formar_real(_base_eti)],
             textposition='inside', insidetextanchor='middle',
             hovertemplate=("<span style='color:white;'><b>Base de Cálculo ETI</b><br>"
-                           "Principal + Rendimentos + VAAT<br>"
-                           "(VAAR e ETI não entram no cálculo)<br>"
+                           "Principal + Rendimentos + VAAT + VAAR<br>"
+                           "(ETI não entra no cálculo)<br>"
                            "Valor: <b>"+formar_real(_base_eti)+"</b></span><extra></extra>"),
         ))
         fig_eti.add_hline(
