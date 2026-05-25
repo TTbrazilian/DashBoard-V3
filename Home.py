@@ -377,7 +377,7 @@ if setor:
         nomes = [
             "Alpinópolis", "Cássia", "Capetinga", "Claraval", "Delfinópolis",
             "Ibiraci", "Itaú de Minas", "Pratápolis", "Restinga",
-            "São João Batista Do Glória", "São José da Barra",
+            "São João Batista do Glória", "São José da Barra",
             "São Roque de Minas", "São Tomás de Aquino", "Itamogi",
         ]
         suffix = "Educação"
