@@ -291,7 +291,7 @@ if df_f_raw is not None and df_r is not None:
         # Coluna orçado = 'Orçado Receitas' | portaria = Repasse
         tot_prev_municipio = df_r_fundeb[df_r_fundeb['Subcategoria']=='Principal'
                                          ]['Orçado Receitas'].sum()
-        tot_prev_portaria  = df_r_fundeb['Repasse'].sum()
+        tot_prev_portaria  = df_r_fundeb[df_r_fundeb['Subcategoria']=='Principal']['Repasse'].sum()
         tot_rec_periodo    = soma(df_r_fundeb, meses_disponiveis)
 
         df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407','15403'])].copy()
