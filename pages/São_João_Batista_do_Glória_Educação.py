@@ -1174,6 +1174,8 @@ if df_f_raw is not None and df_r is not None:
             'Auxílio-alimentação',
             'Aposentadorias, Reserva Remunerada e Reformas',
             '- Aposentadorias, Reserva Remunerada e Reformas',
+            'Diárias - Pessoal Civil',
+            'Obrigações Tributárias e Contributivas',
         ]
         liq_cols_f = [f"{m}_Liquidado" for m in meses_disponiveis
                       if f"{m}_Liquidado" in df_f_raw.columns]
