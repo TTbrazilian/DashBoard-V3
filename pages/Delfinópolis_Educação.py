@@ -568,7 +568,7 @@ if df_f_raw is not None and df_r is not None:
 
         fig_eti = go.Figure()
         fig_eti.add_trace(go.Bar(
-            x=["Base ETI\n(Principal + Rend. + VAAT)"], y=[_base_eti],
+            x=["Base ETI\n(Principal + Rend. + VAAT + VAAR)"], y=[_base_eti],
             name="Base ETI", marker_color="#003366",
             text=[formar_real(_base_eti)],
             textposition='inside', insidetextanchor='middle',
