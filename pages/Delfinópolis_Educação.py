@@ -660,7 +660,7 @@ if df_f_raw is not None and df_r is not None:
             df_df_raw['Fonte'].isin(['15001','1500']) &
             (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        _desconto_fundeb_nao_util = 0.0
+        _desconto_fundeb_nao_util = 872_441.82
         _desconto_superavit_ant   = 0.0
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
 
