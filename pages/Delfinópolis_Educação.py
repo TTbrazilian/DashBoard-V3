@@ -561,7 +561,7 @@ if df_f_raw is not None and df_r is not None:
         val_meta_eti = _base_eti * (meta_eti_perc/100)
 
         e1, e2 = st.columns(2)
-        with e1: st.metric("Base para Cálculo ETI (Principal + Rendimentos + VAAT)",
+        with e1: st.metric("Base para Cálculo ETI (Principal + Rendimentos + VAAT + VAAR)",
                             formar_real(_base_eti))
         with e2: st.metric(f"Meta {meta_eti_perc:.0f}% (Referência ETI)",
                             formar_real(val_meta_eti))
