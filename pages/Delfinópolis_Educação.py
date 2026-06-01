@@ -785,12 +785,12 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
-        st.subheader("🔹 Despesas Fontes 15001 + 1500 (Recursos Próprios)")
+        st.subheader("🔹 Despesas Fontes 15001 (Recursos Próprios)")
         st.markdown("Detalhamento por Estágio (Empenhado, Liquidado, Pago)")
         view_desp = st.segmented_control("Visualização Despesas:", ["Mensal","Acumulado"],
                                          default="Mensal", key="view_desp")
         df_15001_todas = df_df_raw[
-            df_df_raw['Fonte'].isin(['15001','1500']) &
+            df_df_raw['Fonte'].isin(['15001']) &
             df_df_raw['Tipo'].isin(['Empenhado','Liquidado','Pago'])].copy()
 
         if view_desp == "Acumulado":
@@ -828,7 +828,7 @@ if df_f_raw is not None and df_r is not None:
         fig_d.update_traces(
             hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
                            "Estágio: %{fullData.name}<br>"
-                           "Valor (15001+1500): R$ %{customdata[2]:,.2f}<br>"
+                           "Valor (15001): R$ %{customdata[2]:,.2f}<br>"
                            "Dedução FUNDEB: R$ %{customdata[1]:,.2f}<br>"
                            "Proporção: %{customdata[0]}</span><extra></extra>"),
             hoverlabel=HOVER_STYLE)
