@@ -573,8 +573,8 @@ if df_f_raw is not None and df_r is not None:
             text=[formar_real(_base_eti)],
             textposition='inside', insidetextanchor='middle',
             hovertemplate=("<span style='color:white;'><b>Base de Cálculo ETI</b><br>"
-                           "Principal + Rendimentos + VAAT<br>"
-                           "(VAAR e ETI não entram no cálculo)<br>"
+                           "Principal + Rendimentos + VAAT + VAAR<br>"
+                           "(ETI não entra no cálculo)<br>"
                            "Valor: <b>"+formar_real(_base_eti)+"</b></span><extra></extra>"),
         ))
         fig_eti.add_hline(
