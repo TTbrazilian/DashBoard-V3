@@ -523,10 +523,40 @@ if df_f_raw is not None and df_r is not None:
                     ['Principal','Rendimentos'])],[m])*0.70}
                 for m in meses_disponiveis
             ])
+            # Usa shapes em vez de scatter para a linha de meta, garantindo que
+            # ela parta do bar Receita Base (esquerda) e termine no bar FUNDEB 70%
+            # (direita) de cada mês, com segmentos conectores entre meses.
+            # OFFSET: posição aproximada de cada bar em relação ao centro do grupo
+            # (2 bars por grupo → cada bar ≈ ±0.22 do centro categórico)
+            _OFFSET = 0.22
+            _shapes = []
+            for _i, _row in df_meta_70.iterrows():
+                _meta = _row['Meta 70%']
+                # Segmento horizontal abrangendo ambas as barras do mês
+                _shapes.append(dict(
+                    type='line',
+                    x0=_i - _OFFSET, x1=_i + _OFFSET,
+                    y0=_meta, y1=_meta,
+                    xref='x', yref='y',
+                    line=dict(color='green', dash='dot', width=2)
+                ))
+                # Segmento conector até o próximo mês
+                if _i < len(df_meta_70) - 1:
+                    _next_meta = df_meta_70.loc[_i + 1, 'Meta 70%']
+                    _shapes.append(dict(
+                        type='line',
+                        x0=_i + _OFFSET, x1=_i + 1 - _OFFSET,
+                        y0=_meta, y1=_next_meta,
+                        xref='x', yref='y',
+                        line=dict(color='green', dash='dot', width=2)
+                    ))
+            fig_70.update_layout(shapes=_shapes)
+            # Trace invisível apenas para criar a entrada na legenda
             fig_70.add_trace(go.Scatter(
-                x=df_meta_70['Mês'], y=df_meta_70['Meta 70%'],
-                mode='lines+markers', name='Meta 70% (Mensal)',
-                line=dict(color='green', dash='dot')
+                x=[None], y=[None], mode='lines',
+                name='Meta 70% (Mensal)',
+                line=dict(color='green', dash='dot', width=2),
+                showlegend=True
             ))
             fig_70.update_traces(
                 selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
