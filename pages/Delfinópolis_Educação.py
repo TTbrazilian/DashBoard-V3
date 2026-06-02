@@ -94,20 +94,6 @@ def soma(df, cols):
     presentes = [c for c in cols if c in df.columns]
     return df[presentes].sum().sum() if presentes else 0.0
 
-# ── CARGA DE DADOS ────────────────────────────────────────────────────────────
-# Individualidades Delfinópolis vs Pratápolis:
-# • Delfinópolis.csv: cabeçalho duplo padrão [0,1] → colunas Mes_Liquidado.
-# • meses_disponiveis = ['Janeiro','Fevereiro','Março','Abril'] (4 meses).
-# • Delfinópolis_R.csv: header=0 DIRETO. 'Março ' com espaço → .strip() nas colunas.
-#   Coluna orçado = 'Orçado Receitas'. Tem Repasse, Atualização Quadrimestral, % Atualização.
-#   'Atualização Quadrimestral' NÃO entra em COLS_R (evita double-parse).
-# • Fontes próprias: 15001 (Próprio Educação) + 1500 (Próprio) — somadas no 25%.
-# • QESE fontes DF: ['1550'] (sem 2550).
-# • PTE: categoria 'Tranferência Programas Estaduais' no R file (fonte DF = 1576).
-# • Delfinópolis_DF.csv: tem linha Tipo='Tipo' → filtrar via isin().
-# • FUNDEB 70% Liq Jan–Abr = R$ 1.426.130,78 | FUNDEB 30% = R$ 287.943,19
-# • RP (15001+1500) Liq = R$ 3.325.091,89 | Capital = R$ 31.165,35 | Custeio = R$ 5.844.996,37
-# • _desconto_fundeb_nao_util = 0.0 | _desconto_superavit_ant = 0.0
 @st.cache_data
 def load_all_data():
     path_f  = buscar_arquivo("zEducação/Delfinópolis.csv")
@@ -115,7 +101,6 @@ def load_all_data():
     path_df = buscar_arquivo("zEducação/Delfinópolis_DF.csv")
     if not path_f or not path_r or not path_df: return None, None, None
 
-    # ── FICHAS — cabeçalho duplo padrão ──────────────────────────────────────
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0,1])
     new_cols = []
     for col in df_f.columns:
@@ -128,16 +113,13 @@ def load_all_data():
             df_f[col] = df_f[col].apply(limpar_valor)
     df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0','',regex=False).str.strip()
 
-    # ── RECEITAS — header=0 direto; 'Março ' com espaço → strip nas colunas ──
-    # 'Atualização Quadrimestral' NÃO incluída em COLS_R (evita double-parse).
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
-    df_r.columns = [str(c).strip() for c in df_r.columns]  # Remove espaço de 'Março '
+    df_r.columns = [str(c).strip() for c in df_r.columns]
     COLS_R = ORDEM_MESES + ['Total','Orçado Receitas','Repasse','2025']
     for col in df_r.columns:
         if col in COLS_R:
             df_r[col] = df_r[col].apply(limpar_valor)
 
-    # ── DESPESAS POR FONTE — remove linha Tipo='Tipo' via isin() ─────────────
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
     df_df = df_df[df_df['Tipo'].isin(['Empenhado','Liquidado','Pago'])].copy()
@@ -655,9 +637,8 @@ if df_f_raw is not None and df_r is not None:
         fase_despesa = st.segmented_control(
             " (Impacta Indicadores Superiores):",
             ["Empenhado","Liquidado","Pago"], default="Liquidado", key="fase_desp_rp")
-        # Delfinópolis: fontes próprias = 15001 + 1500
         df_df_15001 = df_df_raw[
-            df_df_raw['Fonte'].isin(['15001','1500']) &
+            df_df_raw['Fonte'].isin(['15001']) &
             (df_df_raw['Tipo']==fase_despesa)].copy()
 
         _desconto_fundeb_nao_util = 872_441.82
@@ -947,8 +928,6 @@ if df_f_raw is not None and df_r is not None:
 
     # =========================================================================
     # SETOR RECURSOS VINCULADOS
-    # PNAE(1552), PNATE(1553), PTE(1576), QESE(1550)
-    # PTE: categoria 'Tranferência Programas Estaduais' no R file.
     # =========================================================================
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align:left;'>📖 Delfinópolis — Recursos Vinculados</h1>",
@@ -1052,7 +1031,6 @@ if df_f_raw is not None and df_r is not None:
 
     # =========================================================================
     # SETOR VISÃO MACRO
-    # Capital Liq = R$ 31.165,35 | Custeio = R$ 5.844.996,37
     # =========================================================================
     elif st.session_state.setor == 'Visão Macro':
         st.markdown("<h1 style='text-align:left;'>📖 Delfinópolis — Visão Macro da Educação</h1>",
@@ -1158,6 +1136,7 @@ if df_f_raw is not None and df_r is not None:
             'Outras Despesas Variáveis - Pessoal Civil',
             'Indenizações e Restituições Trabalhistas',
             'Auxílio-alimentação',
+            'Auxílio Alimentação',
             'Aposentadorias, Reserva Remunerada e Reformas',
             '- Aposentadorias, Reserva Remunerada e Reformas',
         ]
