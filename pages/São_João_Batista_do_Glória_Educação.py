@@ -98,19 +98,18 @@ def soma(df, cols):
     return df[presentes].sum().sum() if presentes else 0.0
 
 # ── CARGA DE DADOS ────────────────────────────────────────────────────────────
-# Individualidades São João Batista do Glória vs Restinga:
-# • Fichas: header=[0,1] duplo padrão → colunas Mes_Liquidado. Apenas Jan e Fev.
-# • meses_disponiveis = ['Janeiro','Fevereiro'] (só 2 meses com liquidação).
-# • R file: MESMO padrão de Pratápolis — header na linha 0 dos dados (Unnamed cols).
-#   Solução: ler header=0, usar row[0] como nomes, descartar row[0].
+# Individualidades São João Batista do Glória — atualizado Jan–Abr:
+# • Fichas: header=[0,1] duplo padrão → colunas Mes_Liquidado. Jan a Abr.
+# • meses_disponiveis = ['Janeiro','Fevereiro','Março','Abril'] (4 meses).
+# • R file: NaN na linha 0 + header real na linha 1 → header=0 + iloc[0] como colunas.
 #   Coluna orçado = 'Orçado Receitas'. VAAR e ETI têm valores no período.
 #   'Atualização Quadrimestral' NÃO entra em COLS_R (evita double-parse).
 # • PTE: categoria 'Tranferência Programas Estaduais' no R file.
-# • QESE fontes DF: ['1550','2550'] (Superávit QESE = 2550).
+# • QESE fontes DF: ['1550','2550'] (Superávit QESE = 2550, R$0 no período).
 # • DF: tem linha Tipo='Tipo' → filtrar via isin().
-#   Capital Liq Jan–Fev = R$ 0,00 | Custeio = R$ 2.071.614,62
-# • FUNDEB 70% Liq = R$ 1.612.647,38 | FUNDEB 30% = R$ 82.507,29
-# • RP 15001 Liq = R$ 200.853,38 | _desconto_fundeb_nao_util = 0.0
+#   Capital Liq Jan–Abr = R$ 12.965,00 | Custeio = R$ 4.785.661,07
+# • FUNDEB 70% Liq = R$ 2.343.219,75 | FUNDEB 30% = R$ 157.739,64
+# • RP 15001 Liq = R$ 1.012.863,42 | _desconto_fundeb_nao_util = 0.0
 @st.cache_data
 def load_all_data():
     path_f  = buscar_arquivo("zEducação/São João Batista do Glória.csv")
@@ -161,7 +160,7 @@ def load_all_data():
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
-meses_disponiveis = ['Janeiro','Fevereiro']
+meses_disponiveis = ['Janeiro','Fevereiro','Março','Abril']
 
 if df_f_raw is not None and df_r is not None:
 
@@ -1055,7 +1054,7 @@ if df_f_raw is not None and df_r is not None:
 
     # =========================================================================
     # SETOR VISÃO MACRO
-    # Capital Jan–Fev = R$ 0,00 | Custeio = R$ 2.071.614,62
+    # Capital Jan–Abr = R$ 12.965,00 | Custeio = R$ 4.785.661,07
     # =========================================================================
     elif st.session_state.setor == 'Visão Macro':
         st.markdown("<h1 style='text-align:left;'>📖 São João Batista do Glória — Visão Macro da Educação</h1>",
