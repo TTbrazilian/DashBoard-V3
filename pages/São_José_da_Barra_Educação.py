@@ -337,6 +337,30 @@ if df_f_raw is not None and df_r is not None:
             st.metric("Saldo (Receitas − Despesas Vigentes)", formar_real(saldo),
                       delta=f"{delta_val:.1f}% Saldo", delta_color="normal")
 
+        # ── Composição das Receitas FUNDEB (Rendimentos + VAAR/VAAT + ETI) ──
+        st.markdown(
+            "<p style='font-size:.82rem;color:#94A3B8;margin:6px 0 4px 0'>"
+            "📊 <b>Composição das Receitas FUNDEB</b> — detalhamento por subcategoria</p>",
+            unsafe_allow_html=True
+        )
+        _val_principal = soma(df_r_fundeb[df_r_fundeb['Subcategoria']=='Principal'], meses_disponiveis)
+        _val_rend      = soma(df_r_fundeb[df_r_fundeb['Subcategoria']=='Rendimentos'], meses_disponiveis)
+        _val_vaarvaat  = soma(df_r_fundeb[df_r_fundeb['Subcategoria']=='VAAR/VAAT'], meses_disponiveis)
+        _val_eti       = soma(df_r_fundeb[df_r_fundeb['Subcategoria']=='ETI'], meses_disponiveis)
+        _c1, _c2, _c3, _c4 = st.columns(4)
+        with _c1: st.metric("Principal", formar_real(_val_principal),
+                             delta=f"{_val_principal/tot_rec_periodo*100:.1f}% do total" if tot_rec_periodo>0 else "—",
+                             delta_color="off")
+        with _c2: st.metric("Rendimentos FUNDEB", formar_real(_val_rend),
+                             delta=f"{_val_rend/tot_rec_periodo*100:.1f}% do total" if tot_rec_periodo>0 else "—",
+                             delta_color="off")
+        with _c3: st.metric("VAAR / VAAT", formar_real(_val_vaarvaat),
+                             delta=f"{_val_vaarvaat/tot_rec_periodo*100:.1f}% do total" if tot_rec_periodo>0 else "—",
+                             delta_color="off")
+        with _c4: st.metric("ETI (Tempo Integral)", formar_real(_val_eti),
+                             delta=f"{_val_eti/tot_rec_periodo*100:.1f}% do total" if tot_rec_periodo>0 else "—",
+                             delta_color="off")
+
         tipo_rd = st.segmented_control("Visualização:", ["Mensal","Acumulado"],
                                        default="Mensal", key="rd_btn_f")
         fig_rd = go.Figure()
@@ -1065,6 +1089,85 @@ if df_f_raw is not None and df_r is not None:
             st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
             st.markdown("---")
 
+        # ── Rendimentos Bancários dos Recursos Vinculados ─────────────────────
+        # Categoria 'Remunerações Bancárias': rendimentos sobre saldos dos fundos
+        # vinculados depositados em conta bancária (PNAE, PNATE, QESE, PTE).
+        df_r_rem = df_r[df_r['Categoria'].str.strip() == 'Remunerações Bancárias'].copy()
+        total_rend_vinc = soma(df_r_rem, meses_disponiveis)
+
+        if total_rend_vinc > 0:
+            st.markdown("<h4 style='color:#8E44AD;margin-bottom:4px;'>"
+                        "📊 Rendimentos Bancários — Recursos Vinculados</h4>",
+                        unsafe_allow_html=True)
+            st.markdown(
+                "<small style='color:#94A3B8'>Rendimentos auferidos sobre os saldos dos fundos "
+                "vinculados (PNAE, PNATE, QESE, PTE) depositados em conta bancária.</small>",
+                unsafe_allow_html=True
+            )
+
+            tipo_rend = st.segmented_control(
+                "Visualização:", ["Mensal","Acumulado"],
+                default="Mensal", key="vinc_btn_rendimentos"
+            )
+
+            if tipo_rend == "Mensal":
+                dados_rend_m = []
+                for m in meses_disponiveis:
+                    val_m = df_r_rem[m].sum() if m in df_r_rem.columns else 0.0
+                    dados_rend_m.append({"Mês": m, "Valor": val_m})
+                fig_rend = px.bar(
+                    pd.DataFrame(dados_rend_m), x='Mês', y='Valor',
+                    text_auto='.2s',
+                    color_discrete_sequence=['#8E44AD'],
+                    category_orders={"Mês": ORDEM_MESES}
+                )
+                fig_rend.update_traces(
+                    textposition='outside', hoverlabel=HOVER_STYLE,
+                    hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
+                                   "Rendimentos Bancários<br>"
+                                   "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>")
+                )
+            else:
+                fig_rend = go.Figure()
+                fig_rend.add_trace(go.Bar(
+                    x=[f"Rendimentos (Jan–{meses_disponiveis[-1][:3]})"],
+                    y=[total_rend_vinc],
+                    name="Rendimentos Bancários",
+                    marker_color='#8E44AD',
+                    text=[formar_real(total_rend_vinc)],
+                    textposition='outside',
+                    hovertemplate=("<span style='color:white;'><b>Rendimentos Acumulados</b><br>"
+                                   "Fundos Vinculados<br>"
+                                   f"Valor: <b>{formar_real(total_rend_vinc)}</b></span><extra></extra>"),
+                ))
+
+            fig_rend.update_layout(
+                separators=",.", yaxis=dict(showticklabels=False, title=None),
+                xaxis_title=None, showlegend=False, hoverlabel=HOVER_STYLE,
+                height=320
+            )
+            st.plotly_chart(fig_rend, use_container_width=True, config=CONFIG_PT)
+            st.markdown("---")
+
+        # ── Resumo Total Vinculados ───────────────────────────────────────────
+        total_rec_vinc_programas = soma(
+            df_r[df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)],
+            meses_disponiveis
+        )
+        total_rec_vinc_geral = total_rec_vinc_programas + total_rend_vinc
+        total_desp_vinc = sum(
+            df_df_raw[df_df_raw['Fonte'].isin(fontes) &
+                      (df_df_raw['Tipo']=='Liquidado')][meses_disponiveis].sum().sum()
+            for fontes in mapa_desp.values()
+        )
+        _rv1, _rv2, _rv3 = st.columns(3)
+        with _rv1: st.metric(f"Total Receitas Programas (Jan–{meses_disponiveis[-1][:3]})",
+                              formar_real(total_rec_vinc_programas))
+        with _rv2: st.metric("Rendimentos Bancários",
+                              formar_real(total_rend_vinc))
+        with _rv3: st.metric("Total Geral (Programas + Rendimentos)",
+                              formar_real(total_rec_vinc_geral))
+
     # =========================================================================
     # SETOR VISÃO MACRO DA EDUCAÇÃO
     # CORREÇÃO 2: atualizado para meses_disponiveis (Jan–Abr)
@@ -1098,6 +1201,110 @@ if df_f_raw is not None and df_r is not None:
         with m3: st.metric("Custeio Liquidado", formar_real(total_custeio),
                            delta=f"{total_custeio/total_macro*100:.1f}% do total" if total_macro>0 else "—",
                            delta_color="off")
+        st.markdown("---")
+
+
+        # ── Painel de Receitas Consolidado ───────────────────────────────────
+        st.subheader(f"🔹 0. Painel de Receitas Consolidado (Jan–{meses_disponiveis[-1][:3]})")
+
+        # FUNDEB (todas subcategorias, incluindo Rendimentos e VAAR/VAAT)
+        _df_fundeb_vm = df_r[df_r['Categoria'].str.strip()=='FUNDEB'].copy()
+        _rec_fundeb_total = soma(_df_fundeb_vm, meses_disponiveis)
+        _rec_fundeb_rend  = soma(_df_fundeb_vm[_df_fundeb_vm['Descrição da Receita'].str.strip()=='Rendimentos'], meses_disponiveis)
+        _rec_fundeb_princ = soma(_df_fundeb_vm[_df_fundeb_vm['Descrição da Receita'].str.strip()=='Principal'], meses_disponiveis)
+        _rec_fundeb_outros = _rec_fundeb_total - _rec_fundeb_princ - _rec_fundeb_rend
+
+        # Recursos Vinculados (Federais + Estaduais)
+        _df_vinc_vm = df_r[df_r['Categoria'].str.strip().isin([
+            'Tranferência Programas Federais','Tranferência Programas Estaduais'])].copy()
+        _rec_vinc_total = soma(_df_vinc_vm, meses_disponiveis)
+        _vinc_por_prog  = {
+            str(row['Descrição da Receita']).strip(): soma(pd.DataFrame([row]), meses_disponiveis)
+            for _, row in _df_vinc_vm.iterrows()
+            if soma(pd.DataFrame([row]), meses_disponiveis) > 0
+        }
+
+        # Recursos Próprios (Impostos + Cota-Parte - Deduções)
+        _df_rp_vm  = df_r[df_r['Categoria'].str.strip().isin(['Impostos','Cota-Parte'])].copy()
+        _df_ded_vm = df_r[df_r['Categoria'].str.strip().str.startswith('Dedução', na=False)].copy()
+        _rec_rp_bruto = soma(_df_rp_vm, meses_disponiveis)
+        _rec_ded_vm   = abs(soma(_df_ded_vm, meses_disponiveis))
+        _rec_rp_liq   = max(0.0, _rec_rp_bruto - _rec_ded_vm)
+        _rec_total_geral = _rec_fundeb_total + _rec_vinc_total + _rec_rp_liq
+
+        # KPIs consolidados
+        _k1, _k2, _k3, _k4 = st.columns(4)
+        with _k1: st.metric("Total Geral de Receitas", formar_real(_rec_total_geral))
+        with _k2: st.metric("FUNDEB (c/ Rendimentos + VAAR + ETI)",
+                             formar_real(_rec_fundeb_total),
+                             delta=f"{_rec_fundeb_total/_rec_total_geral*100:.1f}%" if _rec_total_geral>0 else "—",
+                             delta_color="off")
+        with _k3: st.metric("Vinculados (PNAE+PNATE+PTE+QESE)",
+                             formar_real(_rec_vinc_total),
+                             delta=f"{_rec_vinc_total/_rec_total_geral*100:.1f}%" if _rec_total_geral>0 else "—",
+                             delta_color="off")
+        with _k4: st.metric("Recursos Próprios (líquido deduções)",
+                             formar_real(_rec_rp_liq),
+                             delta=f"{_rec_rp_liq/_rec_total_geral*100:.1f}%" if _rec_total_geral>0 else "—",
+                             delta_color="off")
+
+        # Gráfico pizza consolidado
+        _df_pie_rec = pd.DataFrame([
+            {"Fonte":"FUNDEB — Principal",         "Valor": _rec_fundeb_princ},
+            {"Fonte":"FUNDEB — Rendimentos",       "Valor": _rec_fundeb_rend},
+            {"Fonte":"FUNDEB — VAAR/VAAT/ETI",     "Valor": max(0.0, _rec_fundeb_outros)},
+            {"Fonte":"Vinculados Federais",        "Valor": soma(df_r[df_r['Categoria'].str.strip()=='Tranferência Programas Federais'], meses_disponiveis)},
+            {"Fonte":"Vinculados Estaduais (PTE)", "Valor": soma(df_r[df_r['Categoria'].str.strip()=='Tranferência Programas Estaduais'], meses_disponiveis)},
+            {"Fonte":"Rec. Próprios (líquido)",    "Valor": _rec_rp_liq},
+        ])
+        _df_pie_rec = _df_pie_rec[_df_pie_rec['Valor']>0]
+
+        _fig_pie_rec = px.pie(
+            _df_pie_rec, values='Valor', names='Fonte', hole=0.38,
+            color='Fonte',
+            color_discrete_map={
+                "FUNDEB — Principal":         '#1a7a4a',
+                "FUNDEB — Rendimentos":       '#0d47a1',
+                "FUNDEB — VAAR/VAAT/ETI":     '#69f0ae',
+                "Vinculados Federais":        '#2980b9',
+                "Vinculados Estaduais (PTE)": '#1565c0',
+                "Rec. Próprios (líquido)":    '#f39c12',
+            },
+        )
+        _fig_pie_rec.update_traces(
+            textinfo='percent+label', textposition='inside',
+            hovertemplate=(
+                "<span style='color:white;'><b>%{label}</b><br>"
+                "Valor: <b>R$ %{value:,.2f}</b><br>"
+                "Participação: <b>%{percent}</b></span><extra></extra>"
+            ),
+            hoverlabel=HOVER_STYLE,
+        )
+        _fig_pie_rec.update_layout(
+            separators=",.", showlegend=True,
+            legend=dict(orientation="v", yanchor="middle", y=0.5,
+                        xanchor="left", x=1.02, font=dict(size=11)),
+            height=420, margin=dict(t=20, b=20, r=240),
+            title=dict(
+                text=f"Total Geral: {formar_real(_rec_total_geral)}",
+                x=0.5, font=dict(size=12, color='#94A3B8')
+            )
+        )
+        st.plotly_chart(_fig_pie_rec, use_container_width=True, config=CONFIG_PT)
+
+        # Linha de detalhamento dos Vinculados
+        if _vinc_por_prog:
+            st.markdown(
+                "<p style='font-size:.82rem;color:#94A3B8;margin:4px 0'>"
+                "📋 <b>Detalhamento — Recursos Vinculados</b></p>",
+                unsafe_allow_html=True
+            )
+            _prog_sorted = sorted(_vinc_por_prog.items(), key=lambda x: -x[1])
+            _cols_v = st.columns(len(_prog_sorted))
+            for _ci, (_prog, _val) in enumerate(_prog_sorted):
+                with _cols_v[_ci]:
+                    st.metric(_prog.upper(), formar_real(_val))
+
         st.markdown("---")
 
         st.subheader(f"🔹 1. Capital × Custeio (Liquidado Jan–{meses_disponiveis[-1][:3]})")
