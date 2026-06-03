@@ -542,11 +542,24 @@ if df_f_raw is not None and df_r is not None:
                     ['Principal','Rendimentos','VAAT'])],[m])*0.70}
                 for m in meses_disponiveis
             ])
-            fig_70.add_trace(go.Scatter(
-                x=df_meta_70['Mês'], y=df_meta_70['Meta 70%'],
-                mode='lines+markers', name='Meta 70% (Mensal)',
-                line=dict(color='green', dash='dot')
-            ))
+            # REGRA: linha de meta via shapes — parte da barra Receita (esquerda)
+            # e termina na barra FUNDEB 70% (direita) de cada mês, com conector entre meses.
+            _OFFSET = 0.22
+            _shapes_70 = []
+            for _i, _row in df_meta_70.iterrows():
+                _meta = _row['Meta 70%']
+                _shapes_70.append(dict(type='line', xref='x', yref='y',
+                    x0=_i - _OFFSET, x1=_i + _OFFSET, y0=_meta, y1=_meta,
+                    line=dict(color='green', dash='dot', width=2)))
+                if _i < len(df_meta_70) - 1:
+                    _next_meta = df_meta_70.loc[_i + 1, 'Meta 70%']
+                    _shapes_70.append(dict(type='line', xref='x', yref='y',
+                        x0=_i + _OFFSET, x1=_i + 1 - _OFFSET, y0=_meta, y1=_next_meta,
+                        line=dict(color='green', dash='dot', width=2)))
+            fig_70.update_layout(shapes=_shapes_70)
+            fig_70.add_trace(go.Scatter(x=[None], y=[None], mode='lines',
+                name='Meta 70% (Mensal)', showlegend=True,
+                line=dict(color='green', dash='dot', width=2)))
             fig_70.update_traces(
                 selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
                 hovertemplate=("<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
@@ -934,12 +947,26 @@ if df_f_raw is not None and df_r is not None:
                 hoverlabel=HOVER_STYLE
             )
             df_linha = df_meta_m[df_meta_m['Tipo']=='Receitas (Impostos + Cota-Parte)'].copy()
+            df_linha = df_linha.reset_index(drop=True)
             df_linha['Meta 25%'] = df_linha['Valor'] * 0.25
-            fig_meta.add_trace(go.Scatter(
-                x=df_linha['Mês'], y=df_linha['Meta 25%'],
-                mode='lines+markers', name='Meta 25% (Mensal)',
-                line=dict(color='#f39c12', dash='dash')
-            ))
+            # REGRA: linha de meta via shapes — parte da barra Receita (esquerda)
+            # e termina na barra Despesa (direita) de cada mês, com conector entre meses.
+            _OFFSET = 0.22
+            _shapes_25 = []
+            for _i, _row in df_linha.iterrows():
+                _meta = _row['Meta 25%']
+                _shapes_25.append(dict(type='line', xref='x', yref='y',
+                    x0=_i - _OFFSET, x1=_i + _OFFSET, y0=_meta, y1=_meta,
+                    line=dict(color='#f39c12', dash='dash', width=2)))
+                if _i < len(df_linha) - 1:
+                    _next_meta = df_linha.loc[_i + 1, 'Meta 25%']
+                    _shapes_25.append(dict(type='line', xref='x', yref='y',
+                        x0=_i + _OFFSET, x1=_i + 1 - _OFFSET, y0=_meta, y1=_next_meta,
+                        line=dict(color='#f39c12', dash='dash', width=2)))
+            fig_meta.update_layout(shapes=_shapes_25)
+            fig_meta.add_trace(go.Scatter(x=[None], y=[None], mode='lines',
+                name='Meta 25% (Mensal)', showlegend=True,
+                line=dict(color='#f39c12', dash='dash', width=2)))
             fig_meta.update_layout(
                 separators=",.", yaxis=dict(showticklabels=False), showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
