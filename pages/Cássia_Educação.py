@@ -6,7 +6,6 @@ import os
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-# ── CONFIGURAÇÃO DA PÁGINA ────────────────────────────────────────────────────
 st.set_page_config(page_title="Cássia - Gestão Educação", layout="wide")
 
 st.markdown("""
@@ -52,7 +51,6 @@ ORDEM_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
 if 'setor' not in st.session_state:
     st.session_state.setor = 'FUNDEB'
 
-# ── PALETA DE CORES GLOBAL ────────────────────────────────────────────────────
 COR_REC = {
     'Principal':   '#1a7a4a',
     'Rendimentos': '#0d47a1',
@@ -65,7 +63,6 @@ COR_DESP = {
     'FUNDEB 30% – Vigente': '#ff1744',
 }
 
-# ── FUNÇÕES UTILITÁRIAS ───────────────────────────────────────────────────────
 def limpar_valor(valor):
     if pd.isna(valor) or str(valor).strip() in ["","−","-","R$ 0,00","0"]:
         return 0.0
@@ -98,22 +95,17 @@ def soma(df, cols):
     return df[presentes].sum().sum() if presentes else 0.0
 
 # ── CARGA DE DADOS ────────────────────────────────────────────────────────────
-# Individualidades Cássia vs Pratápolis:
-# • Cássia.csv: cabeçalho duplo padrão [0,1] → colunas Mes_Liquidado.
-# • meses_disponiveis = ['Janeiro','Fevereiro','Março','Abril'] (4 meses).
-# • Cássia_R.csv: header=0 DIRETO (não tem header duplo estilo Pratápolis).
-#   Coluna orçado = 'Orçado Receitas'. SEM coluna Repasse e SEM Atualização Quadrimestral.
-#   Categorias: Impostos, Cota-Parte, Dedução, FUNDEB,
-#               Tranferência Programas Federais, Tranferência Programas Estaduais.
-# • FUNDEB: Principal, Rendimentos, VAAT, VAAR, ETI (ETI só em Jan; VAAT a partir de Mar).
-# • PTE: categoria 'Tranferência Programas Estaduais' no R file (fonte DF = 1576).
-# • QESE fontes DF: ['1550','2550'] (Superávit QESE = 2550).
-# • Cássia_DF.csv: tem linha Tipo='Tipo' → filtrar via isin(). Estrutura limpa.
-#   Fonte Próprio = 1500 | Próprio Educação = 15001.
-# • FUNDEB 70% Liq Jan–Abr = R$ 3.355.032,92 | FUNDEB 30% = R$ 718.252,64
-# • RP 15001 Liq = R$ 1.467.225,69 | RP 1500 = R$ 230.575,50
-# • Capital Liq = R$ 523.640,47 | Custeio = R$ 7.845.595,92
-# • _desconto_fundeb_nao_util = 0.0 | _desconto_superavit_ant = 0.0
+# Correções vs versão anterior:
+# • COLS_R agora inclui 'Repasse' e '2025' → FIX do erro nos Vinculados
+#   (antes eram strings, .sum() em string causava erro)
+# • 'Atualização Quadrimestral' fora de COLS_R → aplicada com limpar_valor()
+#   UMA VEZ no bloco FUNDEB (evita double-parse)
+# • Fonte 1500 removida da análise 25% → apenas 15001 (Próprio Educação)
+# • ETI base inclui VAAR (corretamente)
+# • Folha: Obrigações Tributárias, Diárias, Outros Auxílios adicionados
+# • Descontos: FUNDEB não util. R$135.822,49 | Superávit R$147.388,98
+# • FUNDEB previsões: novo padrão 3 colunas
+# • Meta lines: shapes _OFFSET=0.22 (regra universal)
 @st.cache_data
 def load_all_data():
     path_f  = buscar_arquivo("zEducação/Cássia.csv")
@@ -121,7 +113,6 @@ def load_all_data():
     path_df = buscar_arquivo("zEducação/Cássia_DF.csv")
     if not path_f or not path_r or not path_df: return None, None, None
 
-    # ── FICHAS — cabeçalho duplo padrão ──────────────────────────────────────
     df_f = pd.read_csv(path_f, sep=None, engine='python', encoding='utf-8', header=[0,1])
     new_cols = []
     for col in df_f.columns:
@@ -134,16 +125,15 @@ def load_all_data():
             df_f[col] = df_f[col].apply(limpar_valor)
     df_f['Fonte'] = df_f['Fonte'].astype(str).str.replace('.0','',regex=False).str.strip()
 
-    # ── RECEITAS — header=0 direto ────────────────────────────────────────────
-    # Coluna orçado = 'Orçado Receitas'. Sem Repasse, sem Atualização Quadrimestral.
     df_r = pd.read_csv(path_r, sep=None, engine='python', encoding='utf-8', header=0)
     df_r.columns = [str(c).strip() for c in df_r.columns]
-    COLS_R = ORDEM_MESES + ['Total','Orçado Receitas']
+    # FIX: Repasse e 2025 incluídos → agora numéricos (resolve erro Vinculados)
+    # Atualização Quadrimestral fora → limpeza feita 1x no bloco FUNDEB
+    COLS_R = ORDEM_MESES + ['Total','Orçado Receitas','Repasse','2025']
     for col in df_r.columns:
         if col in COLS_R:
             df_r[col] = df_r[col].apply(limpar_valor)
 
-    # ── DESPESAS POR FONTE — remove linha Tipo='Tipo' via isin() ─────────────
     df_df = pd.read_csv(path_df, sep=None, engine='python', encoding='utf-8')
     df_df.columns = [str(c).strip() for c in df_df.columns]
     df_df = df_df[df_df['Tipo'].isin(['Empenhado','Liquidado','Pago'])].copy()
@@ -161,7 +151,6 @@ meses_disponiveis = ['Janeiro','Fevereiro','Março','Abril']
 
 if df_f_raw is not None and df_r is not None:
 
-    # ── SIDEBAR ───────────────────────────────────────────────────────────────
     st.sidebar.title("🔍 Filtros de Análise")
     search_term = st.sidebar.text_input("Filtrar Fichas:", "")
     st.sidebar.markdown("---")
@@ -284,11 +273,10 @@ if df_f_raw is not None and df_r is not None:
         df_r_fundeb['Descrição da Receita'] = df_r_fundeb['Descrição da Receita'].str.strip()
         df_r_fundeb['Subcategoria'] = df_r_fundeb['Descrição da Receita'].apply(cat_receita)
 
-        # Cássia: coluna orçado = 'Orçado Receitas' | sem coluna Repasse
         tot_prev_municipio = df_r_fundeb[df_r_fundeb['Subcategoria']=='Principal'
                                          ]['Orçado Receitas'].sum()
-        # Sem coluna Repasse → portaria = 0 (não disponível no arquivo)
-        tot_prev_portaria  = 0.0
+        tot_prev_portaria  = df_r_fundeb[df_r_fundeb['Subcategoria']=='Principal'
+                                         ]['Repasse'].sum() if 'Repasse' in df_r_fundeb.columns else 0.0
         tot_rec_periodo    = soma(df_r_fundeb, meses_disponiveis)
 
         df_df_fundeb = df_df_raw[df_df_raw['Fonte'].isin(['15407','15403'])].copy()
@@ -304,16 +292,39 @@ if df_f_raw is not None and df_r is not None:
         tot_desp_vigente = desp_70_vigente + desp_30_vigente
         perc_70_indice   = (desp_70_vigente/base_indice_70*100) if base_indice_70>0 else 0.0
 
+        # CORREÇÃO 1: novo padrão 3 colunas
         st.markdown("##### Previsões Orçamentárias")
-        p1, p2 = st.columns(2)
+        p1, p2, p3 = st.columns(3)
         with p1: st.metric("Previsão Receitas (Orçamento Município)",
                             formar_real(tot_prev_municipio))
-        with p2: st.metric(f"Total Receitas ({meses_disponiveis[0]}–{meses_disponiveis[-1]})",
-                            formar_real(tot_rec_periodo))
+        with p2: st.metric("Previsão de Receitas (Portaria Interministerial MEC/MF Nº 5 de Abril de 2026)",
+                            formar_real(tot_prev_portaria))
+
+        _val_quad = df_r_fundeb['Atualização Quadrimestral'].apply(
+            lambda v: limpar_valor(v)
+        ).sum() if 'Atualização Quadrimestral' in df_r_fundeb.columns else 0.0
+
+        def _parse_perc_quad(v):
+            try:
+                s = str(v).replace('%','').replace(',','.').strip()
+                return float(s)
+            except: return None
+
+        _perc_quad = None
+        if '% Atualização' in df_r_fundeb.columns:
+            _vals_p = df_r_fundeb['% Atualização'].apply(_parse_perc_quad).dropna()
+            if len(_vals_p) > 0: _perc_quad = _vals_p.iloc[0]
+        _delta_quad = f"{_perc_quad:.2f}%" if _perc_quad is not None else None
+
+        with p3: st.metric(
+            "Atualização Quadrimestral",
+            formar_real(_val_quad) if _val_quad > 0 else "—",
+            delta=_delta_quad,
+            delta_color="normal"
+        )
         st.markdown("---")
 
         st.subheader("🔹 1. Receitas e Despesas FUNDEB")
-
         saldo     = tot_rec_periodo - tot_desp_vigente
         exec_perc = (tot_desp_vigente/tot_rec_periodo*100) if tot_rec_periodo>0 else 0
 
@@ -516,11 +527,22 @@ if df_f_raw is not None and df_r is not None:
                     ['Principal','Rendimentos','VAAT'])],[m])*0.70}
                 for m in meses_disponiveis
             ])
-            fig_70.add_trace(go.Scatter(
-                x=df_meta_70['Mês'], y=df_meta_70['Meta 70%'],
-                mode='lines+markers', name='Meta 70% (Mensal)',
-                line=dict(color='green', dash='dot')
-            ))
+            _OFFSET = 0.22
+            _shapes_70 = []
+            for _i, _row in df_meta_70.iterrows():
+                _meta = _row['Meta 70%']
+                _shapes_70.append(dict(type='line', xref='x', yref='y',
+                    x0=_i-_OFFSET, x1=_i+_OFFSET, y0=_meta, y1=_meta,
+                    line=dict(color='green', dash='dot', width=2)))
+                if _i < len(df_meta_70)-1:
+                    _shapes_70.append(dict(type='line', xref='x', yref='y',
+                        x0=_i+_OFFSET, x1=_i+1-_OFFSET,
+                        y0=_meta, y1=df_meta_70.loc[_i+1,'Meta 70%'],
+                        line=dict(color='green', dash='dot', width=2)))
+            fig_70.update_layout(shapes=_shapes_70)
+            fig_70.add_trace(go.Scatter(x=[None], y=[None], mode='lines',
+                name='Meta 70% (Mensal)', showlegend=True,
+                line=dict(color='green', dash='dot', width=2)))
             fig_70.update_traces(
                 selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
                 hovertemplate=("<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
@@ -536,30 +558,31 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_70, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
+        # CORREÇÃO 2: ETI base inclui VAAR
         st.subheader("🔹 3. Percentual Tempo Integral")
-
         meta_eti_perc = 4.0
         _base_eti = soma(
-            df_r_fundeb[df_r_fundeb['Subcategoria'].isin(['Principal','Rendimentos','VAAT'])],
+            df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
+                ['Principal','Rendimentos','VAAT','VAAR'])],
             meses_disponiveis
         )
         val_meta_eti = _base_eti * (meta_eti_perc/100)
 
         e1, e2 = st.columns(2)
-        with e1: st.metric("Base para Cálculo ETI (Principal + Rendimentos + VAAT)",
+        with e1: st.metric("Base para Cálculo ETI (Principal + Rendimentos + VAAT + VAAR)",
                             formar_real(_base_eti))
         with e2: st.metric(f"Meta {meta_eti_perc:.0f}% (Referência ETI)",
                             formar_real(val_meta_eti))
 
         fig_eti = go.Figure()
         fig_eti.add_trace(go.Bar(
-            x=["Base ETI\n(Principal + Rend. + VAAT)"], y=[_base_eti],
+            x=["Base ETI\n(Principal + Rend. + VAAT + VAAR)"], y=[_base_eti],
             name="Base ETI", marker_color="#003366",
             text=[formar_real(_base_eti)],
             textposition='inside', insidetextanchor='middle',
             hovertemplate=("<span style='color:white;'><b>Base de Cálculo ETI</b><br>"
-                           "Principal + Rendimentos + VAAT<br>"
-                           "(VAAR e ETI não entram no cálculo)<br>"
+                           "Principal + Rendimentos + VAAT + VAAR<br>"
+                           "(ETI não entra no cálculo)<br>"
                            "Valor: <b>"+formar_real(_base_eti)+"</b></span><extra></extra>"),
         ))
         fig_eti.add_hline(
@@ -632,7 +655,6 @@ if df_f_raw is not None and df_r is not None:
 
         df_r_ded = df_r[df_r['Categoria'].str.strip().str.startswith('Dedução', na=False)].copy()
 
-        # Cássia: coluna orçado = 'Orçado Receitas'
         prev_total_rp = df_r_base['Orçado Receitas'].sum()
         tot_rec_base  = obter_soma_rp(df_r_base, meses_disponiveis)
         tot_deducoes  = abs(obter_soma_rp(df_r_ded, meses_disponiveis))
@@ -641,13 +663,14 @@ if df_f_raw is not None and df_r is not None:
         fase_despesa = st.segmented_control(
             " (Impacta Indicadores Superiores):",
             ["Empenhado","Liquidado","Pago"], default="Liquidado", key="fase_desp_rp")
-        # Cássia: fonte própria = 15001 (Educação) + 1500 (Próprio)
+        # CORREÇÃO 3: apenas 15001 na análise 25%
         df_df_15001 = df_df_raw[
-            df_df_raw['Fonte'].isin(['15001','1500']) &
+            (df_df_raw['Fonte'] == '15001') &
             (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        _desconto_fundeb_nao_util = 0.0
-        _desconto_superavit_ant   = 0.0
+        # CORREÇÃO 4: descontos (padrão Alpinópolis — sem texto nas barras)
+        _desconto_fundeb_nao_util = 135_822.49
+        _desconto_superavit_ant   = 147_388.98
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
 
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
@@ -657,7 +680,8 @@ if df_f_raw is not None and df_r is not None:
 
         df_15000_outras = df_df_raw[
             df_df_raw['Fonte'].str.match(r'^150\d*$', na=False) &
-            (~df_df_raw['Fonte'].isin(['15001','1500'])) & (df_df_raw['Tipo']=='Liquidado')].copy()
+            (df_df_raw['Fonte'] != '15001') &
+            (df_df_raw['Tipo']=='Liquidado')].copy()
         val_outras_fontes = df_15000_outras[meses_disponiveis].sum().sum()
 
         st.markdown("##### Previsões e Arrecadação")
@@ -771,12 +795,12 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
-        st.subheader("🔹 Despesas Fontes 15001 + 1500 (Recursos Próprios)")
+        st.subheader("🔹 Despesas Fonte 15001 (Próprio Educação)")
         st.markdown("Detalhamento por Estágio (Empenhado, Liquidado, Pago)")
         view_desp = st.segmented_control("Visualização Despesas:", ["Mensal","Acumulado"],
                                          default="Mensal", key="view_desp")
         df_15001_todas = df_df_raw[
-            df_df_raw['Fonte'].isin(['15001','1500']) &
+            (df_df_raw['Fonte'] == '15001') &
             df_df_raw['Tipo'].isin(['Empenhado','Liquidado','Pago'])].copy()
 
         if view_desp == "Acumulado":
@@ -814,7 +838,7 @@ if df_f_raw is not None and df_r is not None:
         fig_d.update_traces(
             hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
                            "Estágio: %{fullData.name}<br>"
-                           "Valor (15001+1500): R$ %{customdata[2]:,.2f}<br>"
+                           "Valor (15001): R$ %{customdata[2]:,.2f}<br>"
                            "Dedução FUNDEB: R$ %{customdata[1]:,.2f}<br>"
                            "Proporção: %{customdata[0]}</span><extra></extra>"),
             hoverlabel=HOVER_STYLE)
@@ -829,7 +853,7 @@ if df_f_raw is not None and df_r is not None:
         if view_meta == "Acumulado":
             idx1, idx2, idx3 = st.columns(3)
             with idx1: st.metric("Receitas Base (Impostos + Cota-Parte)", formar_real(tot_rec_base))
-            with idx2: st.metric(f"Esforço Total ({fase_despesa} Rec. Próprios + Deduções)", formar_real(esforco_total))
+            with idx2: st.metric(f"Esforço Total ({fase_despesa} 15001 + Deduções)", formar_real(esforco_total))
             with idx3: metric_contabil("Índice de Aplicação (Mín. 25%)", perc_25, 25.0)
 
             prop_desp = (total_desp_15001/esforco_total*100) if esforco_total>0 else 0
@@ -845,33 +869,44 @@ if df_f_raw is not None and df_r is not None:
             fig_meta.add_trace(go.Bar(
                 x=["Aplicação Total"], y=[tot_deducoes],
                 name="Dedução FUNDEB", marker_color="#f39c12",
-                text=[f"{formar_real(tot_deducoes)}\n({prop_ded:.1f}%)"],
-                textposition='inside', insidetextanchor='middle',
-                customdata=[[formar_real(tot_deducoes),f"{prop_ded:.1f}%"]],
-                hovertemplate=("<span style='color:white;'><b>Dedução FUNDEB</b><br>"
-                               "Valor: <b>%{customdata[0]}</b><br>"
-                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
+                text=[""], textposition='inside',
+                customdata=[[formar_real(tot_deducoes), f"{prop_ded:.1f}%",
+                             formar_real(esforco_total)]],
+                hovertemplate=(
+                    "<span style='color:white;'><b>Dedução FUNDEB</b><br>"
+                    "Valor: <b>%{customdata[0]}</b><br>"
+                    "% do esforço: %{customdata[1]}<br>"
+                    "─────────────────────<br>"
+                    "Esforço Total: <b>%{customdata[2]}</b></span><extra></extra>"
+                ),
             ))
             fig_meta.add_trace(go.Bar(
                 x=["Aplicação Total"], y=[total_desp_15001],
-                name=f"Despesa Rec. Próprios ({fase_despesa})", marker_color="#860000",
-                text=[f"{formar_real(total_desp_15001)}\n({prop_desp:.1f}%)"],
-                textposition='inside', insidetextanchor='middle',
-                customdata=[[formar_real(total_desp_15001),f"{prop_desp:.1f}%",fase_despesa]],
-                hovertemplate=("<span style='color:white;'><b>Despesa Rec. Próprios (15001+1500)</b><br>"
-                               "Estágio: %{customdata[2]}<br>Valor: <b>%{customdata[0]}</b><br>"
-                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
+                name=f"Despesa 15001 ({fase_despesa})", marker_color="#860000",
+                text=[""], textposition='inside',
+                customdata=[[formar_real(total_desp_15001), f"{prop_desp:.1f}%", fase_despesa,
+                             formar_real(_desconto_fundeb_nao_util),
+                             formar_real(_desconto_superavit_ant),
+                             formar_real(_total_descontos_25)]],
+                hovertemplate=(
+                    "<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
+                    "Estágio: %{customdata[2]}<br>"
+                    "Valor: <b>%{customdata[0]}</b><br>"
+                    "% do esforço: %{customdata[1]}<br>"
+                    "─────────────────────<br>"
+                    "🔻 Descontos aplicados:<br>"
+                    "FUNDEB não util.: %{customdata[3]}<br>"
+                    "Superávit anos ant.: %{customdata[4]}<br>"
+                    "Total descontado: <b>%{customdata[5]}</b></span><extra></extra>"
+                ),
             ))
             fig_meta.add_hline(y=tot_rec_base*0.25, line_dash="dash", line_color="#f39c12",
                                annotation_text=f"Meta 25% = {formar_real(tot_rec_base*0.25)}",
                                annotation_position="top left")
-            fig_meta.add_annotation(
-                x="Aplicação Total", y=esforco_total*0.50,
-                text=(f"🔻 Descontos aplicados:<br>"
-                      f"Rec. FUNDEB não util.: {formar_real(_desconto_fundeb_nao_util)}<br>"
-                      f"Superávit anos ant.: {formar_real(_desconto_superavit_ant)}<br>"
-                      f"Total descontado: {formar_real(_total_descontos_25)}"),
-                showarrow=False, font=dict(color="#aaaaaa",size=10), align='left')
+            if val_outras_fontes>0:
+                fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
+                    text=f"⚠️ Outras fontes (ex: 1500): {formar_real(val_outras_fontes)}",
+                    showarrow=False, font=dict(color="#aaaaaa",size=11))
             fig_meta.update_layout(separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
                                    yaxis=dict(showticklabels=False), showlegend=True,
                                    legend=dict(orientation="h",yanchor="bottom",y=-0.20,
@@ -890,7 +925,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_meta_m += [
                     {"Mês":m,"Tipo":"Receitas (Impostos + Cota-Parte)","Valor":r_m,
                      "DetalheA":formar_real(r_m),"DetalheB":"—","Total":r_m,"Perc":"100%"},
-                    {"Mês":m,"Tipo":"Despesas (Rec. Próprios + Deduções)","Valor":total_desp_m,
+                    {"Mês":m,"Tipo":"Despesas (15001 + Deduções)","Valor":total_desp_m,
                      "DetalheA":formar_real(d_m),"DetalheB":formar_real(ded_m),
                      "Total":total_desp_m,"Perc":f"{perc_m:.1f}% das receitas"},
                 ]
@@ -899,8 +934,8 @@ if df_f_raw is not None and df_r is not None:
                 df_meta_m, x='Mês', y='Valor', color='Tipo', barmode='group',
                 custom_data=['DetalheA','DetalheB','Perc'],
                 color_discrete_map={
-                    "Receitas (Impostos + Cota-Parte)":     "#003366",
-                    "Despesas (Rec. Próprios + Deduções)":  "#860000",
+                    "Receitas (Impostos + Cota-Parte)": "#003366",
+                    "Despesas (15001 + Deduções)":      "#860000",
                 },
                 text='Valor', category_orders={"Mês":ORDEM_MESES}
             )
@@ -918,12 +953,24 @@ if df_f_raw is not None and df_r is not None:
                 hoverlabel=HOVER_STYLE
             )
             df_linha = df_meta_m[df_meta_m['Tipo']=='Receitas (Impostos + Cota-Parte)'].copy()
+            df_linha = df_linha.reset_index(drop=True)
             df_linha['Meta 25%'] = df_linha['Valor'] * 0.25
-            fig_meta.add_trace(go.Scatter(
-                x=df_linha['Mês'], y=df_linha['Meta 25%'],
-                mode='lines+markers', name='Meta 25% (Mensal)',
-                line=dict(color='#f39c12', dash='dash')
-            ))
+            _OFFSET = 0.22
+            _shapes_25 = []
+            for _i, _row in df_linha.iterrows():
+                _meta = _row['Meta 25%']
+                _shapes_25.append(dict(type='line', xref='x', yref='y',
+                    x0=_i-_OFFSET, x1=_i+_OFFSET, y0=_meta, y1=_meta,
+                    line=dict(color='#f39c12', dash='dash', width=2)))
+                if _i < len(df_linha)-1:
+                    _shapes_25.append(dict(type='line', xref='x', yref='y',
+                        x0=_i+_OFFSET, x1=_i+1-_OFFSET,
+                        y0=_meta, y1=df_linha.loc[_i+1,'Meta 25%'],
+                        line=dict(color='#f39c12', dash='dash', width=2)))
+            fig_meta.update_layout(shapes=_shapes_25)
+            fig_meta.add_trace(go.Scatter(x=[None], y=[None], mode='lines',
+                name='Meta 25% (Mensal)', showlegend=True,
+                line=dict(color='#f39c12', dash='dash', width=2)))
             fig_meta.update_layout(
                 separators=",.", yaxis=dict(showticklabels=False), showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
@@ -932,10 +979,7 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_meta, use_container_width=True, config=CONFIG_PT)
 
     # =========================================================================
-    # SETOR RECURSOS VINCULADOS
-    # Cássia: PNAE(1552), PNATE(1553), PTE(1576), QESE(1550,2550)
-    # PTE: categoria 'Tranferência Programas Estaduais' no R file.
-    # QESE fontes: ['1550','2550'] (Superávit QESE = 2550)
+    # SETOR RECURSOS VINCULADOS — CORREÇÃO 5: Repasse/2025 agora numéricos
     # =========================================================================
     elif st.session_state.setor == 'Recursos Vinculados':
         st.markdown("<h1 style='text-align:left;'>📖 Cássia — Recursos Vinculados</h1>",
@@ -956,7 +1000,6 @@ if df_f_raw is not None and df_r is not None:
             cols = [col_map[m.lower()] for m in meses if m.lower() in col_map]
             return df[cols].sum().sum() if cols else 0.0
 
-        # PTE está em Programas Estaduais; demais em Federais
         df_r_vinc = df_r[df_r['Categoria'].str.strip().isin([
             'Tranferência Programas Federais',
             'Tranferência Programas Estaduais',
@@ -968,18 +1011,18 @@ if df_f_raw is not None and df_r is not None:
                 df_r_vinc['Descrição da Receita'].str.strip().str.upper() == prog
             ].copy()
 
-            rep_2025     = df_prog_r['2025'].sum()              if '2025'              in df_prog_r.columns else 0
-            prev_repasse = df_prog_r['Repasse'].sum()           if 'Repasse'           in df_prog_r.columns else 0
-            orcado_2026  = df_prog_r['Orçado Receitas'].sum()   if 'Orçado Receitas'   in df_prog_r.columns else 0
+            rep_2025     = df_prog_r['2025'].sum()             if '2025'             in df_prog_r.columns else 0
+            prev_repasse = df_prog_r['Repasse'].sum()          if 'Repasse'          in df_prog_r.columns else 0
+            orcado_2026  = df_prog_r['Orçado Receitas'].sum()  if 'Orçado Receitas'  in df_prog_r.columns else 0
             desp_liq     = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
                                       (df_df_raw['Tipo']=='Liquidado')][meses_disponiveis].sum().sum()
 
             st.markdown(f"<h4 style='color:{COR_PROG[prog]};margin-bottom:4px;'>"
                         f"📊 Programa: {prog}</h4>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
-            with c1: st.metric("Arrecadado em 2025",     formar_real(rep_2025))
-            with c2: st.metric("Previsão de Repasse",     formar_real(prev_repasse))
-            with c3: st.metric("Orçado 2026 (Município)", formar_real(orcado_2026))
+            with c1: st.metric("Arrecadado em 2025",      formar_real(rep_2025))
+            with c2: st.metric("Previsão de Repasse",      formar_real(prev_repasse))
+            with c3: st.metric("Orçado 2026 (Município)",  formar_real(orcado_2026))
 
             tipo_vinc = st.segmented_control(
                 "Visualização:", ["Mensal","Acumulado"],
@@ -1040,7 +1083,6 @@ if df_f_raw is not None and df_r is not None:
 
     # =========================================================================
     # SETOR VISÃO MACRO
-    # Capital Liq = R$ 523.640,47 | Custeio = R$ 7.845.595,92
     # =========================================================================
     elif st.session_state.setor == 'Visão Macro':
         st.markdown("<h1 style='text-align:left;'>📖 Cássia — Visão Macro da Educação</h1>",
@@ -1132,13 +1174,14 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_macro_elem, use_container_width=True, config=CONFIG_PT)
 
     # =========================================================================
-    # SETOR FOLHA DE PAGAMENTO
+    # SETOR FOLHA DE PAGAMENTO — CORREÇÃO 6: novos elementos
     # =========================================================================
     elif st.session_state.setor == 'Folha de Pagamento':
         st.markdown("<h1 style='text-align:left;'>📖 Cássia — Folha de Pagamento</h1>",
                     unsafe_allow_html=True)
         st.markdown("---")
 
+        # Strings exatas das fichas (leading spaces preservados)
         FOLHA_ELEMENTOS = [
             'Vencimentos e Vantagens Fixas - Pessoal Civil',
             'Obrigações Patronais',
@@ -1148,6 +1191,9 @@ if df_f_raw is not None and df_r is not None:
             'Auxílio-alimentação',
             'Aposentadorias, Reserva Remunerada e Reformas',
             '- Aposentadorias, Reserva Remunerada e Reformas',
+            ' Obrigações Tributárias e Contributivas',  # ← espaço inicial (grafia real)
+            'Diárias - Pessoal Civil',                  # ← adicionado
+            'Outros Auxílios  financeiros PF',          # ← adicionado (2 espaços, grafia real)
         ]
         liq_cols_f = [f"{m}_Liquidado" for m in meses_disponiveis
                       if f"{m}_Liquidado" in df_f_raw.columns]
@@ -1274,7 +1320,6 @@ if df_f_raw is not None and df_r is not None:
         )
         st.plotly_chart(fig_folha_mensal, use_container_width=True, config=CONFIG_PT)
 
-    # ── Relatório Geral de Fichas ─────────────────────────────────────────────
     st.markdown("### 📋 Relatório Geral de Fichas")
     df_f_filt = df_f_raw[df_f_raw['Atividade'].str.contains(
         search_term, na=False, case=False)].copy()
