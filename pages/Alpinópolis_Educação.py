@@ -675,13 +675,13 @@ if df_f_raw is not None and df_r is not None:
         fase_despesa = st.segmented_control(
             " (Impacta Indicadores Superiores):",
             ["Empenhado","Liquidado","Pago"], default="Liquidado", key="fase_desp_rp")
-        # Alpinópolis: fontes próprias = 15001 + 1500
+        # Alpinópolis: fonte própria = 15001 apenas
         df_df_15001 = df_df_raw[
-            df_df_raw['Fonte'].isin(['15001','1500']) &
+            (df_df_raw['Fonte'] == '15001') &
             (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        _desconto_fundeb_nao_util = 0.0
-        _desconto_superavit_ant   = 0.0
+        _desconto_fundeb_nao_util = 210_893.85
+        _desconto_superavit_ant   = 228_458.03
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
 
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
@@ -691,7 +691,7 @@ if df_f_raw is not None and df_r is not None:
 
         df_15000_outras = df_df_raw[
             df_df_raw['Fonte'].str.match(r'^150\d*$', na=False) &
-            (~df_df_raw['Fonte'].isin(['15001','1500'])) &
+            (df_df_raw['Fonte'] != '15001') &
             (df_df_raw['Tipo']=='Liquidado')].copy()
         val_outras_fontes = df_15000_outras[meses_disponiveis].sum().sum()
 
@@ -806,12 +806,12 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
-        st.subheader("🔹 Despesas Fontes 15001 / 1500 (Recursos Próprios)")
+        st.subheader("🔹 Despesas Fonte 15001 (Recursos Próprios)")
         st.markdown("Detalhamento por Estágio (Empenhado, Liquidado, Pago)")
         view_desp = st.segmented_control("Visualização Despesas:", ["Mensal","Acumulado"],
                                          default="Mensal", key="view_desp")
         df_15001_todas = df_df_raw[
-            df_df_raw['Fonte'].isin(['15001','1500']) &
+            (df_df_raw['Fonte'] == '15001') &
             df_df_raw['Tipo'].isin(['Empenhado','Liquidado','Pago'])].copy()
 
         if view_desp == "Acumulado":
@@ -849,7 +849,7 @@ if df_f_raw is not None and df_r is not None:
         fig_d.update_traces(
             hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
                            "Estágio: %{fullData.name}<br>"
-                           "Valor (15001+1500): R$ %{customdata[2]:,.2f}<br>"
+                           "Valor (15001): R$ %{customdata[2]:,.2f}<br>"
                            "Dedução FUNDEB: R$ %{customdata[1]:,.2f}<br>"
                            "Proporção: %{customdata[0]}</span><extra></extra>"),
             hoverlabel=HOVER_STYLE)
@@ -864,7 +864,7 @@ if df_f_raw is not None and df_r is not None:
         if view_meta == "Acumulado":
             idx1, idx2, idx3 = st.columns(3)
             with idx1: st.metric("Receitas Base (Impostos + Cota-Parte)", formar_real(tot_rec_base))
-            with idx2: st.metric(f"Esforço Total ({fase_despesa} 15001+1500 + Deduções)", formar_real(esforco_total))
+            with idx2: st.metric(f"Esforço Total ({fase_despesa} 15001 + Deduções)", formar_real(esforco_total))
             with idx3: metric_contabil("Índice de Aplicação (Mín. 25%)", perc_25, 25.0)
 
             prop_desp = (total_desp_15001/esforco_total*100) if esforco_total>0 else 0
@@ -880,22 +880,36 @@ if df_f_raw is not None and df_r is not None:
             fig_meta.add_trace(go.Bar(
                 x=["Aplicação Total"], y=[tot_deducoes],
                 name="Dedução FUNDEB", marker_color="#f39c12",
-                text=[f"{formar_real(tot_deducoes)}\n({prop_ded:.1f}%)"],
-                textposition='inside', insidetextanchor='middle',
-                customdata=[[formar_real(tot_deducoes),f"{prop_ded:.1f}%"]],
-                hovertemplate=("<span style='color:white;'><b>Dedução FUNDEB</b><br>"
-                               "Valor: <b>%{customdata[0]}</b><br>"
-                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
+                text=[""], textposition='inside',
+                customdata=[[formar_real(tot_deducoes), f"{prop_ded:.1f}%",
+                             formar_real(esforco_total)]],
+                hovertemplate=(
+                    "<span style='color:white;'><b>Dedução FUNDEB</b><br>"
+                    "Valor: <b>%{customdata[0]}</b><br>"
+                    "% do esforço: %{customdata[1]}<br>"
+                    "─────────────────────<br>"
+                    "Esforço Total: <b>%{customdata[2]}</b></span><extra></extra>"
+                ),
             ))
             fig_meta.add_trace(go.Bar(
                 x=["Aplicação Total"], y=[total_desp_15001],
-                name=f"Despesa Rec. Próprios ({fase_despesa})", marker_color="#860000",
-                text=[f"{formar_real(total_desp_15001)}\n({prop_desp:.1f}%)"],
-                textposition='inside', insidetextanchor='middle',
-                customdata=[[formar_real(total_desp_15001),f"{prop_desp:.1f}%",fase_despesa]],
-                hovertemplate=("<span style='color:white;'><b>Despesa Fontes 15001+1500</b><br>"
-                               "Estágio: %{customdata[2]}<br>Valor: <b>%{customdata[0]}</b><br>"
-                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
+                name=f"Despesa 15001 ({fase_despesa})", marker_color="#860000",
+                text=[""], textposition='inside',
+                customdata=[[formar_real(total_desp_15001), f"{prop_desp:.1f}%", fase_despesa,
+                             formar_real(_desconto_fundeb_nao_util),
+                             formar_real(_desconto_superavit_ant),
+                             formar_real(_total_descontos_25)]],
+                hovertemplate=(
+                    "<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
+                    "Estágio: %{customdata[2]}<br>"
+                    "Valor: <b>%{customdata[0]}</b><br>"
+                    "% do esforço: %{customdata[1]}<br>"
+                    "─────────────────────<br>"
+                    "🔻 Descontos aplicados:<br>"
+                    "FUNDEB não util.: %{customdata[3]}<br>"
+                    "Superávit anos ant.: %{customdata[4]}<br>"
+                    "Total descontado: <b>%{customdata[5]}</b></span><extra></extra>"
+                ),
             ))
             fig_meta.add_hline(y=tot_rec_base*0.25, line_dash="dash", line_color="#f39c12",
                                annotation_text=f"Meta 25% = {formar_real(tot_rec_base*0.25)}",
@@ -904,13 +918,6 @@ if df_f_raw is not None and df_r is not None:
                 fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
                     text=f"⚠️ Outras fontes (anos ant.): {formar_real(val_outras_fontes)}",
                     showarrow=False, font=dict(color="#aaaaaa",size=11))
-            fig_meta.add_annotation(
-                x="Aplicação Total", y=esforco_total*0.50,
-                text=(f"🔻 Descontos aplicados:<br>"
-                      f"Rec. FUNDEB não util.: {formar_real(_desconto_fundeb_nao_util)}<br>"
-                      f"Superávit anos ant.: {formar_real(_desconto_superavit_ant)}<br>"
-                      f"Total descontado: {formar_real(_total_descontos_25)}"),
-                showarrow=False, font=dict(color="#aaaaaa",size=10), align='left')
             fig_meta.update_layout(separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
                                    yaxis=dict(showticklabels=False), showlegend=True,
                                    legend=dict(orientation="h",yanchor="bottom",y=-0.20,
@@ -1266,7 +1273,7 @@ if df_f_raw is not None and df_r is not None:
         with f2: st.metric("FUNDEB 70% (Fonte 15407)", formar_real(total_fund70),
                            delta=f"{total_fund70/total_folha*100:.1f}%" if total_folha>0 else "—",
                            delta_color="off")
-        with f3: st.metric("Recursos Próprios (15001/1500)", formar_real(total_rp),
+        with f3: st.metric("Recursos Próprios (15001)", formar_real(total_rp),
                            delta=f"{total_rp/total_folha*100:.1f}%" if total_folha>0 else "—",
                            delta_color="off")
         with f4: st.metric("FUNDEB 30% (Fonte 15403)", formar_real(total_fund30),
