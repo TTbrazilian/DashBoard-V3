@@ -933,7 +933,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_meta_m += [
                     {"Mês":m,"Tipo":"Receitas (Impostos + Cota-Parte)","Valor":r_m,
                      "DetalheA":formar_real(r_m),"DetalheB":"—","Total":r_m,"Perc":"100%"},
-                    {"Mês":m,"Tipo":"Despesas (15001+1500 + Deduções)","Valor":total_desp_m,
+                    {"Mês":m,"Tipo":"Despesas (15001 + Deduções)","Valor":total_desp_m,
                      "DetalheA":formar_real(d_m),"DetalheB":formar_real(ded_m),
                      "Total":total_desp_m,"Perc":f"{perc_m:.1f}% das receitas"},
                 ]
@@ -943,7 +943,7 @@ if df_f_raw is not None and df_r is not None:
                 custom_data=['DetalheA','DetalheB','Perc'],
                 color_discrete_map={
                     "Receitas (Impostos + Cota-Parte)":  "#003366",
-                    "Despesas (15001+1500 + Deduções)":  "#860000",
+                    "Despesas (15001 + Deduções)":  "#860000",
                 },
                 text='Valor', category_orders={"Mês":ORDEM_MESES}
             )
