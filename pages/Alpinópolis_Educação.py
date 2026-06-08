@@ -916,7 +916,6 @@ if df_f_raw is not None and df_r is not None:
                                annotation_position="top left")
             if val_outras_fontes>0:
                 fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
-                    text=f"⚠️ Outras fontes (anos ant.): {formar_real(val_outras_fontes)}",
                     showarrow=False, font=dict(color="#aaaaaa",size=11))
             fig_meta.update_layout(separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
                                    yaxis=dict(showticklabels=False), showlegend=True,
