@@ -314,8 +314,7 @@ if df_f_raw is not None and df_r is not None:
                             formar_real(tot_prev_municipio))
         _portaria_total = tot_prev_portaria + tot_prev_portaria_vaar
         with p2: st.metric("Previsão de Receitas (Portaria Interministerial MEC/MF Nº 5 de Abril de 2026)",
-                            formar_real(_portaria_total),
-                            help=f"Principal: {formar_real(tot_prev_portaria)} | VAAR: {formar_real(tot_prev_portaria_vaar)}")
+                            formar_real(_portaria_total))
 
         _val_quad = df_r_fundeb['Atualização Quadrimestral'].apply(
             lambda v: limpar_valor(v)
@@ -697,7 +696,7 @@ if df_f_raw is not None and df_r is not None:
             " (Impacta Indicadores Superiores):",
             ["Empenhado","Liquidado","Pago"], default="Liquidado", key="fase_desp_rp")
         df_df_15001 = df_df_raw[
-            df_df_raw['Fonte'].isin(['15001','1500']) &
+            (df_df_raw['Fonte'] == '15001') &
             (df_df_raw['Tipo']==fase_despesa)].copy()
 
         _desconto_fundeb_nao_util = 0.0
@@ -711,7 +710,7 @@ if df_f_raw is not None and df_r is not None:
 
         df_15000_outras = df_df_raw[
             df_df_raw['Fonte'].str.match(r'^150\d*$', na=False) &
-            (~df_df_raw['Fonte'].isin(['15001','1500'])) &
+            (df_df_raw['Fonte'] != '15001') &
             (df_df_raw['Tipo']=='Liquidado')].copy()
         val_outras_fontes = df_15000_outras[meses_disponiveis].sum().sum()
 
@@ -826,12 +825,12 @@ if df_f_raw is not None and df_r is not None:
         st.plotly_chart(fig_rp, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
-        st.subheader("🔹 Despesas Fontes 15001 + 1500 (Recursos Próprios)")
+        st.subheader("🔹 Despesas Fonte 15001 (Recursos Próprios)")
         st.markdown("Detalhamento por Estágio (Empenhado, Liquidado, Pago)")
         view_desp = st.segmented_control("Visualização Despesas:", ["Mensal","Acumulado"],
                                          default="Mensal", key="view_desp")
         df_15001_todas = df_df_raw[
-            df_df_raw['Fonte'].isin(['15001','1500']) &
+            (df_df_raw['Fonte'] == '15001') &
             df_df_raw['Tipo'].isin(['Empenhado','Liquidado','Pago'])].copy()
 
         if view_desp == "Acumulado":
@@ -869,7 +868,7 @@ if df_f_raw is not None and df_r is not None:
         fig_d.update_traces(
             hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
                            "Estágio: %{fullData.name}<br>"
-                           "Valor (15001+1500): R$ %{customdata[2]:,.2f}<br>"
+                           "Valor (15001): R$ %{customdata[2]:,.2f}<br>"
                            "Dedução FUNDEB: R$ %{customdata[1]:,.2f}<br>"
                            "Proporção: %{customdata[0]}</span><extra></extra>"),
             hoverlabel=HOVER_STYLE)
@@ -884,7 +883,7 @@ if df_f_raw is not None and df_r is not None:
         if view_meta == "Acumulado":
             idx1, idx2, idx3 = st.columns(3)
             with idx1: st.metric("Receitas Base (Impostos + Cota-Parte)", formar_real(tot_rec_base))
-            with idx2: st.metric(f"Esforço Total ({fase_despesa} 15001+1500 + Deduções)", formar_real(esforco_total))
+            with idx2: st.metric(f"Esforço Total ({fase_despesa} 15001 + Deduções)", formar_real(esforco_total))
             with idx3: metric_contabil("Índice de Aplicação (Mín. 25%)", perc_25, 25.0)
 
             prop_desp = (total_desp_15001/esforco_total*100) if esforco_total>0 else 0
@@ -920,7 +919,7 @@ if df_f_raw is not None and df_r is not None:
                              formar_real(_desconto_superavit_ant),
                              formar_real(_total_descontos_25)]],
                 hovertemplate=(
-                    "<span style='color:white;'><b>Despesa Fontes 15001+1500</b><br>"
+                    "<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
                     "Estágio: %{customdata[2]}<br>"
                     "Valor: <b>%{customdata[0]}</b><br>"
                     "% do esforço: %{customdata[1]}<br>"
@@ -956,7 +955,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_meta_m += [
                     {"Mês":m,"Tipo":"Receitas (Impostos + Cota-Parte)","Valor":r_m,
                      "DetalheA":formar_real(r_m),"DetalheB":"—","Total":r_m,"Perc":"100%"},
-                    {"Mês":m,"Tipo":"Despesas (15001+1500 + Deduções)","Valor":total_desp_m,
+                    {"Mês":m,"Tipo":"Despesas (15001 + Deduções)","Valor":total_desp_m,
                      "DetalheA":formar_real(d_m),"DetalheB":formar_real(ded_m),
                      "Total":total_desp_m,"Perc":f"{perc_m:.1f}% das receitas"},
                 ]
@@ -966,7 +965,7 @@ if df_f_raw is not None and df_r is not None:
                 custom_data=['DetalheA','DetalheB','Perc'],
                 color_discrete_map={
                     "Receitas (Impostos + Cota-Parte)":   "#003366",
-                    "Despesas (15001+1500 + Deduções)":   "#860000",
+                    "Despesas (15001 + Deduções)":        "#860000",
                 },
                 text='Valor', category_orders={"Mês":ORDEM_MESES}
             )
