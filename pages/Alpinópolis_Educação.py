@@ -680,8 +680,8 @@ if df_f_raw is not None and df_r is not None:
             (df_df_raw['Fonte'] == '15001') &
             (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        _desconto_fundeb_nao_util = 210_893.85
-        _desconto_superavit_ant   = 228_458.03
+        _desconto_fundeb_nao_util = 0.0
+        _desconto_superavit_ant   = 0.0
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
 
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
@@ -914,7 +914,10 @@ if df_f_raw is not None and df_r is not None:
             fig_meta.add_hline(y=tot_rec_base*0.25, line_dash="dash", line_color="#f39c12",
                                annotation_text=f"Meta 25% = {formar_real(tot_rec_base*0.25)}",
                                annotation_position="top left")
-            
+            if val_outras_fontes>0:
+                fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
+                    text=f"⚠️ Outras fontes (anos ant.): {formar_real(val_outras_fontes)}",
+                    showarrow=False, font=dict(color="#aaaaaa",size=11))
             fig_meta.update_layout(separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
                                    yaxis=dict(showticklabels=False), showlegend=True,
                                    legend=dict(orientation="h",yanchor="bottom",y=-0.20,
@@ -933,7 +936,7 @@ if df_f_raw is not None and df_r is not None:
                 dados_meta_m += [
                     {"Mês":m,"Tipo":"Receitas (Impostos + Cota-Parte)","Valor":r_m,
                      "DetalheA":formar_real(r_m),"DetalheB":"—","Total":r_m,"Perc":"100%"},
-                    {"Mês":m,"Tipo":"Despesas (15001 + Deduções)","Valor":total_desp_m,
+                    {"Mês":m,"Tipo":"Despesas (15001+1500 + Deduções)","Valor":total_desp_m,
                      "DetalheA":formar_real(d_m),"DetalheB":formar_real(ded_m),
                      "Total":total_desp_m,"Perc":f"{perc_m:.1f}% das receitas"},
                 ]
@@ -943,7 +946,7 @@ if df_f_raw is not None and df_r is not None:
                 custom_data=['DetalheA','DetalheB','Perc'],
                 color_discrete_map={
                     "Receitas (Impostos + Cota-Parte)":  "#003366",
-                    "Despesas (15001 + Deduções)":  "#860000",
+                    "Despesas (15001+1500 + Deduções)":  "#860000",
                 },
                 text='Valor', category_orders={"Mês":ORDEM_MESES}
             )
@@ -1255,15 +1258,18 @@ if df_f_raw is not None and df_r is not None:
         def origem_fonte(f):
             if f == '15407': return 'FUNDEB 70%'
             if f == '15403': return 'FUNDEB 30%'
-            if f in ('15001','1500'): return 'Recursos Próprios'
-            return 'Outras Fontes'
+            if f == '25407': return 'FUNDEB 70% – Superávit'
+            if f == '25403': return 'FUNDEB 30% – Superávit'
+            if f == '15001': return 'Rec. Próprios (15001)'
+            if f == '1500':  return 'Rec. Próprios (1500)'
+            return f'Fonte {f}'
 
         df_folha['Origem'] = df_folha['Fonte'].apply(origem_fonte)
 
         total_folha  = df_folha[liq_cols_f].sum().sum()
         total_fund70 = df_folha[df_folha['Origem']=='FUNDEB 70%'][liq_cols_f].sum().sum()
         total_fund30 = df_folha[df_folha['Origem']=='FUNDEB 30%'][liq_cols_f].sum().sum()
-        total_rp     = df_folha[df_folha['Origem']=='Recursos Próprios'][liq_cols_f].sum().sum()
+        total_rp     = df_folha[df_folha['Origem'].isin(['Rec. Próprios (15001)','Rec. Próprios (1500)'])][liq_cols_f].sum().sum()
 
         f1, f2, f3, f4 = st.columns(4)
         with f1: st.metric(f"Total Folha (Jan–{meses_disponiveis[-1][:3]})", formar_real(total_folha))
@@ -1284,10 +1290,12 @@ if df_f_raw is not None and df_r is not None:
         df_orig = df_orig[df_orig['Valor']>0]
 
         COR_ORIGEM = {
-            'FUNDEB 70%':       '#4a0000',
-            'FUNDEB 30%':       '#ff1744',
-            'Recursos Próprios':'#1a7a4a',
-            'Outras Fontes':    '#888888',
+            'FUNDEB 70%':              '#4a0000',
+            'FUNDEB 30%':              '#ff1744',
+            'FUNDEB 70% – Superávit':  '#b71c1c',
+            'FUNDEB 30% – Superávit':  '#ff6d00',
+            'Rec. Próprios (15001)':   '#1a7a4a',
+            'Rec. Próprios (1500)':    '#43a047',
         }
         fig_folha_pizza = px.pie(
             df_orig, values='Valor', names='Origem', hole=0.42,
@@ -1313,30 +1321,47 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.subheader("🔹 2. Liquidado por Elemento da Folha")
-        df_elem_f = df_folha.groupby(['Elemento','Origem'])[liq_cols_f].sum().reset_index()
-        df_elem_f['Total'] = df_elem_f[liq_cols_f].sum(axis=1)
-        df_elem_f = df_elem_f[df_elem_f['Total']>0].sort_values('Total', ascending=True)
+        # Total por elemento (barra única, sem divisão por origem)
+        df_elem_total = df_folha.groupby('Elemento')[liq_cols_f].sum().reset_index()
+        df_elem_total['Total'] = df_elem_total[liq_cols_f].sum(axis=1)
+        df_elem_total = df_elem_total[df_elem_total['Total']>0].sort_values('Total', ascending=True)
 
-        fig_folha_elem = px.bar(
-            df_elem_f, x='Total', y='Elemento', orientation='h',
-            color='Origem', color_discrete_map=COR_ORIGEM,
-            text='Total', barmode='stack',
+        # Monta hover com breakdown por origem para cada elemento
+        _det_by_elem = df_folha.groupby(['Elemento','Origem'])[liq_cols_f].sum().sum(axis=1).reset_index()
+        _det_by_elem.columns = ['Elemento','Origem','ValOrig']
+        _det_by_elem = _det_by_elem[_det_by_elem['ValOrig']>0]
+
+        def _hover_elem(elem, total):
+            linhas = _det_by_elem[_det_by_elem['Elemento']==elem].sort_values('ValOrig', ascending=False)
+            det = "".join(
+                f"  {row['Origem']}: R$ {row['ValOrig']:,.2f}<br>".replace(",","X").replace(".",",").replace("X",".")
+                for _, row in linhas.iterrows()
+            )
+            tot_fmt = formar_real(total)
+            return f"<b>{elem}</b><br>Total: <b>{tot_fmt}</b><br>── Por origem ──<br>{det}"
+
+        df_elem_total['HoverText'] = df_elem_total.apply(
+            lambda r: _hover_elem(r['Elemento'], r['Total']), axis=1
         )
-        fig_folha_elem.update_traces(
-            texttemplate="R$ %{x:,.0f}",
-            textposition='inside', insidetextanchor='middle',
-            hovertemplate=(
-                "<span style='color:white;'><b>%{y}</b><br>"
-                "Origem: %{data.name}<br>"
-                "Liquidado: <b>R$ %{x:,.2f}</b></span><extra></extra>"
-            ),
-            hoverlabel=HOVER_STYLE,
-        )
+
+        fig_folha_elem = go.Figure()
+        fig_folha_elem.add_trace(go.Bar(
+            x=df_elem_total['Total'],
+            y=df_elem_total['Elemento'],
+            orientation='h',
+            marker_color='#1a7a4a',
+            text=df_elem_total['Total'].apply(lambda v: f"R$ {v:,.0f}".replace(",","X").replace(".",",").replace("X",".")),
+            textposition='outside',
+            customdata=df_elem_total['HoverText'],
+            hovertemplate="<span style='color:white;'>%{customdata}</span><extra></extra>",
+        ))
         fig_folha_elem.update_layout(
-            separators=",.", xaxis=dict(showticklabels=False, title=None),
-            yaxis=dict(title=None), showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
-            height=480, margin=dict(r=150),
+            separators=",.", hoverlabel=HOVER_STYLE,
+            xaxis=dict(showticklabels=False, title=None),
+            yaxis=dict(title=None),
+            showlegend=False,
+            height=max(380, len(df_elem_total)*52),
+            margin=dict(r=220),
         )
         st.plotly_chart(fig_folha_elem, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
