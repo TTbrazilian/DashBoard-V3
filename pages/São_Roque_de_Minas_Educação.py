@@ -287,14 +287,11 @@ if df_f_raw is not None and df_r is not None:
                                          ]['Orçamento Receitas'].sum() if 'Orçamento Receitas' in df_r_fundeb.columns else 0.0
         tot_prev_portaria  = df_r_fundeb[df_r_fundeb['Subcategoria']=='Principal'
                                          ]['Repasse'].sum() if 'Repasse' in df_r_fundeb.columns else 0.0
-        tot_prev_portaria_vaar = df_r_fundeb[df_r_fundeb['Subcategoria']=='VAAR'
-                                              ]['Repasse'].sum() if 'Repasse' in df_r_fundeb.columns else 0.0
         tot_rec_periodo    = soma(df_r_fundeb, meses_disponiveis)
 
-        # FUNDEB 70% e 30% (15407, 15403) + VAAR (1543, 2543)
+        # FUNDEB 70% e 30% (15407, 15403) + VAAR ano vigente apenas (1543 — sem superávit 2543)
         df_df_fundeb_70_30 = df_df_raw[df_df_raw['Fonte'].isin(['15407','15403'])].copy()
-        df_df_fundeb_vaar  = df_df_raw[df_df_raw['Fonte'].isin(['1543','2543'])].copy()
-        df_df_fundeb_all   = df_df_raw[df_df_raw['Fonte'].isin(['15407','15403','1543','2543'])].copy()
+        df_df_fundeb_vaar  = df_df_raw[df_df_raw['Fonte'] == '1543'].copy()
 
         # Base 70% = Principal + Rendimentos + VAAT (VAAR EXCLUÍDO por instrução)
         base_indice_70  = soma(df_r_fundeb[df_r_fundeb['Subcategoria'].isin(
@@ -312,7 +309,7 @@ if df_f_raw is not None and df_r is not None:
         p1, p2, p3 = st.columns(3)
         with p1: st.metric("Previsão Receitas (Orçamento Município)",
                             formar_real(tot_prev_municipio))
-        _portaria_total = tot_prev_portaria + tot_prev_portaria_vaar
+        _portaria_total = tot_prev_portaria
         with p2: st.metric("Previsão de Receitas (Portaria Interministerial MEC/MF Nº 5 de Abril de 2026)",
                             formar_real(_portaria_total))
 
@@ -700,8 +697,9 @@ if df_f_raw is not None and df_r is not None:
             (df_df_raw['Tipo']==fase_despesa)].copy()
 
         _desconto_fundeb_nao_util = 0.0
-        _desconto_superavit_ant   = 0.0
-        _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
+        _desconto_superavit_ant   = 107_363.92
+        _desconto_restos_pagar    = 210_620.38
+        _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant + _desconto_restos_pagar
 
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         esforco_total    = max(0.0, total_desp_15001 + tot_deducoes - _total_descontos_25)
@@ -917,6 +915,7 @@ if df_f_raw is not None and df_r is not None:
                 customdata=[[formar_real(total_desp_15001), f"{prop_desp:.1f}%", fase_despesa,
                              formar_real(_desconto_fundeb_nao_util),
                              formar_real(_desconto_superavit_ant),
+                             formar_real(_desconto_restos_pagar),
                              formar_real(_total_descontos_25)]],
                 hovertemplate=(
                     "<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
@@ -927,7 +926,8 @@ if df_f_raw is not None and df_r is not None:
                     "🔻 Descontos aplicados:<br>"
                     "FUNDEB não util.: %{customdata[3]}<br>"
                     "Superávit anos ant.: %{customdata[4]}<br>"
-                    "Total descontado: <b>%{customdata[5]}</b></span><extra></extra>"
+                    "Cancel. Restos a Pagar: %{customdata[5]}<br>"
+                    "Total descontado: <b>%{customdata[6]}</b></span><extra></extra>"
                 ),
             ))
             fig_meta.add_hline(y=tot_rec_base*0.25, line_dash="dash", line_color="#f39c12",
@@ -1033,9 +1033,27 @@ if df_f_raw is not None and df_r is not None:
             'Tranferência Programas Estaduais',
         ])].copy()
 
-        # Rendimentos bancários: todos com desc='Rendimentos' sem nome de programa
-        # → exibidos como total geral no resumo
+        # Rendimentos bancários: todos com desc='Rendimentos'
+        # Matching por Código (mapeamento fixo baseado na estrutura do CSV)
+        # 13210111016→PNAE | 13210111017→PNATE | 13210111023→QESE | 13210111015→PTE
+        REND_PROG_MAP = {
+            '13210111016': 'PNAE',
+            '13210111017': 'PNATE',
+            '13210111023': 'QESE',
+            '13210111015': 'PTE',
+        }
         df_r_rem = df_r[df_r['Categoria'].str.strip() == 'Remunerações Bancárias'].copy()
+        if 'Código' in df_r_rem.columns:
+            df_r_rem['_prog'] = df_r_rem['Código'].astype(str).str.strip().map(REND_PROG_MAP)
+        else:
+            df_r_rem['_prog'] = None
+
+        def _rend_prog(prog):
+            # Tenta por descrição primeiro (se planilha atualizada), depois por Código
+            mask_desc = df_r_rem['Descrição da Receita'].str.upper().str.strip().str.contains(prog, na=False)
+            if mask_desc.any(): return df_r_rem[mask_desc]
+            return df_r_rem[df_r_rem['_prog'] == prog]
+
         total_rend_vinc = soma(df_r_rem, meses_disponiveis)
 
         st.markdown("---")
@@ -1044,12 +1062,14 @@ if df_f_raw is not None and df_r is not None:
             df_prog_r = df_r_vinc[
                 df_r_vinc['Descrição da Receita'].str.strip().str.upper() == prog
             ].copy()
+            df_rend_r = _rend_prog(prog)
 
             rep_2025     = df_prog_r['2025'].sum()             if '2025'             in df_prog_r.columns else 0
             prev_repasse = df_prog_r['Repasse'].sum()          if 'Repasse'          in df_prog_r.columns else 0
             orcado_2026  = df_prog_r['Orçamento Receitas'].sum() if 'Orçamento Receitas' in df_prog_r.columns else 0
             desp_liq     = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
                                       (df_df_raw['Tipo']=='Liquidado')][meses_disponiveis].sum().sum()
+            rend_acum_prog = soma(df_rend_r, meses_disponiveis)
 
             st.markdown(f"<h4 style='color:{COR_PROG[prog]};margin-bottom:4px;'>"
                         f"📊 Programa: {prog}</h4>", unsafe_allow_html=True)
@@ -1068,41 +1088,61 @@ if df_f_raw is not None and df_r is not None:
                 for m in meses_disponiveis:
                     col_r  = m if m in df_prog_r.columns else None
                     col_df = m if m in df_df_raw.columns else None
-                    rec_m  = df_prog_r[col_r].sum() if col_r and len(df_prog_r)>0 else 0.0
-                    desp_m = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
-                                        (df_df_raw['Tipo']=='Liquidado')][col_df].sum() if col_df else 0.0
-                    dados_m += [{"Mês":m,"Tipo":"Receita","Valor":rec_m},
-                                 {"Mês":m,"Tipo":"Despesa (Liquidado)","Valor":desp_m}]
-                fig_vinc = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', color='Tipo',
-                                  barmode='group', text_auto='.2s',
-                                  color_discrete_map={'Receita':COR_PROG[prog],'Despesa (Liquidado)':COR_DESP_V},
-                                  category_orders={"Mês":ORDEM_MESES})
+                    transf_m = df_prog_r[col_r].sum() if (col_r and len(df_prog_r)>0) else 0.0
+                    rend_m   = df_rend_r[col_r].sum() if (col_r and not df_rend_r.empty) else 0.0
+                    rec_m    = transf_m + rend_m
+                    desp_m   = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
+                                         (df_df_raw['Tipo']=='Liquidado')][col_df].sum() if col_df else 0.0
+                    dados_m += [
+                        {"Mês":m,"Tipo":"Receita","Valor":rec_m,"Transf":transf_m,"Rend":rend_m},
+                        {"Mês":m,"Tipo":"Despesa (Liquidado)","Valor":desp_m,"Transf":0,"Rend":0},
+                    ]
+                df_dm = pd.DataFrame(dados_m)
+                fig_vinc = px.bar(
+                    df_dm, x='Mês', y='Valor', color='Tipo',
+                    barmode='group', text_auto='.2s',
+                    custom_data=['Transf','Rend'],
+                    color_discrete_map={'Receita':COR_PROG[prog],'Despesa (Liquidado)':COR_DESP_V},
+                    category_orders={"Mês":ORDEM_MESES}
+                )
                 fig_vinc.update_traces(
                     selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
-                    hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
-                                   "Programa: "+prog+"<br>Tipo: %{data.name}<br>"
-                                   "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"))
+                    hovertemplate=(
+                        "<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
+                        "Total: <b>R$ %{y:,.2f}</b><br>"
+                        "── Detalhamento ──<br>"
+                        "Transferência: R$ %{customdata[0]:,.2f}<br>"
+                        "Rendimentos: R$ %{customdata[1]:,.2f}</span><extra></extra>"
+                    )
+                )
                 fig_vinc.update_layout(
                     separators=",.", yaxis=dict(showticklabels=False,title=None),
-                    xaxis_title=None, showlegend=True,
+                    xaxis_title=None, showlegend=True, hoverlabel=HOVER_STYLE,
                     legend=dict(orientation="h",yanchor="bottom",y=-0.30,
                                 xanchor="center",x=0.5), height=380)
             else:
-                rec_acum = soma(df_prog_r, meses_disponiveis) if len(df_prog_r)>0 else 0.0
+                transf_acum = soma(df_prog_r, meses_disponiveis)
+                rec_acum    = transf_acum + rend_acum_prog
                 fig_vinc = go.Figure()
                 fig_vinc.add_trace(go.Bar(
                     x=[f"Receita (Jan–{meses_disponiveis[-1][:3]})"], y=[rec_acum],
                     name="Receita", marker_color=COR_PROG[prog],
                     text=[formar_real(rec_acum)], textposition='outside',
-                    hovertemplate=("<span style='color:white;'><b>Receita Acumulada</b><br>"
-                                   "Programa: "+prog+"<br>Valor: <b>"+formar_real(rec_acum)+"</b></span><extra></extra>"),
+                    customdata=[[transf_acum, rend_acum_prog]],
+                    hovertemplate=(
+                        "<span style='color:white;'><b>Receita Acumulada — "+prog+"</b><br>"
+                        "Total: <b>R$ %{y:,.2f}</b><br>"
+                        "── Detalhamento ──<br>"
+                        "Transferência: R$ %{customdata[0]:,.2f}<br>"
+                        "Rendimentos: R$ %{customdata[1]:,.2f}</span><extra></extra>"
+                    ),
                 ))
                 fig_vinc.add_trace(go.Bar(
                     x=["Despesa (Liquidado)"], y=[desp_liq],
                     name="Despesa (Liquidado)", marker_color=COR_DESP_V,
                     text=[formar_real(desp_liq)], textposition='outside',
-                    hovertemplate=("<span style='color:white;'><b>Despesa Liquidada</b><br>"
-                                   "Programa: "+prog+"<br>Valor: <b>"+formar_real(desp_liq)+"</b></span><extra></extra>"),
+                    hovertemplate=("<span style='color:white;'><b>Despesa Liquidada — "+prog+"</b><br>"
+                                   "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"),
                 ))
                 fig_vinc.update_layout(
                     separators=",.", barmode='group',
