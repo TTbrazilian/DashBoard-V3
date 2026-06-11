@@ -1136,9 +1136,10 @@ if df_f_raw is not None and df_r is not None:
             'Indenizações e Restituições Trabalhistas',
             'Auxílio-alimentação',
             '- Aposentadorias, Reserva Remunerada e Reformas',
-            '- OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS',  # ← novo
-            'Diárias - Pessoal Civil',                   # ← novo
-            'Outros Auxílios  financeiros PF',           # ← novo (2 espaços)
+            '- OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS',  # ← com traço (grafia real)
+            'OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS',    # ← sem traço (variante)
+            'Diárias - Pessoal Civil',
+            'Outros Auxílios  financeiros PF',
         ]
         # Dinâmico: usa meses_disponiveis
         liq_cols_f = [f"{m}_Liquidado" for m in meses_disponiveis
@@ -1149,15 +1150,22 @@ if df_f_raw is not None and df_r is not None:
         def origem_fonte(f):
             if f == '15407': return 'FUNDEB 70%'
             if f == '15403': return 'FUNDEB 30%'
-            if f in ('15001','1500'): return 'Recursos Próprios'
-            return 'Outras Fontes'
+            if f == '25407': return 'FUNDEB 70% – Superávit'
+            if f == '25403': return 'FUNDEB 30% – Superávit'
+            if f == '2540':  return 'FUNDEB – Superávit (2540)'
+            if f == '25427': return 'FUNDEB – Superávit (25427)'
+            if f == '25467': return 'FUNDEB – Superávit (25467)'
+            if f == '15001': return 'Rec. Próprios (15001)'
+            if f == '1500':  return 'Rec. Próprios (1500)'
+            return f'Fonte {f}'
 
         df_folha['Origem'] = df_folha['Fonte'].apply(origem_fonte)
 
         total_folha  = df_folha[liq_cols_f].sum().sum()
         total_fund70 = df_folha[df_folha['Origem']=='FUNDEB 70%'][liq_cols_f].sum().sum()
         total_fund30 = df_folha[df_folha['Origem']=='FUNDEB 30%'][liq_cols_f].sum().sum()
-        total_rp     = df_folha[df_folha['Origem']=='Recursos Próprios'][liq_cols_f].sum().sum()
+        total_rp     = df_folha[df_folha['Origem'].str.startswith('Rec. Próprios', na=False)][liq_cols_f].sum().sum()
+        total_sup    = df_folha[df_folha['Origem'].str.contains('Superávit', na=False)][liq_cols_f].sum().sum()
 
         f1, f2, f3, f4 = st.columns(4)
         with f1: st.metric(f"Total Folha (Jan–{meses_disponiveis[-1][:3]})", formar_real(total_folha))
@@ -1178,10 +1186,15 @@ if df_f_raw is not None and df_r is not None:
         df_orig = df_orig[df_orig['Valor']>0]
 
         COR_ORIGEM = {
-            'FUNDEB 70%':       '#4a0000',
-            'FUNDEB 30%':       '#ff1744',
-            'Recursos Próprios':'#1a7a4a',
-            'Outras Fontes':    '#888888',
+            'FUNDEB 70%':                '#4a0000',
+            'FUNDEB 30%':                '#ff1744',
+            'FUNDEB 70% – Superávit':    '#b71c1c',
+            'FUNDEB 30% – Superávit':    '#ff6d00',
+            'FUNDEB – Superávit (2540)': '#e65100',
+            'FUNDEB – Superávit (25427)':'#bf360c',
+            'FUNDEB – Superávit (25467)':'#ff8a65',
+            'Rec. Próprios (15001)':     '#1a7a4a',
+            'Rec. Próprios (1500)':      '#43a047',
         }
         fig_folha_pizza = px.pie(
             df_orig, values='Valor', names='Origem', hole=0.42,
