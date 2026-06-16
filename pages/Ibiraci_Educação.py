@@ -170,7 +170,7 @@ def load_all_data():
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
-meses_disponiveis = ['Janeiro','Fevereiro','Março', 'Abril']
+meses_disponiveis = ['Janeiro','Fevereiro','Março']
 
 if df_f_raw is not None and df_r is not None:
 
@@ -890,22 +890,36 @@ if df_f_raw is not None and df_r is not None:
             fig_meta.add_trace(go.Bar(
                 x=["Aplicação Total"], y=[tot_deducoes],
                 name="Dedução FUNDEB", marker_color="#f39c12",
-                text=[f"{formar_real(tot_deducoes)}\n({prop_ded:.1f}%)"],
-                textposition='inside', insidetextanchor='middle',
-                customdata=[[formar_real(tot_deducoes),f"{prop_ded:.1f}%"]],
-                hovertemplate=("<span style='color:white;'><b>Dedução FUNDEB</b><br>"
-                               "Valor: <b>%{customdata[0]}</b><br>"
-                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
+                text=[""], textposition='inside',
+                customdata=[[formar_real(tot_deducoes), f"{prop_ded:.1f}%",
+                             formar_real(esforco_total)]],
+                hovertemplate=(
+                    "<span style='color:white;'><b>Dedução FUNDEB</b><br>"
+                    "Valor: <b>%{customdata[0]}</b><br>"
+                    "% do esforço: %{customdata[1]}<br>"
+                    "─────────────────────<br>"
+                    "Esforço Total: <b>%{customdata[2]}</b></span><extra></extra>"
+                ),
             ))
             fig_meta.add_trace(go.Bar(
                 x=["Aplicação Total"], y=[total_desp_15001],
                 name=f"Despesa 15001 ({fase_despesa})", marker_color="#860000",
-                text=[f"{formar_real(total_desp_15001)}\n({prop_desp:.1f}%)"],
-                textposition='inside', insidetextanchor='middle',
-                customdata=[[formar_real(total_desp_15001),f"{prop_desp:.1f}%",fase_despesa]],
-                hovertemplate=("<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
-                               "Estágio: %{customdata[2]}<br>Valor: <b>%{customdata[0]}</b><br>"
-                               "% do esforço: %{customdata[1]}</span><extra></extra>"),
+                text=[""], textposition='inside',
+                customdata=[[formar_real(total_desp_15001), f"{prop_desp:.1f}%", fase_despesa,
+                             formar_real(_desconto_fundeb_nao_util),
+                             formar_real(_desconto_superavit_ant),
+                             formar_real(_total_descontos_25)]],
+                hovertemplate=(
+                    "<span style='color:white;'><b>Despesa Fonte 15001</b><br>"
+                    "Estágio: %{customdata[2]}<br>"
+                    "Valor: <b>%{customdata[0]}</b><br>"
+                    "% do esforço: %{customdata[1]}<br>"
+                    "─────────────────────<br>"
+                    "🔻 Descontos aplicados:<br>"
+                    "Rec. FUNDEB não util.: %{customdata[3]}<br>"
+                    "Superávit anos ant.: %{customdata[4]}<br>"
+                    "Total descontado: <b>%{customdata[5]}</b></span><extra></extra>"
+                ),
             ))
             fig_meta.add_hline(y=tot_rec_base*0.25, line_dash="dash", line_color="#f39c12",
                                annotation_text=f"Meta 25% = {formar_real(tot_rec_base*0.25)}",
@@ -914,13 +928,6 @@ if df_f_raw is not None and df_r is not None:
                 fig_meta.add_annotation(x="Aplicação Total", y=esforco_total*1.05,
                     text=f"⚠️ Outras fontes (anos ant.): {formar_real(val_outras_fontes)}",
                     showarrow=False, font=dict(color="#aaaaaa",size=11))
-            fig_meta.add_annotation(
-                x="Aplicação Total", y=esforco_total*0.50,
-                text=(f"🔻 Descontos aplicados:<br>"
-                      f"Rec. FUNDEB não util.: {formar_real(_desconto_fundeb_nao_util)}<br>"
-                      f"Superávit anos ant.: {formar_real(_desconto_superavit_ant)}<br>"
-                      f"Total descontado: {formar_real(_total_descontos_25)}"),
-                showarrow=False, font=dict(color="#aaaaaa",size=10), align='left')
             fig_meta.update_layout(separators=",.", barmode='stack', hoverlabel=HOVER_STYLE,
                                    yaxis=dict(showticklabels=False), showlegend=True,
                                    legend=dict(orientation="h",yanchor="bottom",y=-0.20,

@@ -636,7 +636,7 @@ if df_f_raw is not None and df_r is not None:
         df_df_15001 = df_df_raw[(df_df_raw['Fonte']=='15001') &
                                  (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        _desconto_fundeb_nao_util = 78_825.97
+        _desconto_fundeb_nao_util = 0.0            # FUNDEB Ano Anterior — zerado
         _desconto_superavit_ant   = 91_314.62
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
