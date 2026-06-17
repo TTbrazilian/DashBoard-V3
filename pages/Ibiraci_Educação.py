@@ -564,11 +564,23 @@ if df_f_raw is not None and df_r is not None:
                     ['Principal','Rendimentos','VAAT'])],[m])*0.70}
                 for m in meses_disponiveis
             ])
-            fig_70.add_trace(go.Scatter(
-                x=df_meta_70['Mês'], y=df_meta_70['Meta 70%'],
-                mode='lines+markers', name='Meta 70% (Mensal)',
-                line=dict(color='green', dash='dot')
-            ))
+            # REGRA UNIVERSAL: shapes _OFFSET=0.22
+            _OFFSET = 0.22
+            _shapes_70 = []
+            for _i, _row in df_meta_70.iterrows():
+                _meta = _row['Meta 70%']
+                _shapes_70.append(dict(type='line', xref='x', yref='y',
+                    x0=_i-_OFFSET, x1=_i+_OFFSET, y0=_meta, y1=_meta,
+                    line=dict(color='green', dash='dot', width=2)))
+                if _i < len(df_meta_70)-1:
+                    _shapes_70.append(dict(type='line', xref='x', yref='y',
+                        x0=_i+_OFFSET, x1=_i+1-_OFFSET,
+                        y0=_meta, y1=df_meta_70.loc[_i+1,'Meta 70%'],
+                        line=dict(color='green', dash='dot', width=2)))
+            fig_70.update_layout(shapes=_shapes_70)
+            fig_70.add_trace(go.Scatter(x=[None], y=[None], mode='lines',
+                name='Meta 70% (Mensal)', showlegend=True,
+                line=dict(color='green', dash='dot', width=2)))
             fig_70.update_traces(
                 selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
                 hovertemplate=("<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
@@ -970,12 +982,25 @@ if df_f_raw is not None and df_r is not None:
                 hoverlabel=HOVER_STYLE
             )
             df_linha = df_meta_m[df_meta_m['Tipo']=='Receitas (Impostos + Cota-Parte)'].copy()
+            df_linha = df_linha.reset_index(drop=True)
             df_linha['Meta 25%'] = df_linha['Valor'] * 0.25
-            fig_meta.add_trace(go.Scatter(
-                x=df_linha['Mês'], y=df_linha['Meta 25%'],
-                mode='lines+markers', name='Meta 25% (Mensal)',
-                line=dict(color='#f39c12', dash='dash')
-            ))
+            # REGRA UNIVERSAL: shapes _OFFSET=0.22
+            _OFFSET = 0.22
+            _shapes_25 = []
+            for _i, _row in df_linha.iterrows():
+                _meta = _row['Meta 25%']
+                _shapes_25.append(dict(type='line', xref='x', yref='y',
+                    x0=_i-_OFFSET, x1=_i+_OFFSET, y0=_meta, y1=_meta,
+                    line=dict(color='#f39c12', dash='dash', width=2)))
+                if _i < len(df_linha)-1:
+                    _shapes_25.append(dict(type='line', xref='x', yref='y',
+                        x0=_i+_OFFSET, x1=_i+1-_OFFSET,
+                        y0=_meta, y1=df_linha.loc[_i+1,'Meta 25%'],
+                        line=dict(color='#f39c12', dash='dash', width=2)))
+            fig_meta.update_layout(shapes=_shapes_25)
+            fig_meta.add_trace(go.Scatter(x=[None], y=[None], mode='lines',
+                name='Meta 25% (Mensal)', showlegend=True,
+                line=dict(color='#f39c12', dash='dash', width=2)))
             fig_meta.update_layout(
                 separators=",.", yaxis=dict(showticklabels=False), showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
@@ -1012,18 +1037,27 @@ if df_f_raw is not None and df_r is not None:
             'Tranferência Programas Federais',
             'Tranferência Programas Estaduais',
         ])].copy()
+
+        # Rendimentos bancários por programa (matching por descrição)
+        df_r_rem = df_r[df_r['Categoria'].str.strip() == 'Remunerações Bancárias'].copy()
+        def _rend_prog(prog):
+            mask = df_r_rem['Descrição da Receita'].str.upper().str.strip().str.contains(prog, na=False)
+            return df_r_rem[mask]
+        total_rend_vinc = soma(df_r_rem, meses_disponiveis)
         st.markdown("---")
 
         for prog in programas:
             df_prog_r = df_r_vinc[
                 df_r_vinc['Descrição da Receita'].str.strip().str.upper() == prog
             ].copy()
+            df_rend_r = _rend_prog(prog)
 
             rep_2025     = df_prog_r['2025'].sum()             if '2025'             in df_prog_r.columns else 0
             prev_repasse = df_prog_r['Repasse'].sum()          if 'Repasse'          in df_prog_r.columns else 0
             orcado_2026  = df_prog_r['Orçado Receitas'].sum()  if 'Orçado Receitas'  in df_prog_r.columns else 0
             desp_liq     = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
                                       (df_df_raw['Tipo']=='Liquidado')][meses_disponiveis].sum().sum()
+            rend_acum_prog = soma(df_rend_r, meses_disponiveis)
 
             st.markdown(f"<h4 style='color:{COR_PROG[prog]};margin-bottom:4px;'>"
                         f"📊 Programa: {prog}</h4>", unsafe_allow_html=True)
@@ -1042,41 +1076,61 @@ if df_f_raw is not None and df_r is not None:
                 for m in meses_disponiveis:
                     col_r  = m if m in df_prog_r.columns else None
                     col_df = m if m in df_df_raw.columns else None
-                    rec_m  = df_prog_r[col_r].sum() if col_r and len(df_prog_r)>0 else 0.0
-                    desp_m = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
-                                        (df_df_raw['Tipo']=='Liquidado')][col_df].sum() if col_df else 0.0
-                    dados_m += [{"Mês":m,"Tipo":"Receita","Valor":rec_m},
-                                 {"Mês":m,"Tipo":"Despesa (Liquidado)","Valor":desp_m}]
-                fig_vinc = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', color='Tipo',
-                                  barmode='group', text_auto='.2s',
-                                  color_discrete_map={'Receita':COR_PROG[prog],'Despesa (Liquidado)':COR_DESP_V},
-                                  category_orders={"Mês":ORDEM_MESES})
+                    transf_m = df_prog_r[col_r].sum() if (col_r and len(df_prog_r)>0) else 0.0
+                    rend_m   = df_rend_r[col_r].sum() if (col_r and not df_rend_r.empty) else 0.0
+                    rec_m    = transf_m + rend_m
+                    desp_m   = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
+                                          (df_df_raw['Tipo']=='Liquidado')][col_df].sum() if col_df else 0.0
+                    dados_m += [
+                        {"Mês":m,"Tipo":"Receita","Valor":rec_m,"Transf":transf_m,"Rend":rend_m},
+                        {"Mês":m,"Tipo":"Despesa (Liquidado)","Valor":desp_m,"Transf":0,"Rend":0},
+                    ]
+                df_dm = pd.DataFrame(dados_m)
+                fig_vinc = px.bar(
+                    df_dm, x='Mês', y='Valor', color='Tipo',
+                    barmode='group', text_auto='.2s',
+                    custom_data=['Transf','Rend'],
+                    color_discrete_map={'Receita':COR_PROG[prog],'Despesa (Liquidado)':COR_DESP_V},
+                    category_orders={"Mês":ORDEM_MESES}
+                )
                 fig_vinc.update_traces(
                     selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
-                    hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
-                                   "Programa: "+prog+"<br>Tipo: %{data.name}<br>"
-                                   "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"))
+                    hovertemplate=(
+                        "<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
+                        "Total: <b>R$ %{y:,.2f}</b><br>"
+                        "── Detalhamento ──<br>"
+                        "Transferência: R$ %{customdata[0]:,.2f}<br>"
+                        "Rendimentos: R$ %{customdata[1]:,.2f}</span><extra></extra>"
+                    )
+                )
                 fig_vinc.update_layout(
                     separators=",.", yaxis=dict(showticklabels=False,title=None),
-                    xaxis_title=None, showlegend=True,
+                    xaxis_title=None, showlegend=True, hoverlabel=HOVER_STYLE,
                     legend=dict(orientation="h",yanchor="bottom",y=-0.30,
                                 xanchor="center",x=0.5), height=380)
             else:
-                rec_acum = soma_vinc(df_prog_r, meses_disponiveis) if len(df_prog_r)>0 else 0.0
+                transf_acum = soma_vinc(df_prog_r, meses_disponiveis) if len(df_prog_r)>0 else 0.0
+                rec_acum    = transf_acum + rend_acum_prog
                 fig_vinc = go.Figure()
                 fig_vinc.add_trace(go.Bar(
                     x=[f"Receita (Jan–{meses_disponiveis[-1][:3]})"], y=[rec_acum],
                     name="Receita", marker_color=COR_PROG[prog],
                     text=[formar_real(rec_acum)], textposition='outside',
-                    hovertemplate=("<span style='color:white;'><b>Receita Acumulada</b><br>"
-                                   "Programa: "+prog+"<br>Valor: <b>"+formar_real(rec_acum)+"</b></span><extra></extra>"),
+                    customdata=[[transf_acum, rend_acum_prog]],
+                    hovertemplate=(
+                        "<span style='color:white;'><b>Receita Acumulada — "+prog+"</b><br>"
+                        "Total: <b>R$ %{y:,.2f}</b><br>"
+                        "── Detalhamento ──<br>"
+                        "Transferência: R$ %{customdata[0]:,.2f}<br>"
+                        "Rendimentos: R$ %{customdata[1]:,.2f}</span><extra></extra>"
+                    ),
                 ))
                 fig_vinc.add_trace(go.Bar(
                     x=["Despesa (Liquidado)"], y=[desp_liq],
                     name="Despesa (Liquidado)", marker_color=COR_DESP_V,
                     text=[formar_real(desp_liq)], textposition='outside',
-                    hovertemplate=("<span style='color:white;'><b>Despesa Liquidada</b><br>"
-                                   "Programa: "+prog+"<br>Valor: <b>"+formar_real(desp_liq)+"</b></span><extra></extra>"),
+                    hovertemplate=("<span style='color:white;'><b>Despesa Liquidada — "+prog+"</b><br>"
+                                   "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"),
                 ))
                 fig_vinc.update_layout(
                     separators=",.", barmode='group',
@@ -1088,6 +1142,16 @@ if df_f_raw is not None and df_r is not None:
 
             st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
             st.markdown("---")
+
+        total_rec_vinc_prog = soma(df_r_vinc, meses_disponiveis)
+        total_rec_vinc_geral = total_rec_vinc_prog + total_rend_vinc
+        _rv1, _rv2, _rv3 = st.columns(3)
+        with _rv1: st.metric(f"Total Receitas Programas (Jan–{meses_disponiveis[-1][:3]})",
+                              formar_real(total_rec_vinc_prog))
+        with _rv2: st.metric("Rendimentos Bancários (todos os programas)",
+                              formar_real(total_rend_vinc))
+        with _rv3: st.metric("Total Geral (Programas + Rendimentos)",
+                              formar_real(total_rec_vinc_geral))
 
     # =========================================================================
     # SETOR VISÃO MACRO
@@ -1205,18 +1269,21 @@ if df_f_raw is not None and df_r is not None:
 
         df_folha = df_f_raw[df_f_raw['Elemento'].isin(FOLHA_ELEMENTOS)].copy()
 
+        # REGRA UNIVERSAL: fontes separadas individualmente
         def origem_fonte(f):
             if f == '15407': return 'FUNDEB 70%'
-            if f in ('15403','25403'): return 'FUNDEB 30%'
-            if f in ('15001','1500'): return 'Recursos Próprios'
-            return 'Outras Fontes'
+            if f == '15403': return 'FUNDEB 30%'
+            if f == '25403': return 'FUNDEB 30% – Superávit'
+            if f == '15001': return 'Rec. Próprios (15001)'
+            if f == '1500':  return 'Rec. Próprios (1500)'
+            return f'Fonte {f}'
 
         df_folha['Origem'] = df_folha['Fonte'].apply(origem_fonte)
 
         total_folha  = df_folha[liq_cols_f].sum().sum()
         total_fund70 = df_folha[df_folha['Origem']=='FUNDEB 70%'][liq_cols_f].sum().sum()
-        total_fund30 = df_folha[df_folha['Origem']=='FUNDEB 30%'][liq_cols_f].sum().sum()
-        total_rp     = df_folha[df_folha['Origem']=='Recursos Próprios'][liq_cols_f].sum().sum()
+        total_fund30 = df_folha[df_folha['Origem'].str.startswith('FUNDEB 30', na=False)][liq_cols_f].sum().sum()
+        total_rp     = df_folha[df_folha['Origem'].str.startswith('Rec. Próprios', na=False)][liq_cols_f].sum().sum()
 
         f1, f2, f3, f4 = st.columns(4)
         with f1: st.metric(f"Total Folha (Jan–{meses_disponiveis[-1][:3]})", formar_real(total_folha))
@@ -1237,10 +1304,11 @@ if df_f_raw is not None and df_r is not None:
         df_orig = df_orig[df_orig['Valor']>0]
 
         COR_ORIGEM = {
-            'FUNDEB 70%':       '#4a0000',
-            'FUNDEB 30%':       '#ff1744',
-            'Recursos Próprios':'#1a7a4a',
-            'Outras Fontes':    '#888888',
+            'FUNDEB 70%':              '#4a0000',
+            'FUNDEB 30%':              '#ff1744',
+            'FUNDEB 30% – Superávit':  '#ff6b6b',
+            'Rec. Próprios (15001)':   '#1a7a4a',
+            'Rec. Próprios (1500)':    '#43a047',
         }
         fig_folha_pizza = px.pie(
             df_orig, values='Valor', names='Origem', hole=0.42,
@@ -1265,31 +1333,45 @@ if df_f_raw is not None and df_r is not None:
             st.plotly_chart(fig_folha_pizza, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
 
+        # REGRA UNIVERSAL: barra única por elemento + hover detalhado por origem
         st.subheader("🔹 2. Liquidado por Elemento da Folha")
-        df_elem_f = df_folha.groupby(['Elemento','Origem'])[liq_cols_f].sum().reset_index()
-        df_elem_f['Total'] = df_elem_f[liq_cols_f].sum(axis=1)
-        df_elem_f = df_elem_f[df_elem_f['Total']>0].sort_values('Total', ascending=True)
+        df_elem_total = df_folha.groupby('Elemento')[liq_cols_f].sum().reset_index()
+        df_elem_total['Total'] = df_elem_total[liq_cols_f].sum(axis=1)
+        df_elem_total = df_elem_total[df_elem_total['Total']>0].sort_values('Total', ascending=True)
 
-        fig_folha_elem = px.bar(
-            df_elem_f, x='Total', y='Elemento', orientation='h',
-            color='Origem', color_discrete_map=COR_ORIGEM,
-            text='Total', barmode='stack',
+        _det_by_elem = df_folha.groupby(['Elemento','Origem'])[liq_cols_f].sum().sum(axis=1).reset_index()
+        _det_by_elem.columns = ['Elemento','Origem','ValOrig']
+        _det_by_elem = _det_by_elem[_det_by_elem['ValOrig']>0]
+
+        def _hover_elem(elem, total):
+            linhas = _det_by_elem[_det_by_elem['Elemento']==elem].sort_values('ValOrig', ascending=False)
+            det = "".join(
+                f"  {row['Origem']}: R$ {row['ValOrig']:,.2f}<br>".replace(",","X").replace(".",",").replace("X",".")
+                for _, row in linhas.iterrows()
+            )
+            return f"<b>{elem}</b><br>Total: <b>{formar_real(total)}</b><br>── Por origem ──<br>{det}"
+
+        df_elem_total['HoverText'] = df_elem_total.apply(
+            lambda r: _hover_elem(r['Elemento'], r['Total']), axis=1
         )
-        fig_folha_elem.update_traces(
-            texttemplate="R$ %{x:,.0f}",
-            textposition='inside', insidetextanchor='middle',
-            hovertemplate=(
-                "<span style='color:white;'><b>%{y}</b><br>"
-                "Origem: %{data.name}<br>"
-                "Liquidado: <b>R$ %{x:,.2f}</b></span><extra></extra>"
-            ),
-            hoverlabel=HOVER_STYLE,
-        )
+        fig_folha_elem = go.Figure()
+        fig_folha_elem.add_trace(go.Bar(
+            x=df_elem_total['Total'],
+            y=df_elem_total['Elemento'],
+            orientation='h',
+            marker_color='#1a7a4a',
+            text=df_elem_total['Total'].apply(
+                lambda v: f"R$ {v:,.0f}".replace(",","X").replace(".",",").replace("X",".")),
+            textposition='outside',
+            customdata=df_elem_total['HoverText'],
+            hovertemplate="<span style='color:white;'>%{customdata}</span><extra></extra>",
+        ))
         fig_folha_elem.update_layout(
-            separators=",.", xaxis=dict(showticklabels=False, title=None),
-            yaxis=dict(title=None), showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
-            height=480, margin=dict(r=150),
+            separators=",.", hoverlabel=HOVER_STYLE,
+            xaxis=dict(showticklabels=False, title=None),
+            yaxis=dict(title=None), showlegend=False,
+            height=max(380, len(df_elem_total)*52),
+            margin=dict(r=220),
         )
         st.plotly_chart(fig_folha_elem, use_container_width=True, config=CONFIG_PT)
         st.markdown("---")
