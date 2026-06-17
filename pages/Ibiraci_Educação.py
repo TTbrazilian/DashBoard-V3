@@ -170,7 +170,7 @@ def load_all_data():
 
 df_f_raw, df_r, df_df_raw = load_all_data()
 
-meses_disponiveis = ['Janeiro','Fevereiro','Março', 'Abril']
+meses_disponiveis = ['Janeiro','Fevereiro','Março']
 
 if df_f_raw is not None and df_r is not None:
 
@@ -704,8 +704,8 @@ if df_f_raw is not None and df_r is not None:
         df_df_15001 = df_df_raw[(df_df_raw['Fonte']=='15001') &
                                  (df_df_raw['Tipo']==fase_despesa)].copy()
 
-        _desconto_fundeb_nao_util = 98_048.09
-        _desconto_superavit_ant   = 85_418.87
+        _desconto_fundeb_nao_util = 121_108.80
+        _desconto_superavit_ant   = 0.0
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
 
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
@@ -1263,6 +1263,9 @@ if df_f_raw is not None and df_r is not None:
             'Auxílio-alimentação',
             'Aposentadorias, Reserva Remunerada e Reformas',
             '- Aposentadorias, Reserva Remunerada e Reformas',
+            'Diárias - Pessoal Civil',                         # ← novo
+            'Obrigações Tributárias e Contributivas',          # ← novo (sem traço)
+            '- Obrigações Tributárias e Contributivas',        # ← novo (com traço, variante)
         ]
         liq_cols_f = [f"{m}_Liquidado" for m in meses_disponiveis
                       if f"{m}_Liquidado" in df_f_raw.columns]
