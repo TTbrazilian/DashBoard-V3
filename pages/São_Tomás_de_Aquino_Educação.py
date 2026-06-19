@@ -277,7 +277,30 @@ if df_f_raw is not None and df_r is not None:
                             formar_real(tot_prev_municipio))
         with p2: st.metric("Previsão de Receitas (Port. Intermin. nº 14 de 29 dez 2025)",
                             formar_real(tot_prev_portaria))
-        with p3: st.metric("Atualização Quadrimestral", "—")
+        # 'Atualização Quadrimestral' não está em COLS_R → permanece string bruta;
+        # aplica limpar_valor UMA vez. % Atualização vira o delta do card.
+        _val_quad = df_r_fundeb['Atualização Quadrimestral'].apply(
+            lambda v: limpar_valor(v)
+        ).sum() if 'Atualização Quadrimestral' in df_r_fundeb.columns else 0.0
+
+        def _parse_perc_quad(v):
+            try:
+                s = str(v).replace('%','').replace(',','.').strip()
+                return float(s)
+            except: return None
+
+        _perc_quad = None
+        if '% Atualização' in df_r_fundeb.columns:
+            _vals_p = df_r_fundeb['% Atualização'].apply(_parse_perc_quad).dropna()
+            if len(_vals_p) > 0: _perc_quad = _vals_p.iloc[0]
+        _delta_quad = f"{_perc_quad:.2f}%" if _perc_quad is not None else None
+
+        with p3: st.metric(
+            "Atualização Quadrimestral",
+            formar_real(_val_quad) if _val_quad > 0 else "—",
+            delta=_delta_quad,
+            delta_color="normal"
+        )
         st.markdown("---")
 
         # ═════════════════════════════════════════════════════════════════════
