@@ -971,14 +971,21 @@ if df_f_raw is not None and df_r is not None:
             cols = [col_map[m.lower()] for m in meses if m.lower() in col_map]
             return df[cols].sum().sum() if cols else 0.0
 
-        df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)].copy()
+        # Receita de cada programa = repasse principal + "Rendimentos {prog}"
+        # (categoria Remunerações Bancárias). Antes os rendimentos não eram puxados.
+        alvos_vinc = programas + [f"RENDIMENTOS {p}" for p in programas]
+        df_r_vinc = df_r[df_r['Descrição da Receita'].str.upper().str.strip().isin(alvos_vinc)].copy()
         st.markdown("---")
 
         for prog in programas:
-            df_prog_r = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip()==prog].copy()
-            rep_2025     = df_prog_r['2025'].sum() if '2025' in df_prog_r.columns else 0
-            prev_repasse = df_prog_r['Repasse'].sum() if 'Repasse' in df_prog_r.columns else 0
-            orcado_2026  = df_prog_r['Orçado Receitas'].sum() if 'Orçado Receitas' in df_prog_r.columns else 0
+            # df_prog_r inclui a linha do programa + a de Rendimentos (entra na receita).
+            df_prog_r    = df_r_vinc[df_r_vinc['Descrição da Receita'].str.upper().str.strip()
+                                     .isin([prog, f"RENDIMENTOS {prog}"])].copy()
+            # Cards (Repasse/Orçado/2025) usam apenas a linha principal do programa.
+            df_prog_main = df_prog_r[df_prog_r['Descrição da Receita'].str.upper().str.strip()==prog]
+            rep_2025     = df_prog_main['2025'].sum() if '2025' in df_prog_main.columns else 0
+            prev_repasse = df_prog_main['Repasse'].sum() if 'Repasse' in df_prog_main.columns else 0
+            orcado_2026  = df_prog_main['Orçado Receitas'].sum() if 'Orçado Receitas' in df_prog_main.columns else 0
             desp_liq     = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
                                       (df_df_raw['Tipo']=='Liquidado')][meses_disponiveis].sum().sum()
 
@@ -1166,6 +1173,9 @@ if df_f_raw is not None and df_r is not None:
             'Outras Despesas Variáveis - Pessoal Civil',
             'Indenizações e Restituições Trabalhistas',
             'Aposentadorias, Reserva Remunerada e Reformas',
+            'Diárias - Pessoal Civil',
+            'Auxílio-alimentação',
+            'Obrigações Tributárias e Contributivas',
         ]
         liq_cols_f = [f"{m}_Liquidado" for m in meses_disponiveis
                       if f"{m}_Liquidado" in df_f_raw.columns]
