@@ -35,6 +35,10 @@ st.markdown("""
         }
         .stButton button:focus { outline:none!important; box-shadow:none!important; }
         [data-testid="column"]  { display:flex; align-items:center; justify-content:center; }
+        [data-testid="stSidebarNav"] li:first-child > a > span,
+        [data-testid="stSidebarNav"] li:first-child > a > p {
+            display: none !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -199,36 +203,100 @@ if df_f_raw is not None and df_r is not None:
         if st.sidebar.button(label, use_container_width=True):
             st.session_state.setor = key
 
-    # ── FILTRO DA BARRA LATERAL ───────────────────────────────────────────────
-    # CSS :contains() não é suportado por navegadores modernos.
-    # Usamos JavaScript via window.parent.document para ocultar os itens
-    # do setor oposto diretamente no DOM da sidebar do Streamlit.
-    # Esta página é de EDUCAÇÃO → oculta todos os itens que contêm "Saúde".
-    components.html("""
-        <script>
-        (function() {
-            function esconderSaude() {
-                try {
-                    var nav = window.parent.document.querySelector(
-                        '[data-testid="stSidebarNav"]'
-                    );
-                    if (!nav) return;
-                    var itens = nav.querySelectorAll('li');
-                    itens.forEach(function(item) {
-                        if (item.textContent.indexOf('Saúde') !== -1) {
-                            item.style.setProperty('display', 'none', 'important');
-                        }
-                    });
-                } catch(e) {}
-            }
-            // Executa imediatamente e em intervalos para cobrir re-renders do Streamlit
-            esconderSaude();
-            setTimeout(esconderSaude, 200);
-            setTimeout(esconderSaude, 600);
-            setTimeout(esconderSaude, 1200);
-        })();
-        </script>
-    """, height=0)
+    # ── SIDEBAR UNIVERSAL: logo iG2P no Home + filtro de setor ───────────────
+    # Injeta o logo iG2P sobre o botão "Home" da nav e oculta municípios do
+    # setor oposto (Saúde). Roda via MutationObserver para persistir mesmo
+    # quando a página é aberta diretamente pela home do sistema.
+    import base64 as _b64
+
+    def _ler_logo(nome_arquivo):
+        candidatos = [f"Logos/{nome_arquivo}", f"../Logos/{nome_arquivo}"]
+        try:
+            d = os.path.dirname(__file__)
+            candidatos += [os.path.join(d,"Logos",nome_arquivo),
+                           os.path.join(d,"..","Logos",nome_arquivo)]
+        except NameError:
+            pass
+        for p in candidatos:
+            if os.path.exists(p):
+                with open(p,"rb") as _f:
+                    return "data:image/png;base64," + _b64.b64encode(_f.read()).decode()
+        return ""
+
+    def _js_sidebar_universal(logo_escuro, logo_claro):
+        return (
+            "<script>(function(){"
+            'var LE="' + logo_escuro + '";'
+            'var LC="' + logo_claro  + '";'
+            "function dE(){try{"
+            "var bg=window.parent.getComputedStyle(window.parent.document.body).backgroundColor;"
+            "if(!bg||bg===\"rgba(0,0,0,0)\")return true;"
+            "var v=bg.match(/[0-9]+/g).map(Number);return v[0]<128;"
+            "}catch(e){return true;}}"
+            "var _p=(window.parent.location.pathname||'').toLowerCase();"
+            "var _home=_p==='/'||_p.indexOf('/home')!==-1;"
+            "var _edu=!_home&&_p.indexOf('educa')!==-1;"
+            "var _sau=!_home&&!_edu;"
+            "var _busy=false;"
+            "function run(){"
+            "if(_busy)return;_busy=true;"
+            "try{"
+            "var doc=window.parent.document;"
+            "var nav=doc.querySelector('[data-testid=\"stSidebarNav\"]');"
+            "if(!nav){_busy=false;return;}"
+            "nav.querySelectorAll('li').forEach(function(it){"
+            "var txt=it.textContent;"
+            "var temEduca=txt.indexOf('Educa')!==-1;"
+            "var ocultar=false;"
+            "if(_edu&&!temEduca){"
+            "var _a=it.querySelector('a');"
+            "var _h=_a&&((_a.href||'').toLowerCase().indexOf('/home')!==-1||txt.trim().toLowerCase()==='home');"
+            "if(!_h)ocultar=true;"
+            "}"
+            "if(_sau&&temEduca)ocultar=true;"
+            "if(ocultar){it.style.setProperty('display','none','important');return;}"
+            "it.style.removeProperty('display');"
+            "var lk=it.querySelector('a');if(!lk)return;"
+            "var sp=lk.querySelector('span');"
+            "var tx=(sp?sp.textContent:lk.textContent).trim();"
+            "var isH=tx==='Home'||tx.toLowerCase()==='home'||"
+            "(lk.href&&lk.href.toLowerCase().indexOf('/home')!==-1);"
+            "if(!isH)return;"
+            "if(lk.querySelector('img.ig2p-logo-sidebar'))return;"
+            "if(sp)sp.style.setProperty('display','none','important');"
+            "lk.style.setProperty('padding','4px 8px 4px 8px','important');"
+            "lk.style.setProperty('display','flex','important');"
+            "lk.style.setProperty('align-items','center','important');"
+            "lk.style.setProperty('background','transparent','important');"
+            "var img=doc.createElement('img');"
+            "img.src=dE()?LE:LC;"
+            "img.className='ig2p-logo-sidebar';"
+            "img.style.cssText='width:130px;height:auto;cursor:pointer;display:block;margin:4px 0;';"
+            "var mq=window.parent.matchMedia('(prefers-color-scheme:dark)');"
+            "function up(){img.src=dE()?LE:LC;}"
+            "if(mq.addEventListener)mq.addEventListener('change',up);"
+            "else if(mq.addListener)mq.addListener(up);"
+            "lk.insertBefore(img,lk.firstChild);"
+            "});"
+            "}catch(e){}"
+            "_busy=false;}"
+            "run();setTimeout(run,50);setTimeout(run,200);setTimeout(run,600);"
+            "try{"
+            "if(window.parent._ig2p_obs)window.parent._ig2p_obs.disconnect();"
+            "var _ob=new MutationObserver(function(){run();});"
+            "_ob.observe(window.parent.document.body,{childList:true,subtree:true});"
+            "window.parent._ig2p_obs=_ob;"
+            "}catch(e){}"
+            "})()</script>"
+        )
+
+    components.html(
+        _js_sidebar_universal(
+            _ler_logo("LOGOTIPO IG2P - OFICIAL - BRANCO.png"),
+            _ler_logo("LOGOTIPO IG2P - OFICIAL.png"),
+        ),
+        height=0,
+    )
 
     # =========================================================================
     # SETOR FUNDEB
