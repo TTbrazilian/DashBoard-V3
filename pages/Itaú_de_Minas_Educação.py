@@ -632,8 +632,11 @@ if df_f_raw is not None and df_r is not None:
         df_df_15001 = df_df_raw[(df_df_raw['Fonte']=='15001') &
                                  (df_df_raw['Tipo']==fase_despesa)].copy()
 
+        # ── DESCONTOS APLICADOS AO CÁLCULO DOS 25% (individualidade ITM) ──
+        # Recursos do FUNDEB não utilizados  → R$ 0,00
+        # Superávit de anos anteriores       → R$ 77.659,59 (deduzido do esforço)
         _desconto_fundeb_nao_util = 0.0
-        _desconto_superavit_ant   = 0.0
+        _desconto_superavit_ant   = 77659.59
         _total_descontos_25       = _desconto_fundeb_nao_util + _desconto_superavit_ant
         total_desp_15001 = df_df_15001[meses_disponiveis].sum().sum()
         esforco_total    = max(0.0, total_desp_15001 + tot_deducoes - _total_descontos_25)

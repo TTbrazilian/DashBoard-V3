@@ -1020,6 +1020,15 @@ if df_f_raw is not None and df_r is not None:
             'Tranferência Programas Federais',
             'Tranferência Programas Estaduais',
         ])].copy()
+
+        # Rendimentos bancários por programa (categoria 'Remunerações Bancárias',
+        # descrições "Rendimentos {prog}"). Matching por descrição (case-insensitive).
+        df_r_rem = df_r[df_r['Categoria'].str.strip() == 'Remunerações Bancárias'].copy()
+        def _rend_prog(prog):
+            mask = df_r_rem['Descrição da Receita'].str.upper().str.strip().str.contains(prog, na=False)
+            return df_r_rem[mask]
+        total_rend_vinc = soma(df_r_rem, meses_disponiveis)
+
         st.markdown("---")
 
         for prog in programas:
@@ -1027,6 +1036,8 @@ if df_f_raw is not None and df_r is not None:
             df_prog_r = df_r_vinc[
                 df_r_vinc['Descrição da Receita'].str.strip().str.upper() == prog
             ].copy()
+            df_rend_r      = _rend_prog(prog)
+            rend_acum_prog = soma(df_rend_r, meses_disponiveis)
 
             rep_2025     = df_prog_r['2025'].sum()          if '2025'          in df_prog_r.columns else 0
             prev_repasse = df_prog_r['Repasse'].sum()       if 'Repasse'       in df_prog_r.columns else 0
@@ -1051,34 +1062,47 @@ if df_f_raw is not None and df_r is not None:
                 for m in meses_disponiveis:
                     col_r  = m if m in df_prog_r.columns else None
                     col_df = m if m in df_df_raw.columns else None
-                    rec_m  = df_prog_r[col_r].sum() if col_r and len(df_prog_r)>0 else 0.0
+                    transf_m = df_prog_r[col_r].sum() if (col_r and len(df_prog_r)>0) else 0.0
+                    rend_m   = df_rend_r[col_r].sum() if (col_r and not df_rend_r.empty) else 0.0
+                    rec_m    = transf_m + rend_m
                     desp_m = df_df_raw[df_df_raw['Fonte'].isin(mapa_desp[prog]) &
                                         (df_df_raw['Tipo']=='Liquidado')][col_df].sum() if col_df else 0.0
-                    dados_m += [{"Mês":m,"Tipo":"Receita","Valor":rec_m},
-                                 {"Mês":m,"Tipo":"Despesa (Liquidado)","Valor":desp_m}]
+                    dados_m += [
+                        {"Mês":m,"Tipo":"Receita","Valor":rec_m,"Transf":transf_m,"Rend":rend_m},
+                        {"Mês":m,"Tipo":"Despesa (Liquidado)","Valor":desp_m,"Transf":0,"Rend":0},
+                    ]
                 fig_vinc = px.bar(pd.DataFrame(dados_m), x='Mês', y='Valor', color='Tipo',
                                   barmode='group', text_auto='.2s',
+                                  custom_data=['Transf','Rend'],
                                   color_discrete_map={'Receita':COR_PROG[prog],'Despesa (Liquidado)':COR_DESP_V},
                                   category_orders={"Mês":ORDEM_MESES})
                 fig_vinc.update_traces(
                     selector=dict(type='bar'), textposition='outside', hoverlabel=HOVER_STYLE,
-                    hovertemplate=("<span style='color:white;'><b>%{x}</b><br>"
-                                   "Programa: "+prog+"<br>Tipo: %{data.name}<br>"
-                                   "Valor: <b>R$ %{y:,.2f}</b></span><extra></extra>"))
+                    hovertemplate=("<span style='color:white;'><b>%{x} — %{data.name}</b><br>"
+                                   "Programa: "+prog+"<br>"
+                                   "Total: <b>R$ %{y:,.2f}</b><br>"
+                                   "── Detalhamento ──<br>"
+                                   "Transferência: R$ %{customdata[0]:,.2f}<br>"
+                                   "Rendimentos: R$ %{customdata[1]:,.2f}</span><extra></extra>"))
                 fig_vinc.update_layout(
                     separators=",.", yaxis=dict(showticklabels=False,title=None),
                     xaxis_title=None, showlegend=True,
                     legend=dict(orientation="h",yanchor="bottom",y=-0.30,
                                 xanchor="center",x=0.5), height=380)
             else:
-                rec_acum = soma_vinc(df_prog_r, meses_disponiveis) if len(df_prog_r)>0 else 0.0
+                transf_acum = soma_vinc(df_prog_r, meses_disponiveis) if len(df_prog_r)>0 else 0.0
+                rec_acum    = transf_acum + rend_acum_prog
                 fig_vinc = go.Figure()
                 fig_vinc.add_trace(go.Bar(
                     x=[f"Receita (Jan–{meses_disponiveis[-1][:3]})"], y=[rec_acum],
                     name="Receita", marker_color=COR_PROG[prog],
                     text=[formar_real(rec_acum)], textposition='outside',
-                    hovertemplate=("<span style='color:white;'><b>Receita Acumulada</b><br>"
-                                   "Programa: "+prog+"<br>Valor: <b>"+formar_real(rec_acum)+"</b></span><extra></extra>"),
+                    customdata=[[transf_acum, rend_acum_prog]],
+                    hovertemplate=("<span style='color:white;'><b>Receita Acumulada — "+prog+"</b><br>"
+                                   "Total: <b>R$ %{y:,.2f}</b><br>"
+                                   "── Detalhamento ──<br>"
+                                   "Transferência: R$ %{customdata[0]:,.2f}<br>"
+                                   "Rendimentos: R$ %{customdata[1]:,.2f}</span><extra></extra>"),
                 ))
                 fig_vinc.add_trace(go.Bar(
                     x=["Despesa (Liquidado)"], y=[desp_liq],
@@ -1097,6 +1121,16 @@ if df_f_raw is not None and df_r is not None:
 
             st.plotly_chart(fig_vinc, use_container_width=True, config=CONFIG_PT)
             st.markdown("---")
+
+        total_rec_vinc_prog  = soma(df_r_vinc, meses_disponiveis)
+        total_rec_vinc_geral = total_rec_vinc_prog + total_rend_vinc
+        _rv1, _rv2, _rv3 = st.columns(3)
+        with _rv1: st.metric(f"Total Receitas Programas (Jan–{meses_disponiveis[-1][:3]})",
+                              formar_real(total_rec_vinc_prog))
+        with _rv2: st.metric("Rendimentos Bancários (todos os programas)",
+                              formar_real(total_rend_vinc))
+        with _rv3: st.metric("Total Geral (Programas + Rendimentos)",
+                              formar_real(total_rec_vinc_geral))
 
     # =========================================================================
     # SETOR VISÃO MACRO
