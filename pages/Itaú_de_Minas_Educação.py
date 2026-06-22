@@ -5,6 +5,8 @@ import plotly.io as pio
 import os
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
+from datetime import datetime
+from io import BytesIO
 
 st.set_page_config(page_title="Itaú de Minas - Gestão Educação", layout="wide")
 
@@ -94,6 +96,241 @@ def soma(df, cols):
     presentes = [c for c in cols if c in df.columns]
     return df[presentes].sum().sum() if presentes else 0.0
 
+# ── RELATÓRIO DE CONSULTORIA (PDF gerado na hora) ─────────────────────────────
+def _rel_tabela(data, header_color, zebra, col_widths=None):
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import Table, TableStyle
+    if col_widths is None:
+        col_widths = [95*mm, 75*mm]
+    t = Table(data, colWidths=col_widths, hAlign='LEFT')
+    style = [
+        ('BACKGROUND',(0,0),(-1,0),header_color),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+        ('FONTSIZE',(0,0),(-1,-1),9),
+        ('ALIGN',(1,0),(-1,-1),'LEFT'),
+        ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#cccccc')),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('TOPPADDING',(0,0),(-1,-1),4),
+        ('BOTTOMPADDING',(0,0),(-1,-1),4),
+        ('LEFTPADDING',(0,0),(-1,-1),6),
+    ]
+    for r in range(1, len(data)):
+        if r % 2 == 1:
+            style.append(('BACKGROUND',(0,r),(-1,r),zebra))
+    t.setStyle(TableStyle(style))
+    return t
+
+def _dados_relatorio(df_f, df_r, df_df, meses):
+    """Calcula TODOS os indicadores do relatório (lógica Itaú de Minas),
+    independentemente do setor selecionado."""
+    d = {}
+    d['periodo'] = f"{meses[0]}–{meses[-1]}" if meses else "—"
+
+    def cat_receita(desc):
+        x = str(desc).upper().strip()
+        if 'VAAT' in x:                             return 'VAAT'
+        if 'VAAR' in x:                             return 'VAAR'
+        if 'ETI'  in x or 'TEMPO INTEGRAL' in x:    return 'ETI'
+        if 'APLICAÇÃO' in x or 'RENDIMENTOS' in x:  return 'Rendimentos'
+        return 'Principal'
+    dfb = df_r[df_r['Categoria'].str.strip() == 'FUNDEB'].copy()
+    dfb['Descrição da Receita'] = dfb['Descrição da Receita'].str.strip()
+    dfb['Sub'] = dfb['Descrição da Receita'].apply(cat_receita)
+    val_quad = dfb['Atualização Quadrimestral'].apply(limpar_valor).sum() \
+        if 'Atualização Quadrimestral' in dfb.columns else 0.0
+    tot_rec_periodo = soma(dfb, meses)
+    dff = df_df[df_df['Fonte'].isin(['15407','15403'])]
+    desp_70 = soma(dff[(dff['Fonte']=='15407') & (dff['Tipo']=='Liquidado')], meses)
+    desp_30 = soma(dff[(dff['Fonte']=='15403') & (dff['Tipo']=='Liquidado')], meses)
+    tot_desp_vig = desp_70 + desp_30
+    base_70 = soma(dfb[dfb['Sub'].isin(['Principal','Rendimentos'])], meses)
+    perc_70 = (desp_70/base_70*100) if base_70>0 else 0.0
+    d.update(prev_quad=val_quad, fundeb_rec=tot_rec_periodo, fundeb_desp=tot_desp_vig,
+             fundeb_saldo=tot_rec_periodo-tot_desp_vig, base_70=base_70,
+             desp_70=desp_70, perc_70=perc_70)
+
+    base = df_r[df_r['Categoria'].str.strip().isin(['Impostos','Cota-Parte'])].copy()
+    ded  = df_r[df_r['Categoria'].str.strip().str.startswith('Dedução', na=False)].copy()
+    tot_rec_base = soma(base, meses)
+    tot_ded      = abs(soma(ded, meses))
+    d15001 = df_df[(df_df['Fonte']=='15001') & (df_df['Tipo']=='Liquidado')]
+    total_15001 = soma(d15001, meses)
+    # Descontos do 25% (individualidade ITM): Superávit anos ant. = R$ 77.659,59
+    _total_desc = 0.0 + 77659.59
+    esforco = max(0.0, total_15001 + tot_ded - _total_desc)
+    perc_25 = (esforco/tot_rec_base*100) if tot_rec_base>0 else 0.0
+    d.update(rp_base=tot_rec_base, rp_meta=tot_rec_base*0.25, rp_esforco=esforco, perc_25=perc_25)
+
+    mapa_desp = {'PNAE':['1552'],'PNATE':['1553'],'PTE':['1576'],'QESE':['1550']}
+    programas = ['PNAE','PNATE','PTE','QESE']
+    dvinc = df_r[df_r['Descrição da Receita'].str.upper().str.strip().isin(programas)].copy()
+    drem  = df_r[df_r['Categoria'].str.strip() == 'Remunerações Bancárias'].copy()
+    vinc = {}
+    for prog in programas:
+        dprog = dvinc[dvinc['Descrição da Receita'].str.upper().str.strip()==prog]
+        rmask = drem['Descrição da Receita'].str.upper().str.strip().str.contains(prog, na=False)
+        transf = soma(dprog, meses)
+        rend   = soma(drem[rmask], meses)
+        desp   = soma(df_df[df_df['Fonte'].isin(mapa_desp[prog]) &
+                            (df_df['Tipo']=='Liquidado')], meses)
+        vinc[prog] = dict(receita=transf+rend, despesa=desp)
+    d['vinc'] = vinc
+
+    liq_cols = [f"{m}_Liquidado" for m in meses if f"{m}_Liquidado" in df_f.columns]
+    CAP = ['Obras e Instalações', 'Equipamentos e Materiais Permanentes']
+    dm = df_f.copy()
+    dm['Nat'] = dm['Elemento'].apply(lambda x: 'Capital' if str(x).strip() in CAP else 'Custeio')
+    cap = dm[dm['Nat']=='Capital'][liq_cols].sum().sum()
+    cus = dm[dm['Nat']=='Custeio'][liq_cols].sum().sum()
+    tot = cap + cus
+    d.update(macro_total=tot, macro_capital=cap, macro_custeio=cus,
+             macro_perc_capital=(cap/tot*100 if tot>0 else 0),
+             macro_perc_custeio=(cus/tot*100 if tot>0 else 0))
+
+    FOLHA = ['Vencimentos e Vantagens Fixas - Pessoal Civil','Obrigações Patronais',
+             'Contratação por tempo Determinado','Outras Despesas Variáveis - Pessoal Civil',
+             'Indenizações e Restituições Trabalhistas','Auxílio-alimentação',
+             'Diárias - Pessoal Civil','Contribuições']
+    d['folha_total'] = df_f[df_f['Elemento'].isin(FOLHA)][liq_cols].sum().sum()
+    return d
+
+def _pdf_relatorio(d, municipio):
+    """Gera o PDF do relatório de consultoria a partir do dict de indicadores."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
+                                    TableStyle, HRFlowable)
+    from reportlab.lib.enums import TA_CENTER
+
+    AZUL  = colors.HexColor('#003366')
+    VERDE = colors.HexColor('#1a7a4a')
+    VERM  = colors.HexColor('#b00020')
+    CINZA = colors.HexColor('#f0f2f5')
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18*mm, rightMargin=18*mm,
+                            topMargin=16*mm, bottomMargin=16*mm)
+    ss = getSampleStyleSheet()
+    h_title = ParagraphStyle('t', parent=ss['Title'], fontSize=16, textColor=AZUL,
+                             alignment=TA_CENTER, spaceAfter=2)
+    h_sub = ParagraphStyle('s', parent=ss['Normal'], fontSize=9.5, textColor=colors.grey,
+                           alignment=TA_CENTER, spaceAfter=10)
+    h2 = ParagraphStyle('h2', parent=ss['Heading2'], fontSize=12, textColor=AZUL,
+                        spaceBefore=10, spaceAfter=4)
+    h3 = ParagraphStyle('h3', parent=ss['Heading3'], fontSize=10.5,
+                        textColor=colors.HexColor('#222'), spaceBefore=6, spaceAfter=2)
+    body = ParagraphStyle('b', parent=ss['Normal'], fontSize=9.5, leading=13)
+    a_ok = ParagraphStyle('aok', parent=body, textColor=VERDE)
+    a_bad = ParagraphStyle('abad', parent=body, textColor=VERM)
+
+    el = []
+    el.append(Paragraph("Relatório de Consultoria Financeira e Orçamentária", h_title))
+    el.append(Paragraph("Consultoria iG2P — Plataforma de Gestão Pública", h_sub))
+    el.append(HRFlowable(width="100%", color=AZUL, thickness=1.2, spaceAfter=8))
+
+    el.append(Paragraph("1. Informações da Reunião", h2))
+    hoje = datetime.now().strftime("%d/%m/%Y")
+    info = [["Município:", f"{municipio} - MG"], ["Data:", hoje],
+            ["Pauta Principal:", f"Análise de dados financeiros e orçamentários da "
+                                 f"Educação ({d['periodo']})."]]
+    t = Table(info, colWidths=[35*mm, 135*mm])
+    t.setStyle(TableStyle([('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
+        ('FONTSIZE',(0,0),(-1,-1),9.5),('TEXTCOLOR',(0,0),(0,-1),AZUL),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
+    el.append(t)
+
+    el.append(Paragraph("2. Síntese dos Indicadores Financeiros", h2))
+    el.append(Paragraph("2.1. FUNDEB — Receitas e Despesas", h3))
+    saldo = d['fundeb_saldo']
+    sit_saldo = f"{formar_real(saldo)} ({'Superávit' if saldo>=0 else 'Déficit'})"
+    el.append(_rel_tabela([
+        ["Indicador", "Valor / Situação"],
+        ["Previsão Atualizada (Quadrimestral)", formar_real(d['prev_quad'])],
+        [f"Total Receitas ({d['periodo']})", formar_real(d['fundeb_rec'])],
+        [f"Despesas Liquidadas ({d['periodo']})", formar_real(d['fundeb_desp'])],
+        ["Saldo Quadrimestral", sit_saldo],
+    ], AZUL, CINZA))
+
+    el.append(Paragraph("2.2. Aplicação em Pessoal (Mínimo de 70%)", h3))
+    p70 = d['perc_70']
+    if p70 > 100:
+        el.append(Paragraph(f"⚠ Alerta Crítico: O município atingiu <b>{p70:.2f}%</b> de "
+            f"aplicação em pessoal ({formar_real(d['desp_70'])}) sobre a receita base, "
+            f"extrapolando a meta mínima e consumindo os recursos do período.", a_bad))
+    elif p70 >= 70:
+        el.append(Paragraph(f"✔ O município atingiu <b>{p70:.2f}%</b> de aplicação em "
+            f"pessoal ({formar_real(d['desp_70'])}), cumprindo a meta mínima de 70%.", a_ok))
+    else:
+        el.append(Paragraph(f"⚠ Alerta: Índice de aplicação em pessoal de <b>{p70:.2f}%</b> "
+            f"({formar_real(d['desp_70'])}), <b>abaixo</b> do mínimo de 70%.", a_bad))
+
+    el.append(Paragraph("2.3. Recursos Próprios (Mínimo de 25%)", h3))
+    p25 = d['perc_25']
+    if p25 < 25:
+        el.append(Paragraph(f"⚠ Alerta Crítico: Índice de aplicação atual é de "
+            f"<b>{p25:.2f}%</b>, encontrando-se <b>abaixo</b> do mínimo constitucional "
+            f"exigido (25%).", a_bad))
+    else:
+        el.append(Paragraph(f"✔ Índice de aplicação atual é de <b>{p25:.2f}%</b>, "
+            f"cumprindo o mínimo constitucional de 25%.", a_ok))
+    el.append(_rel_tabela([
+        ["Indicador", "Valor"],
+        [f"Receitas Base (Arrecadadas {d['periodo']})", formar_real(d['rp_base'])],
+        ["Meta 25%", formar_real(d['rp_meta'])],
+        ["Esforço Líquido Aplicado", formar_real(d['rp_esforco'])],
+    ], AZUL, CINZA))
+
+    el.append(Paragraph("2.4. Recursos Vinculados Federais e Estaduais", h3))
+    tab_v = [["Programa", "Receita", "Despesa Liquidada", "Situação"]]
+    for prog in ['PNAE','PNATE','PTE','QESE']:
+        v = d['vinc'][prog]
+        sit = "Saldo positivo" if v['receita']>=v['despesa'] else "Déficit no período"
+        tab_v.append([prog, formar_real(v['receita']), formar_real(v['despesa']), sit])
+    el.append(_rel_tabela(tab_v, AZUL, CINZA, col_widths=[28*mm,46*mm,46*mm,50*mm]))
+
+    el.append(Paragraph("3. Visão Macro e Folha de Pagamento", h2))
+    el.append(Paragraph(f"A execução orçamentária do período (Total: "
+        f"<b>{formar_real(d['macro_total'])}</b>) apresenta a seguinte distribuição "
+        f"entre Custeio e Capital:", body))
+    el.append(_rel_tabela([
+        ["Natureza", "Valor", "Participação"],
+        ["Custeio", formar_real(d['macro_custeio']), f"{d['macro_perc_custeio']:.1f}%"],
+        ["Capital", formar_real(d['macro_capital']), f"{d['macro_perc_capital']:.1f}%"],
+    ], AZUL, CINZA, col_widths=[56*mm,57*mm,57*mm]))
+    el.append(Spacer(1, 4))
+    el.append(Paragraph(f"A Folha de Pagamento ({formar_real(d['folha_total'])}) representa "
+        f"a principal fonte de pressão sobre as receitas correntes do período.", body))
+
+    el.append(Paragraph("4. Deliberações e Próximos Passos", h2))
+    delibs = ["Levantamento do número exato de matrículas ativas no Ensino em Tempo "
+              "Integral (ETI), para embasar o enquadramento de despesas de estruturação — "
+              "avaliando se é mais estratégico alocá-las na cota de 4% do FUNDEB ETI ou em "
+              "Recursos Próprios para impulsionar o índice constitucional dos 25%."]
+    if d['perc_25'] < 25:
+        delibs.append("Reforçar a aplicação em Recursos Próprios (MDE) para atingir o mínimo "
+                      "constitucional de 25% até o encerramento do exercício.")
+    if d['perc_70'] > 100:
+        delibs.append("Monitorar a aplicação em pessoal do FUNDEB, que já consome "
+                      "integralmente a receita do período, evitando comprometer o saldo "
+                      "dos próximos meses.")
+    for i, dl in enumerate(delibs, 1):
+        el.append(Paragraph(f"<b>{i}.</b> {dl}", body)); el.append(Spacer(1, 2))
+
+    el.append(Spacer(1, 10))
+    el.append(HRFlowable(width="100%", color=colors.grey, thickness=0.6, spaceAfter=4))
+    el.append(Paragraph(f"Documento gerado automaticamente para uso da Secretaria de "
+        f"Educação de {municipio}-MG. Consultoria iG2P — {hoje}.",
+        ParagraphStyle('foot', parent=body, fontSize=8, textColor=colors.grey,
+                       alignment=TA_CENTER)))
+
+    doc.build(el)
+    buf.seek(0)
+    return buf.getvalue()
+
 # ── CARGA DE DADOS ────────────────────────────────────────────────────────────
 # Atualização Jun 2026: Jan+Fev+Mar+Abr (4 meses)
 # Regras universais aplicadas:
@@ -163,6 +400,28 @@ if df_f_raw is not None and df_r is not None:
                         ("Folha de Pagamento","Folha de Pagamento")]:
         if st.sidebar.button(label, use_container_width=True):
             st.session_state.setor = key
+
+    # ── RELATÓRIO DE CONSULTORIA (gerado na hora) ─────────────────────────────
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📄 Relatório de Consultoria")
+    st.sidebar.caption("Gera um relatório financeiro do município em PDF, com os "
+                       "indicadores do período.")
+    try:
+        if '_pdf_relatorio_bytes' not in st.session_state:
+            st.session_state['_pdf_relatorio_bytes'] = _pdf_relatorio(
+                _dados_relatorio(df_f_raw, df_r, df_df_raw, meses_disponiveis),
+                "Itaú de Minas")
+        st.sidebar.download_button(
+            "📥 Baixar Relatório (PDF)",
+            data=st.session_state['_pdf_relatorio_bytes'],
+            file_name="Relatorio_Consultoria_Itau_de_Minas.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+    except ModuleNotFoundError:
+        st.sidebar.info("Adicione 'reportlab' ao requirements.txt para habilitar o relatório.")
+    except Exception:
+        st.sidebar.warning("Não foi possível gerar o relatório no momento.")
 
     import base64 as _b64
 
@@ -294,8 +553,9 @@ if df_f_raw is not None and df_r is not None:
         st.markdown("---")
 
         st.subheader("🔹 1. Receitas e Despesas FUNDEB")
-        saldo     = tot_rec_periodo - tot_desp_vigente
-        exec_perc = (tot_desp_vigente/tot_rec_periodo*100) if tot_rec_periodo>0 else 0
+        saldo      = tot_rec_periodo - tot_desp_vigente
+        # % do saldo sobre o total de receitas do período (não despesas/receitas)
+        saldo_perc = (saldo/tot_rec_periodo*100) if tot_rec_periodo>0 else 0
 
         t1, t2, t3 = st.columns(3)
         with t1: st.metric(f"Total Receitas ({meses_disponiveis[0]}–{meses_disponiveis[-1]})",
@@ -303,9 +563,8 @@ if df_f_raw is not None and df_r is not None:
         with t2: st.metric("Total Despesas Liquidadas – Ano Vigente",
                             formar_real(tot_desp_vigente))
         with t3:
-            delta_val = exec_perc if saldo >= 0 else -exec_perc
             st.metric("Saldo (Receitas − Despesas Vigentes)", formar_real(saldo),
-                      delta=f"{delta_val:.1f}% Saldo", delta_color="normal")
+                      delta=f"{saldo_perc:.1f}% Saldo", delta_color="normal")
 
         tipo_rd = st.segmented_control("Visualização:", ["Mensal","Acumulado"],
                                        default="Mensal", key="rd_btn_f")
