@@ -141,15 +141,19 @@ def _dados_relatorio(df_f, df_r, df_df, meses):
     val_quad = dfb['Atualização Quadrimestral'].apply(limpar_valor).sum() \
         if 'Atualização Quadrimestral' in dfb.columns else 0.0
     tot_rec_periodo = soma(dfb, meses)
+    rend_fundeb = soma(dfb[dfb['Sub']=='Rendimentos'], meses)
     dff = df_df[df_df['Fonte'].isin(['15407','15403'])]
     desp_70 = soma(dff[(dff['Fonte']=='15407') & (dff['Tipo']=='Liquidado')], meses)
     desp_30 = soma(dff[(dff['Fonte']=='15403') & (dff['Tipo']=='Liquidado')], meses)
     tot_desp_vig = desp_70 + desp_30
     base_70 = soma(dfb[dfb['Sub'].isin(['Principal','Rendimentos'])], meses)
     perc_70 = (desp_70/base_70*100) if base_70>0 else 0.0
+    # Base ETI (ITM): Principal + Rendimentos + VAAT (só VAAT). Referência 4%.
+    base_eti = soma(dfb[dfb['Sub'].isin(['Principal','Rendimentos','VAAT'])], meses)
+    meta_eti = base_eti * 0.04
     d.update(prev_quad=val_quad, fundeb_rec=tot_rec_periodo, fundeb_desp=tot_desp_vig,
-             fundeb_saldo=tot_rec_periodo-tot_desp_vig, base_70=base_70,
-             desp_70=desp_70, perc_70=perc_70)
+             fundeb_saldo=tot_rec_periodo-tot_desp_vig, base_70=base_70, desp_70=desp_70,
+             perc_70=perc_70, rend_fundeb=rend_fundeb, base_eti=base_eti, meta_eti=meta_eti)
 
     base = df_r[df_r['Categoria'].str.strip().isin(['Impostos','Cota-Parte'])].copy()
     ded  = df_r[df_r['Categoria'].str.strip().str.startswith('Dedução', na=False)].copy()
@@ -173,9 +177,12 @@ def _dados_relatorio(df_f, df_r, df_df, meses):
         rmask = drem['Descrição da Receita'].str.upper().str.strip().str.contains(prog, na=False)
         transf = soma(dprog, meses)
         rend   = soma(drem[rmask], meses)
-        desp   = soma(df_df[df_df['Fonte'].isin(mapa_desp[prog]) &
-                            (df_df['Tipo']=='Liquidado')], meses)
-        vinc[prog] = dict(receita=transf+rend, despesa=desp)
+        receita = transf + rend
+        desp    = soma(df_df[df_df['Fonte'].isin(mapa_desp[prog]) &
+                             (df_df['Tipo']=='Liquidado')], meses)
+        saldo   = receita - desp
+        saldo_perc = (saldo/receita*100) if receita>0 else 0.0
+        vinc[prog] = dict(receita=receita, despesa=desp, saldo=saldo, saldo_perc=saldo_perc)
     d['vinc'] = vinc
 
     liq_cols = [f"{m}_Liquidado" for m in meses if f"{m}_Liquidado" in df_f.columns]
@@ -196,8 +203,12 @@ def _dados_relatorio(df_f, df_r, df_df, meses):
     d['folha_total'] = df_f[df_f['Elemento'].isin(FOLHA)][liq_cols].sum().sum()
     return d
 
-def _pdf_relatorio(d, municipio):
-    """Gera o PDF do relatório de consultoria a partir do dict de indicadores."""
+
+# Nome da Secretária(o) de Educação (preencher; em branco gera linha para preenchimento manual)
+RELATORIO_SECRETARIA = ""
+
+def _pdf_relatorio(d, municipio, secretaria=None):
+    """Gera o PDF do relatório de consultoria (análise gerencial completa)."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib import colors
@@ -206,9 +217,13 @@ def _pdf_relatorio(d, municipio):
                                     TableStyle, HRFlowable)
     from reportlab.lib.enums import TA_CENTER
 
+    if secretaria is None:
+        secretaria = RELATORIO_SECRETARIA
+
     AZUL  = colors.HexColor('#003366')
     VERDE = colors.HexColor('#1a7a4a')
     VERM  = colors.HexColor('#b00020')
+    LARANJA = colors.HexColor('#b9770e')
     CINZA = colors.HexColor('#f0f2f5')
 
     buf = BytesIO()
@@ -226,101 +241,193 @@ def _pdf_relatorio(d, municipio):
     body = ParagraphStyle('b', parent=ss['Normal'], fontSize=9.5, leading=13)
     a_ok = ParagraphStyle('aok', parent=body, textColor=VERDE)
     a_bad = ParagraphStyle('abad', parent=body, textColor=VERM)
+    a_warn = ParagraphStyle('awarn', parent=body, textColor=LARANJA)
+    legal = ParagraphStyle('legal', parent=body, fontSize=8.2,
+                           textColor=colors.HexColor('#555'), leftIndent=2)
+
+    def base_legal(txt):
+        return Paragraph(f"<b>Base legal:</b> {txt}", legal)
 
     el = []
-    el.append(Paragraph("Relatório de Consultoria Financeira e Orçamentária", h_title))
+    el.append(Paragraph("Relatório Analítico e Gerencial — Educação", h_title))
     el.append(Paragraph("Consultoria iG2P — Plataforma de Gestão Pública", h_sub))
     el.append(HRFlowable(width="100%", color=AZUL, thickness=1.2, spaceAfter=8))
 
+    # 1. Informações
     el.append(Paragraph("1. Informações da Reunião", h2))
     hoje = datetime.now().strftime("%d/%m/%Y")
-    info = [["Município:", f"{municipio} - MG"], ["Data:", hoje],
+    sec_val = secretaria.strip() if secretaria else ""
+    if not sec_val:
+        sec_val = "______________________________"
+    info = [["Município:", f"{municipio} - MG"],
+            ["Secretária(o) de Educação:", sec_val],
+            ["Data:", hoje],
             ["Pauta Principal:", f"Análise de dados financeiros e orçamentários da "
                                  f"Educação ({d['periodo']})."]]
-    t = Table(info, colWidths=[35*mm, 135*mm])
+    t = Table(info, colWidths=[48*mm, 122*mm])
     t.setStyle(TableStyle([('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
         ('FONTSIZE',(0,0),(-1,-1),9.5),('TEXTCOLOR',(0,0),(0,-1),AZUL),
         ('VALIGN',(0,0),(-1,-1),'TOP'),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
     el.append(t)
 
-    el.append(Paragraph("2. Síntese dos Indicadores Financeiros", h2))
-    el.append(Paragraph("2.1. FUNDEB — Receitas e Despesas", h3))
+    # 2. FUNDEB
+    el.append(Paragraph("2. FUNDEB — Receitas, Despesas e Aplicação", h2))
     saldo = d['fundeb_saldo']
     sit_saldo = f"{formar_real(saldo)} ({'Superávit' if saldo>=0 else 'Déficit'})"
     el.append(_rel_tabela([
         ["Indicador", "Valor / Situação"],
         ["Previsão Atualizada (Quadrimestral)", formar_real(d['prev_quad'])],
         [f"Total Receitas ({d['periodo']})", formar_real(d['fundeb_rec'])],
+        [f"  • dos quais Rendimentos de aplicação", formar_real(d['rend_fundeb'])],
         [f"Despesas Liquidadas ({d['periodo']})", formar_real(d['fundeb_desp'])],
         ["Saldo Quadrimestral", sit_saldo],
     ], AZUL, CINZA))
-
-    el.append(Paragraph("2.2. Aplicação em Pessoal (Mínimo de 70%)", h3))
     p70 = d['perc_70']
     if p70 > 100:
-        el.append(Paragraph(f"⚠ Alerta Crítico: O município atingiu <b>{p70:.2f}%</b> de "
-            f"aplicação em pessoal ({formar_real(d['desp_70'])}) sobre a receita base, "
-            f"extrapolando a meta mínima e consumindo os recursos do período.", a_bad))
+        el.append(Paragraph(f"⚠ Alerta crítico: a aplicação em pessoal atingiu "
+            f"<b>{p70:.2f}%</b> ({formar_real(d['desp_70'])}) da base de cálculo, consumindo "
+            f"integralmente os recursos do período. Recomenda-se monitorar para não "
+            f"comprometer o saldo dos próximos meses.", a_bad))
     elif p70 >= 70:
-        el.append(Paragraph(f"✔ O município atingiu <b>{p70:.2f}%</b> de aplicação em "
-            f"pessoal ({formar_real(d['desp_70'])}), cumprindo a meta mínima de 70%.", a_ok))
+        el.append(Paragraph(f"✔ A aplicação em pessoal atingiu <b>{p70:.2f}%</b> "
+            f"({formar_real(d['desp_70'])}), cumprindo o mínimo de 70%. O FUNDEB deve "
+            f"manter o foco no investimento da folha de pagamento dos profissionais da "
+            f"educação.", a_ok))
     else:
-        el.append(Paragraph(f"⚠ Alerta: Índice de aplicação em pessoal de <b>{p70:.2f}%</b> "
-            f"({formar_real(d['desp_70'])}), <b>abaixo</b> do mínimo de 70%.", a_bad))
+        el.append(Paragraph(f"⚠ Alerta: a aplicação em pessoal está em <b>{p70:.2f}%</b> "
+            f"({formar_real(d['desp_70'])}), <b>abaixo</b> do mínimo de 70%. É necessário "
+            f"ampliar a destinação do FUNDEB à folha dos profissionais da educação.", a_bad))
+    el.append(Paragraph(f"Ensino em Tempo Integral (ETI): a referência de 4% sobre a base de "
+        f"cálculo equivale a <b>{formar_real(d['meta_eti'])}</b>. Recomenda-se direcionar "
+        f"recursos para a estruturação do ETI, observando o levantamento de matrículas ativas.",
+        a_warn))
+    el.append(base_legal("Lei nº 14.113/2020 (FUNDEB), art. 25 (mínimo de 70% para "
+        "remuneração dos profissionais da educação) e art. 26; Lei nº 13.005/2014 (PNE) "
+        "para a estratégia de Ensino em Tempo Integral."))
 
-    el.append(Paragraph("2.3. Recursos Próprios (Mínimo de 25%)", h3))
-    p25 = d['perc_25']
-    if p25 < 25:
-        el.append(Paragraph(f"⚠ Alerta Crítico: Índice de aplicação atual é de "
-            f"<b>{p25:.2f}%</b>, encontrando-se <b>abaixo</b> do mínimo constitucional "
-            f"exigido (25%).", a_bad))
-    else:
-        el.append(Paragraph(f"✔ Índice de aplicação atual é de <b>{p25:.2f}%</b>, "
-            f"cumprindo o mínimo constitucional de 25%.", a_ok))
+    # 3. Recursos Próprios 25%
+    el.append(Paragraph("3. Recursos Próprios — Aplicação Mínima (25%)", h2))
     el.append(_rel_tabela([
         ["Indicador", "Valor"],
         [f"Receitas Base (Arrecadadas {d['periodo']})", formar_real(d['rp_base'])],
         ["Meta 25%", formar_real(d['rp_meta'])],
         ["Esforço Líquido Aplicado", formar_real(d['rp_esforco'])],
     ], AZUL, CINZA))
+    p25 = d['perc_25']
+    if p25 < 25:
+        el.append(Paragraph(f"⚠ Alerta crítico: o índice de aplicação está em "
+            f"<b>{p25:.2f}%</b>, <b>abaixo</b> do mínimo constitucional de 25%. Recomenda-se "
+            f"reforçar a aplicação em Manutenção e Desenvolvimento do Ensino (MDE) até o "
+            f"encerramento do exercício.", a_bad))
+    else:
+        el.append(Paragraph(f"✔ O índice de aplicação está em <b>{p25:.2f}%</b>, cumprindo o "
+            f"mínimo constitucional de 25%. Estando acima da meta, a recomendação principal é "
+            f"verificar se os recursos vinculados estão sendo plenamente utilizados, cruzando "
+            f"os dados entre PNATE e PTE para otimizar o uso das fontes específicas antes do "
+            f"recurso próprio.", a_ok))
+    el.append(base_legal("Constituição Federal de 1988, art. 212 (mínimo de 25% da receita "
+        "de impostos e transferências em MDE)."))
 
-    el.append(Paragraph("2.4. Recursos Vinculados Federais e Estaduais", h3))
-    tab_v = [["Programa", "Receita", "Despesa Liquidada", "Situação"]]
+    # 4. Recursos Vinculados
+    el.append(Paragraph("4. Recursos Vinculados — Federais e Estaduais", h2))
+    tab_v = [["Programa", "Receita", "Despesa Liq.", "Saldo", "Saldo %"]]
     for prog in ['PNAE','PNATE','PTE','QESE']:
         v = d['vinc'][prog]
-        sit = "Saldo positivo" if v['receita']>=v['despesa'] else "Déficit no período"
-        tab_v.append([prog, formar_real(v['receita']), formar_real(v['despesa']), sit])
-    el.append(_rel_tabela(tab_v, AZUL, CINZA, col_widths=[28*mm,46*mm,46*mm,50*mm]))
+        tab_v.append([prog, formar_real(v['receita']), formar_real(v['despesa']),
+                      formar_real(v['saldo']), f"{v['saldo_perc']:.1f}%"])
+    el.append(_rel_tabela(tab_v, AZUL, CINZA,
+                          col_widths=[24*mm,40*mm,40*mm,40*mm,26*mm]))
 
-    el.append(Paragraph("3. Visão Macro e Folha de Pagamento", h2))
-    el.append(Paragraph(f"A execução orçamentária do período (Total: "
-        f"<b>{formar_real(d['macro_total'])}</b>) apresenta a seguinte distribuição "
-        f"entre Custeio e Capital:", body))
+    pnae, pnate, pte, qese = (d['vinc']['PNAE'], d['vinc']['PNATE'],
+                              d['vinc']['PTE'], d['vinc']['QESE'])
+    # PNAE
+    if pnae['saldo_perc'] > 15:
+        el.append(Paragraph(f"• <b>PNAE</b>: saldo de <b>{pnae['saldo_perc']:.1f}%</b> "
+            f"(acima de 15%) — verificar execução. Conferir ainda a aquisição da agricultura "
+            f"familiar (mínimo de 30% — Lei 11.947/2009; diretriz de gestão de 45%, priorizando "
+            f"50% de mulheres).", a_warn))
+    else:
+        el.append(Paragraph(f"• <b>PNAE</b>: saldo de {pnae['saldo_perc']:.1f}%. Conferir a "
+            f"aquisição da agricultura familiar (mínimo de 30% — Lei 11.947/2009; diretriz de "
+            f"gestão de 45%, priorizando 50% de mulheres).", body))
+    # PNATE
+    if pnate['saldo_perc'] > 30:
+        el.append(Paragraph(f"• <b>PNATE</b>: saldo de <b>{pnate['saldo_perc']:.1f}%</b> "
+            f"(acima de 30%) — avaliar a aplicação no transporte escolar e possível "
+            f"complementação via PTE.", a_warn))
+    else:
+        el.append(Paragraph(f"• <b>PNATE</b>: saldo de {pnate['saldo_perc']:.1f}%, dentro do "
+            f"parâmetro de execução do transporte escolar.", body))
+    # PTE
+    if pte['saldo'] > 0:
+        el.append(Paragraph(f"• <b>PTE</b>: há saldo não utilizado de "
+            f"<b>{formar_real(pte['saldo'])}</b> — justificar e priorizar o uso desta fonte "
+            f"estadual no transporte antes do recurso próprio.", a_warn))
+    else:
+        el.append(Paragraph(f"• <b>PTE</b>: fonte aplicada no período (sem saldo ocioso "
+            f"relevante).", body))
+    # QESE
+    el.append(Paragraph(f"• <b>QESE</b>: receita {formar_real(qese['receita'])} / despesa "
+        f"{formar_real(qese['despesa'])}. Observar se o uso está elevado enquanto o índice "
+        f"do recurso próprio (25%) permanece abaixo da meta — situação que indica "
+        f"oportunidade de melhor alocação entre as fontes.", body))
+    el.append(base_legal("PNAE — Lei nº 11.947/2009, art. 14; PNATE — Lei nº 10.880/2004; "
+        "QESE (Salário-Educação) — CF/1988, art. 212, §5º e Lei nº 9.424/1996."))
+
+    # 5. Visão Macro e Folha
+    el.append(Paragraph("5. Visão Macro e Folha de Pagamento", h2))
+    el.append(Paragraph(f"Execução orçamentária do período (Total: "
+        f"<b>{formar_real(d['macro_total'])}</b>), distribuída entre Custeio e Capital:", body))
     el.append(_rel_tabela([
         ["Natureza", "Valor", "Participação"],
         ["Custeio", formar_real(d['macro_custeio']), f"{d['macro_perc_custeio']:.1f}%"],
         ["Capital", formar_real(d['macro_capital']), f"{d['macro_perc_capital']:.1f}%"],
     ], AZUL, CINZA, col_widths=[56*mm,57*mm,57*mm]))
-    el.append(Spacer(1, 4))
-    el.append(Paragraph(f"A Folha de Pagamento ({formar_real(d['folha_total'])}) representa "
-        f"a principal fonte de pressão sobre as receitas correntes do período.", body))
+    if d['macro_custeio'] >= d['macro_capital']:
+        el.append(Paragraph(f"✔ Conforme esperado na educação, o Custeio "
+            f"({d['macro_perc_custeio']:.1f}%) supera o Capital "
+            f"({d['macro_perc_capital']:.1f}%), refletindo a natureza de manutenção da "
+            f"rede de ensino.", a_ok))
+    else:
+        el.append(Paragraph(f"⚠ Atenção: o Capital ({d['macro_perc_capital']:.1f}%) superou "
+            f"o Custeio ({d['macro_perc_custeio']:.1f}%), o que é atípico na educação e "
+            f"merece verificação.", a_warn))
+    el.append(Paragraph(f"A Folha de Pagamento ({formar_real(d['folha_total'])}) é a "
+        f"principal fonte de pressão sobre as receitas correntes do período.", body))
 
-    el.append(Paragraph("4. Deliberações e Próximos Passos", h2))
-    delibs = ["Levantamento do número exato de matrículas ativas no Ensino em Tempo "
-              "Integral (ETI), para embasar o enquadramento de despesas de estruturação — "
-              "avaliando se é mais estratégico alocá-las na cota de 4% do FUNDEB ETI ou em "
-              "Recursos Próprios para impulsionar o índice constitucional dos 25%."]
+    # 6. SIOPE x Balancete
+    el.append(Paragraph("6. SIOPE × Balancete (FUNDEB)", h2))
+    el.append(Paragraph(f"Despesa do FUNDEB 70% apurada no Balancete (painel): "
+        f"<b>{formar_real(d['desp_70'])}</b>, correspondente a um índice de aplicação de "
+        f"<b>{d['perc_70']:.2f}%</b> sobre a base de cálculo. Recomenda-se confrontar estes "
+        f"valores com o extrato do SIOPE: pequenas divergências são esperadas, mas devem ser "
+        f"justificadas e conciliadas. Atenção para que os rendimentos de aplicação "
+        f"({formar_real(d['rend_fundeb'])}) estejam considerados em ambas as bases.", body))
+    el.append(base_legal("Lei nº 14.113/2020 e Portaria STN/SOF sobre o SIOPE — Sistema de "
+        "Informações sobre Orçamentos Públicos em Educação."))
+
+    # 7. Deliberações
+    el.append(Paragraph("7. Deliberações e Próximos Passos", h2))
+    delibs = ["Levantamento do número exato de matrículas ativas no Ensino em Tempo Integral "
+              "(ETI), para embasar o enquadramento de despesas de estruturação — avaliando se é "
+              "mais estratégico alocá-las na cota de 4% do FUNDEB ETI ou em Recursos Próprios "
+              "para impulsionar o índice constitucional dos 25%.",
+              "Conciliar os valores do FUNDEB entre Balancete e SIOPE, garantindo a inclusão "
+              "dos rendimentos de aplicação financeira em ambas as bases."]
     if d['perc_25'] < 25:
         delibs.append("Reforçar a aplicação em Recursos Próprios (MDE) para atingir o mínimo "
                       "constitucional de 25% até o encerramento do exercício.")
+    else:
+        delibs.append("Priorizar o uso pleno dos recursos vinculados (PNATE e PTE no "
+                      "transporte; PNAE na alimentação) antes do recurso próprio, otimizando "
+                      "as fontes específicas.")
     if d['perc_70'] > 100:
         delibs.append("Monitorar a aplicação em pessoal do FUNDEB, que já consome "
-                      "integralmente a receita do período, evitando comprometer o saldo "
-                      "dos próximos meses.")
+                      "integralmente a receita do período.")
     for i, dl in enumerate(delibs, 1):
         el.append(Paragraph(f"<b>{i}.</b> {dl}", body)); el.append(Spacer(1, 2))
 
-    el.append(Spacer(1, 10))
+    el.append(Spacer(1, 8))
     el.append(HRFlowable(width="100%", color=colors.grey, thickness=0.6, spaceAfter=4))
     el.append(Paragraph(f"Documento gerado automaticamente para uso da Secretaria de "
         f"Educação de {municipio}-MG. Consultoria iG2P — {hoje}.",
@@ -330,6 +437,7 @@ def _pdf_relatorio(d, municipio):
     doc.build(el)
     buf.seek(0)
     return buf.getvalue()
+
 
 # ── CARGA DE DADOS ────────────────────────────────────────────────────────────
 # Atualização Jun 2026: Jan+Fev+Mar+Abr (4 meses)
