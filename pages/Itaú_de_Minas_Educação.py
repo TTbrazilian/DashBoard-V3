@@ -232,7 +232,10 @@ def _pdf_relatorio(d, municipio, secretaria=None):
 
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18*mm, rightMargin=18*mm,
-                            topMargin=16*mm, bottomMargin=16*mm)
+                            topMargin=16*mm, bottomMargin=16*mm,
+                            title="IG2P - Relatórios",
+                            author="iG2P — Plataforma de Gestão Pública",
+                            subject=f"Relatório Analítico e Gerencial — Educação ({municipio})")
     ss = getSampleStyleSheet()
     h_title = ParagraphStyle('t', parent=ss['Title'], fontSize=16, textColor=AZUL,
                              alignment=TA_CENTER, spaceAfter=2)
