@@ -207,7 +207,8 @@ def _dados_relatorio(df_f, df_r, df_df, meses):
     return d
 
 
-# Nome da Secretária(o) de Educação (preencher; em branco gera linha para preenchimento manual)
+# Nome da Secretária(o) de Educação (opcional). Em branco, a linha NÃO aparece
+# no relatório. Para exibir, basta preencher com o nome.
 RELATORIO_SECRETARIA = ""
 
 def _pdf_relatorio(d, municipio, secretaria=None):
@@ -259,14 +260,13 @@ def _pdf_relatorio(d, municipio, secretaria=None):
     # 1. Informações
     el.append(Paragraph("1. Informações da Reunião", h2))
     hoje = datetime.now().strftime("%d/%m/%Y")
+    info = [["Município:", f"{municipio} - MG"]]
     sec_val = secretaria.strip() if secretaria else ""
-    if not sec_val:
-        sec_val = "______________________________"
-    info = [["Município:", f"{municipio} - MG"],
-            ["Secretária(o) de Educação:", sec_val],
-            ["Data:", hoje],
-            ["Pauta Principal:", f"Análise de dados financeiros e orçamentários da "
-                                 f"Educação ({d['periodo']})."]]
+    if sec_val:  # só exibe a linha se um nome for informado (sem linha em branco)
+        info.append(["Secretária(o) de Educação:", sec_val])
+    info.append(["Data:", hoje])
+    info.append(["Pauta Principal:", f"Análise de dados financeiros e orçamentários da "
+                                      f"Educação ({d['periodo']})."])
     t = Table(info, colWidths=[48*mm, 122*mm])
     t.setStyle(TableStyle([('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
         ('FONTSIZE',(0,0),(-1,-1),9.5),('TEXTCOLOR',(0,0),(0,-1),AZUL),
