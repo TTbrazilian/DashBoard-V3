@@ -1,3 +1,6 @@
+# pyright: reportMissingModuleSource=false
+# (reportlab não publica type stubs; o módulo está instalado e funciona em runtime.
+#  Este comentário silencia apenas o aviso de tipagem do Pylance, sem afetar a execução.)
 import streamlit as st
 import pandas as pd
 import plotly.express as px
